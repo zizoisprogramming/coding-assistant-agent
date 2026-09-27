@@ -1,1 +1,16 @@
+# Secrets (API tokens)
 .env
+
+# Competition data must not be redistributed (competition rules §2.4.b)
+data/
+research/raw/
+snapshots/
+results/
+*.tgz
+*.zip
+
+# Python / tooling
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
