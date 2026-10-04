@@ -1,0 +1,10 @@
+name: reader
+description: >-
+  Read-only code investigator. Give it one concrete question (what to find, which names to look for).
+  Returns LOCATION, EVIDENCE (verbatim code lines) and FIX PLAN.
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include ../prompts/reader.md
+tools:
+  - run_command
+  - read_file
+generate_content_config: !include ../configs/sampling.yaml

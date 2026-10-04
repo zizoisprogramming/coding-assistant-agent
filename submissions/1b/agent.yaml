@@ -1,0 +1,21 @@
+name: orchestrator
+description: Coordinates the fix; explores briefly, then delegates reading, editing and verifying to helpers.
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/orchestrator.md
+tools:
+  - run_command
+  - read_file
+  - get_status
+  - submit_patch
+  # Declared only so a call never crashes the task (forum 745028); the prompt prefers git grep.
+  - search_similar_code
+  - get_code_neighbors
+  - get_code_subgraph
+  # skip_summarization stays false: true would end the orchestrator's run after every helper call.
+  - agent_tool:
+      config_path: sub_agents/reader.yaml
+  - agent_tool:
+      config_path: sub_agents/executor.yaml
+  - agent_tool:
+      config_path: sub_agents/verifier.yaml
+generate_content_config: !include configs/sampling.yaml

@@ -1,0 +1,24 @@
+[project]
+name = "coding-assistant-agent"
+version = "0.1.0"
+description = "Gemma 4 Developer Agent competition entry: submissions, local eval and analysis tooling"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    # Competition harness (wheels from the Kaggle wheelhouse, fetched by scripts/fetch_data.py --wheelhouse)
+    "swegemma==0.2.7",
+    "adk-submission==0.2.12",
+    "adk-eval-core==0.1.0",
+    "google-adk==1.36.1",
+    "google-genai==2.11.0",
+    "transformers==5.13.1",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+swegemma = { path = "data/wheelhouse/swegemma-0.2.7-py3-none-any.whl" }
+adk-submission = { path = "data/wheelhouse/adk_submission-0.2.12-py3-none-any.whl" }
+adk-eval-core = { path = "data/wheelhouse/adk_eval_core-0.1.0-py3-none-any.whl" }
+google-adk = { path = "data/wheelhouse/google_adk-1.36.1-py3-none-any.whl" }
+google-genai = { path = "data/wheelhouse/google_genai-2.11.0-py3-none-any.whl" }

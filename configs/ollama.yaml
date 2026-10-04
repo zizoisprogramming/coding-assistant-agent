@@ -1,0 +1,7 @@
+# Local model routing for scripts/run_eval.py: the competition model alias -> Ollama's OpenAI-compatible endpoint.
+# gemma4-12b-32k = gemma4:12b with num_ctx 32768 (Mac plumbing tests only; scores are not representative).
+models:
+  gemma-4-31b-it-qat-w4a16-ct:
+    path: openai/gemma4-12b-32k
+    api_base: http://localhost:11434/v1
+    api_key: ollama

@@ -1,0 +1,12 @@
+name: executor
+description: >-
+  Makes the code change. Give it the exact file:lines, the current code and the fix to apply.
+  Returns CHANGED and CHECK.
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include ../prompts/executor.md
+tools:
+  - run_command
+  - read_file
+  - edit_file
+  - write_file
+generate_content_config: !include ../configs/sampling.yaml
