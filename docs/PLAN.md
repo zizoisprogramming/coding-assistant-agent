@@ -1,103 +1,134 @@
 # Gemma 4 Developer Agent — Competition Plan (living doc)
 
-## >>> START HERE (session handoff, written 2026-09-26) <<<
-**Where we are:** research + design discussion done (all findings below). Nothing built yet. User is a beginner
-to agents/ADK; wants learn-by-building, step-by-step explanations, research-backed answers (see memory), and
-decides personally when planning ends.
+## >>> START HERE (session handoff, updated 2026-10-04) <<<
+**Where we are:** research + design done; first real 31B run done (Google's sample, 2026-09-27); user approved the
+build of two first agents on 2026-10-04 (see "NEXT"). User is a beginner to agents/ADK; wants learn-by-building,
+step-by-step explanations, research-backed answers, and decides personally when planning ends.
 
-**Decisions so far:** single self-planning executor first (rung 1), then add verifier → planner → replanner one at
-a time, measuring each (ablation ladder = paper core). Testing tiers: Mac + Ollama `gemma4:12b` (num_ctx 32768,
-saved as `gemma4-12b-32k`) → Kaggle L4×4 notebook with real 31B W4A16 → 1 LB submission/day. Hosted APIs dropped.
-No Claude/GPT distillation; Qwen3.6-27B (Apache 2.0) is the teacher candidate once LoRA works.
+**Decisions so far:**
+- Build and compare two first agents on identical tasks in one Kaggle session, together with Google's sample:
+  **1a** = plain single agent; **1b** = hybrid orchestrator (main agent never edits; works alone until `get_status`
+  shows `tool_calls_used ≥ 6`, then delegates to `reader` / `executor` / `verifier` agent_tools). No formatter agent.
+  This single-vs-orchestrated comparison is the paper's first ablation. Later rungs: planner `{plan}`, replanner,
+  skills, thinking-on + budget, temperature 0.2, LoRA once it works.
+- Sampling (both): temperature 1.0, top_p 0.95, top_k 64 (Google model card), max_output_tokens 2048, thinking off
+  (`include_thoughts: false`).
+- Budgets: 5 min/task, timeout_seconds 240, max_turns 90, max_tool_calls 60 (1a) / 80 (1b, helpers share it).
+- Declare the 3 graph tools on the root agent anyway (an undeclared/hallucinated tool call ends the task and
+  discards the patch, forum 745028); prompts prefer `git grep`.
+- Testing tiers: Mac + Ollama `gemma4-12b-32k` (plumbing only) → Kaggle L4×4 notebook with the real 31B →
+  1 LB submission/day. Hosted APIs dropped. No Claude/GPT distillation.
 
-**Tomorrow's agenda (agreed):**
-1. Walk through `data/sample_submission/` line by line (agent.yaml, prompts/system.md, configs/sampling.yaml,
-   eval_config.yaml, sub_agents/code_analyzer.yaml) — explain how YAML becomes a running agent.
-2. User runs host notebook `ryanholbrook/getting-started-gemma-4-developer-agent` on Kaggle (L4 GPU, Run All) —
-   watch the agent loop on 2 tasks + measure quota burn (15 min).
-3. Write our rung-1 `submission/agent.yaml` + `prompts/system.md` together (see "NEXT" section).
-
-**Files saved for the new session (copied from session scratchpad on 2026-09-26):**
-- `data/` (gitignored): tasks.jsonl, HARNESS_README.md, sample_submission/, docker/, sandbox/.
-- `research/raw/` (gitignored): pages/ (official comp pages), paper/ (paper-track pages), forum/ (threads.txt),
-  kernels/ (public notebook sources), harness_src/ (swegemma 0.2.7, adk-submission 0.2.11, adk-eval-core 0.1.0),
-  all_files.json (dataset file list), wheelhouse_files.txt.
-- `scripts/kaggle_api.py`: tiny Kaggle API helper (reads token from ~/.kaggle/access_token).
-- `docs/PLAN.md`: copy of this plan. `CLAUDE.md`: short project brief pointing to docs/PLAN.md.
-- Not copied (re-downloadable): snapshots (21.5 GB), graphs/embeddings.
-
-**User to-dos status (2026-09-26):** joined BOTH tracks (verified via API: userHasEntered=true); chose to keep the
-current Kaggle token (user decision); `ollama pull gemma4:12b` in progress → then set num_ctx 32768 and
-`/save gemma4-12b-32k`.
+**Next step:** NEXT section below, from Step A. Full session notes of 2026-09-27 → 10-04 are folded into
+"Findings 2026-09-27 → 10-04" below.
 
 ## Context
 Kaggle "Google – The Gemma 4 Developer Agent Competition" (Google DeepMind, Featured, $65k) + optional
 Paper Track ($35k). Goal: turn `gemma-4-31b-it-qat-w4a16-ct` into an autonomous SWE agent that fixes Python
-bug-fix / feature-request tasks offline. Repo `coding-assistant-agent` is empty (README only) — greenfield.
-Working mode: learn + build, $0 compute (Kaggle only), both tracks.
+bug-fix / feature-request tasks offline. Working mode: learn + build, $0 compute (Kaggle only), both tracks.
 
-## NEXT: Build P0 + Rung 1 (single self-planning executor) — decided 2026-09-26
-Goal: an end-to-end loop (pack → local smoke test → Kaggle 31B dev eval → first LB submission) with the
-simplest agent, so every later idea (verifier, planner, skills) is measured against a real baseline.
+## NEXT: Build rung 1a + 1b and compare — approved 2026-10-04
+Goal: end-to-end loop (pack → local smoke test → Kaggle 31B 3-way comparison → first LB submission).
 
 ### Step A — Repo setup (P0)
-- `.gitignore`: `data/`, `research/raw/`, `results/`, `*.tgz`, `*.zip`, `.venv/` (competition data must not be
-  redistributed).
-- Copy scratchpad material into the repo before the session ends: `data/` (tasks.jsonl, sample_submission,
-  HARNESS_README.md, docker/, sandbox/), `research/raw/` (pages/, paper/, forum/, kernels/, harness src/).
-- `pyproject.toml` via `uv` (Python 3.13 to match sandbox); install from the wheelhouse dataset: swegemma 0.2.7,
-  adk-submission 0.2.11, adk-eval-core 0.1.0, google-adk 1.36.1 (+ their deps) — skip the Linux-only vLLM.
-- `scripts/fetch_data.py`: Kaggle API (token file) → download a dev subset of snapshots + graphs/embeddings;
-  fix 0-byte graph/embedding files by hard-linking to the readable copy per commit (forum 742911).
+- `scripts/fetch_data.py`: Kaggle API → CURRENT wheelhouse wheels (adk_submission 0.2.12 since Sep 30; skip
+  Linux-only vllm/flashinfer) into `data/wheels/`; dev-subset snapshots + graphs/embeddings into `data/` (fix 0-byte
+  graph/embedding files by hard-linking, forum 742911).
+- `pyproject.toml` via `uv` (Python 3.13); install the wheelhouse wheels + their PyPI deps.
 - Docker sandbox: `colima start`, build `swebench-sandbox:latest` from `data/docker/Dockerfile.public`.
 
-### Step B — Rung 1 submission (`submission/`)
-- `agent.yaml`: one LlmAgent `executor`, model `gemma-4-31b-it-qat-w4a16-ct`, tools: run_command, read_file,
-  edit_file, write_file, get_status, submit_patch. Graph tools OFF for the baseline (async-blind, symbol-only
-  queries) — added later as an ablation.
-- `prompts/system.md` sections: (1) situation — autonomous, nobody answers, every turn needs a tool call until
-  submit; (2) self-plan — first turn writes TASK SPEC (exact names verbatim, expected/actual, done-when) + 3–6 step
-  plan to `/tmp/plan.md` via run_command, re-read it after a failed check; (3) localize — git log/grep/-S/show,
-  `git grep -n … | head`; (4) reproduce in `/tmp/repro.py` before editing, note pre-existing failing tests;
-  (5) small `edit_file` edits, never tests/config/pytest.ini/conftest.py; (6) re-run repro + nearest tests;
-  (7) pre-submit check `git status --short` + `git diff --stat` (no scratch files, non-empty); (8) submit, then one
-  short text reply. Plus: safe/forbidden git list, output hygiene (`| head -40`, read_file ≤80 lines), no `rg`/
-  `tree`/pip, budget via free `get_status`.
-- `configs/sampling.yaml`: temperature 0.2, top_p 0.95, max_output_tokens 8192, `include_thoughts: false`
-  (thinking off first; thinking_budget isn't forwarded — thinking-on is a later ablation).
-- `eval_config.yaml`: max_time_minutes 5.0, timeout_seconds 240, max_tool_calls 45, max_turns 90
-  (~120 tasks × (5 min + setup) must stay < 12 h).
+### Step B — Submissions
+- `submissions/1a/`: agent.yaml (one `executor`: run_command, read_file, edit_file, write_file, get_status,
+  submit_patch + 3 graph tools), prompts/system.md, configs/sampling.yaml, eval_config.yaml.
+- `submissions/1b/`: `orchestrator` (run_command for read-only checks, read_file, get_status, submit_patch, 3 graph
+  tools, agent_tools reader/executor/verifier); sub_agents/*.yaml; prompts/{orchestrator,reader,executor,verifier}.md.
+  Helpers: reader (run_command, read_file) → `LOCATION / EVIDENCE / FIX PLAN`; executor (+edit_file, write_file) →
+  `CHANGED / CHECK`; verifier (run_command, read_file) → `VERDICT: PASS|FAIL / EVIDENCE / FIX`. All helper
+  instructions include `{problem_description}`. Only the orchestrator submits.
+- Prompt rules (both): one short progress line + one tool call per reply (text survives compaction); find the source
+  package with `git ls-files` first; read ≤60 lines; notes in /tmp/notes.md; never repeat an identical command;
+  read-only git; scratch only in /tmp; no literal curly braces except `{problem_description}` (ADK templating).
 
 ### Step C — Tooling (`scripts/`)
-- `pack.py`: zip `submission/` with agent.yaml at root; validate with swegemma `ALLOWED_SUBMISSION_EXTENSIONS`,
-  `MAX_SUBMISSION_SIZE_BYTES`, `validate_single_declared_model`, and `compile_submission()` (reuse the host
-  notebook's packaging cell logic).
-- `eval_local.sh`: `swegemma eval --sandbox docker --task-ids … --submission-dir submission` with a models-yaml
-  mapping the competition alias → local Ollama (`gemma-4-12b-it-qat-q4_0` GGUF, num_ctx 32768).
-- `analyze.py`: read `summary.json`, `task_results.jsonl`, `traces/` → resolve rate, time/tool-calls per task,
-  failure buckets (no patch, context overflow, timeout, wrong fix, tool errors, test-file edits).
-- `kaggle/eval_31b.ipynb`: adapted from `ryanholbrook/getting-started-gemma-4-developer-agent` (wheelhouse install,
-  VllmServer TP=4, Evaluator with subprocess sandbox) running our `submission/` on the dev subset.
-- `experiments/<date>_<name>/`: config snapshot + summary + notes.md (paper log from day 1).
+- `pack.py`: zip with agent.yaml at root; validate (ALLOWED_SUBMISSION_EXTENSIONS, MAX_SUBMISSION_SIZE_BYTES,
+  validate_single_declared_model, compile_submission()).
+- `eval_local.sh` + `configs/ollama.yaml`: `swegemma eval --sandbox docker` with the competition alias mapped to Ollama.
+- `analyze.py`: ATIF-v1.7 traces → resolved, duration, output tokens, tool calls by name, compaction (prompt-token
+  drops), nudges, repeated commands, helper calls + format compliance, failure buckets.
+- `make_kaggle_notebook.py` → `kaggle/eval_compare.ipynb`: install wheelhouse FIRST, start vLLM once, run
+  [sample without adapters, 1a, 1b] × dev tasks in one session, zip results per config.
+- `experiments/<date>_<name>/`: config snapshot + summary + notes.md (paper log).
 
-### Step D — Dev subset & baseline
-- ~20 tasks across fastapi/rich/requests, mixed sizes incl. title-only ones; keep only tasks whose gold patch
-  passes locally (gold-patch positive control; see notebook `busyaprime/119-of-129-sound-…`).
-- Run rung 1 on Kaggle 31B → baseline resolve rate + failure buckets → first LB submission.
+### Step D — Dev subset
+- ~4 tasks first (fastapi_15588 + 1 more fastapi + 2 rich; NOT fastapi_15661, which needs a hidden module name,
+  forum 745695), gold patch verified locally; grow to ~20.
 
 ### Verification
-- `scripts/pack.py` passes all validators and `compile_submission()` returns the agent tree.
-- Local: 2–3 tasks on Mac (12B via Ollama, Docker sandbox) produce patches, traces and logs without harness errors.
-- Kaggle: 20-task 31B run completes with a resolve rate; first LB submission scores (not error).
-- First measurement to take: L4×4 quota burn rate (15-min test).
+- pack.py validates + compiles 1a and 1b. Mac: 2 tasks each run without harness errors; `{problem_description}`
+  renders (helpers too); top_k reaches the server; 1b helpers return text.
+- Kaggle (one L4×4 session ≈ 1 h wall = 2 h quota): sample vs 1a vs 1b → analyze.py table → first LB submission.
 
-### User actions
-- Rotate the Kaggle API token; join the paper track.
+## Findings 2026-09-27 → 10-04 (VERIFIED unless marked)
+### Harness / ADK internals (source: swegemma 0.2.7, adk_submission 0.2.11, google-adk 1.36.1)
+- Compile path: `compile_submission()` (adk_submission/compiler.py) → validate dir → discover adapters → `load_yaml`
+  (`!include` relative to the INCLUDING file; .md/.txt as text, .yaml parsed) → schema → `compile_llm_agent`.
+  `model:` alias → `LiteLlm(openai/<model>, api_base=vLLM)` (swegemma/models/registry.py); local override via
+  `--models-yaml` with `models: {alias: {path, api_base, api_key}}`. Adapters are served as `openai/<adapter>`.
+- `thinking_config.include_thoughts` → vLLM `chat_template_kwargs.enable_thinking` (resolvers/generation.py);
+  `include_thoughts: false` = reasoning fully OFF (forum 745059). Since Sep 30, thinking_budget + seed are forwarded.
+- `skip_summarization: true` → `Event.is_final_response()` is True → the parent's run ends right after the helper
+  returns → harness nudge. → Keep the default (false) for all agent_tools.
+- Nudges (agent_runner.py L499–730): a round = one ADK run (lasts while the model keeps calling tools). Round ends
+  without submit → canned nudge (generic / thinking hit max_output_tokens / tool call cut off). max_nudges 3; the
+  counter resets after a round containing a tool call; the 4th consecutive tool-less round ends the task. After the
+  loop, an unsubmitted working-tree diff is captured (timeout, turn/tool limits) — but NOT after exceptions such as
+  ContextWindowExceededError or an unknown tool name: those discard the patch (forum 744692, 745028).
+- Context: the whole session history is re-sent on every model call (instruction re-rendered with state each time).
+  Token-threshold compaction runs INSIDE a round in ADK 1.36.1 (`CompactionRequestProcessor`, before model calls):
+  last prompt ≥ token_threshold → the same model summarizes all older events except the last 5; the summary keeps
+  TEXT parts only (tool results lost). Threshold: 14,336 in README/host notebook; the scorer's value is disputed
+  (forum 744692: at 32,768 it can never fire → overflow). No elision possible (no callbacks registered).
+- AgentTool helpers (google/adk/tools/agent_tool.py): new in-memory session per call, empty history, input = one
+  user message with the `request` string; parent state copied in → `{problem_description}` works in helper
+  instructions; child state_delta written back; child history discarded; final non-thought text = tool result.
+  No `output_schema` in the competition schema → helper output format can only be prompted and checked.
+- `get_status` (free) returns tool_calls_used/remaining, max_tool_calls, time_seconds_remaining, max_time_minutes,
+  agent_elapsed_seconds, max_turns, command_timeout_seconds, patch_submitted, patch_size — no token count.
+- Session state: `problem_description` always; `hints` only for some tasks → never reference `{hints}`.
+- Limits (swegemma config.build_submission_limits): max_agents 500, sub-agent depth 50, skills 1,000;
+  generation fields incl. top_k allowed; max_output_tokens ≤ 32,768. Only custom code path = skills.
+
+### First real 31B run (2026-09-27, Google sample, OLD wheelhouse, thinking on, temp 0.2, 5 min / 100 tools)
+- Both tasks (fastapi_15661, fastapi_15588) timed out with no edits (13 tool calls each). Decode ≈ 24–25 tok/s →
+  **5 min ≈ 6–7k output tokens per task**; thought text used most of it and re-derived the task every turn (thoughts
+  were dropped between tool calls — fixed Sep 30).
+- Compaction fired: prompt 15,812 → 5,884 tokens with a 34 s summarization gap; afterwards the agent re-read the
+  same file. Compaction is not a separate event in the ATIF trace → detect via prompt-token drops.
+- `search_similar_code` returned nothing useful; `git grep` found `fastapi/sse.py` in seconds.
+- Kaggle pitfalls: run the wheelhouse install cell FIRST (Kaggle preinstalls another google-adk → pydantic class
+  clash); a kernel restart does not kill the vLLM subprocess (GPUs stay full) → restart the whole session.
+- Quota: L4×4 burns GPU quota at **2×** (2h38m for ~80 min; matches a search-result quote of Kaggle) → ~13.7 h of
+  L4×4 per week ≈ 5–6 twenty-task runs. One vLLM start per session; stop sessions immediately.
+
+### Gemma 4 (tech report arXiv 2607.02770, ai.google.dev model_card_4, prompt-formatting-gemma4)
+- 31B is dense: 60 layers, 5 local : 1 global attention, sliding window 1,024, p-RoPE on global layers; native
+  system role. Recommended sampling: temperature 1.0, top_p 0.95, top_k 64. Keep thoughts across tool calls,
+  strip them between user turns. RULER 96.8 at 32k (bf16, no thinking).
+- 12B vs 31B: LiveCodeBench 72.0 / 80.0, IFEval 97.2 / 98.9, Tau2 avg 69.0 / 76.9, Terminal-Bench Hard 18.0 / 36.0
+  → 12B for plumbing only. Google publishes no SWE-bench number.
+
+### Forum 2026-09-27 → 10-04
+- Sep 30 wheelhouse fixed: thoughts kept between tool calls, single-JSON tool results (+ edit_file unescape
+  fallback), thinking_budget/seed forwarded, LoRA KV cache sized dynamically. Our 09-27 numbers predate it.
+- Open: compaction threshold on the scorer; undeclared/hallucinated tool → patch discarded (host "will implement
+  something"); task-prompt workspace tree hides the source package in 115/129 tasks (745220); agents repeat the same
+  command up to 69× (745774; more loops at temp 0.7 than 0.2 in one 10-task test); platform errors still burn daily
+  slots. LB top 0.24 (several 0.17).
 
 Sources pulled 2026-09-26 via Kaggle API (token in ~/.kaggle/access_token): competition pages (Overview,
 Evaluation, Rules, Data, Model/Budget/Harness Rules, Timeline, Prizes), paper track pages, leaderboard CSV,
 forum threads, public notebooks (incl. host's Getting Started), dataset file list, HARNESS_README.md,
-tasks.jsonl, sample_submission. Local copies: scratchpad `data/`, `pages/`, `paper/`, `forum/`, `kernels/`.
+tasks.jsonl, sample_submission. Gemma 4 sources in research/raw/gemma/ (2026-09-27).
 
 ## Competition facts (VERIFIED unless marked)
 ### Timeline & limits
@@ -129,7 +160,7 @@ tasks.jsonl, sample_submission. Local copies: scratchpad `data/`, `pages/`, `pap
   max_turns. Default = no limit. `timeout_seconds` also bounds the Phase-2 pytest run → keep ≥180–300.
 - Hardware: 4×L4 (96 GB), vLLM 0.19.1 (patched), TP=4, max_model_len **32,768**, gemma4 tool/reasoning parser.
 
-### Leaderboard now (348 teams, 613 submissions)
+### Leaderboard 2026-09-26 (348 teams, 613 submissions) — top 0.24 by 2026-10-04
 - Top = **0.13** (8/58). Distribution: 0.13×4, 0.12×25, 0.10×30, 0.08×42, 0.06×54, 0.05×46 … 0.00×119.
 - Best public notebook (romanrozen, coder + read-only code_analyzer, LOCATION/ROOT CAUSE/FIX PLAN format,
   temp 0.2) = 0.12; a direct fork scored 0.08 (noise!) and took 14.5 h wall clock.
@@ -185,7 +216,7 @@ get_code_subgraph; plus skill helpers run_skill_script / load_skill_resource.
   adk-eval-core 0.1.0, google-adk 1.36.1, vllm 0.19.1 (patched, x86 Linux), transformers 5.13.1, flashinfer.
 - Host notebook `ryanholbrook/getting-started-gemma-4-developer-agent` runs the real 31B model + Evaluator
   on a **Kaggle L4 notebook** (subprocess sandbox; no Docker on Kaggle). → We CAN run real-model local evals
-  on Kaggle for free (quota for L4×4 = UNVERIFIED; check account; queues reported).
+  on Kaggle for free (L4×4 burns quota at 2×, measured 2026-09-27; queues reported).
 - Public wheels miss some test deps (typing-inspection, inline-snapshot, dirty-equals, pytest-httpbin) →
   some gold patches fail locally. Need a "gold-patch positive control" run to know which dev tasks are valid.
 
@@ -210,7 +241,8 @@ Unpacked in scratchpad `src/` — read the code when README and forum disagree.
 
 - **No human in the loop** (verified agent_runner.py L677–739): one initial task message, then only 3 canned
   nudges ("Please continue… or call submit_patch", token-limit variants). Counter resets on any tool call;
-  3 consecutive text-only turns → task ends and the working tree is graded as-is. Questions get the canned nudge.
+  after 3 nudges the 4th consecutive tool-less round ends the task (working tree graded as-is, unless an exception
+  ended it). Questions get the canned nudge.
   → Scaffold rule: never ask, resolve ambiguity from issue wording / code conventions / tests, every turn must
   contain a tool call until submit_patch, then one short text reply to end.
 
@@ -235,7 +267,7 @@ Unpacked in scratchpad `src/` — read the code when README and forum disagree.
 
 ## Our compute (user's Kaggle quota, 2026-09-26)
 - GPU 30 h/week, TPU 20 h/week, "AI Models" $10/day & $100/month, LB submissions don't use quota.
-- UNVERIFIED: whether L4×4 burns quota at 1× or 4× wall-clock → test: run host notebook 15 min, check quota.
+- L4×4 burns quota at 2× wall-clock (measured 2026-09-27: 2h38m for ~80 min).
   If 1×: ~10 real-31B dev evals/week (20 tasks ≈ 2 h + 10–20 min vLLM startup). If 4×: ~2–3/week, lean on
   Mac proxy (small Gemma 4 via MLX/llama.cpp) for plumbing.
 - AI Models credit = hosted models via `kaggle-benchmarks` in notebooks (model list UNVERIFIED). Uses: failure
@@ -360,7 +392,8 @@ Unpacked in scratchpad `src/` — read the code when README and forum disagree.
   hold submit_patch (unsubmitted diffs are auto-extracted anyway); how harness handles workflow-agent roots needs a
   local test; review costs time inside the ~6 min/task budget.
 - **Chosen design (user idea, refined): coder + verifier AgentTool, bounded loop.**
-  - Coder owns edits + submit_patch; calls `verifier` (agent_tool, skip_summarization) after each fix attempt.
+  - Coder owns edits + submit_patch; calls `verifier` (agent_tool, skip_summarization left at default false —
+    true ends the parent's run after each call) after each fix attempt.
   - Verifier = evidence-based, not opinion: runs the /tmp repro script + the closest existing tests + a
     diff audit (names/signatures vs issue, no test/config edits, no scratch files in /workspace, fix complete),
     returns `VERDICT: PASS|FAIL` + for FAIL the exact command, trimmed error (≤20 lines) and the one thing to fix.
@@ -371,9 +404,9 @@ Unpacked in scratchpad `src/` — read the code when README and forum disagree.
   - Baseline noise: coder records failing tests BEFORE editing so verifier can ignore pre-existing failures.
 - Verified from source: verifier's run_command/read_file calls hit the SAME per-task budget (budget_gated uses the
   shared task context) → max_tool_calls must include verifier usage. The agent_tool call itself is not a swegemma
-  tool, so it likely isn't counted (inference). `problem_description` is in session state; whether the AgentTool
-  child sees it via `{problem_description}` in its instruction is UNVERIFIED → test locally; fallback: coder passes
-  issue essentials in the request.
+  tool, so it likely isn't counted (inference). `problem_description` is in session state and AgentTool copies
+  parent state into the child session (verified in google-adk 1.36.1 agent_tool.py, 2026-10-04) → the child can use
+  `{problem_description}` in its instruction.
 - Also relevant: notebook `busyaprime/119-of-129-sound-the-gemma-4-grader-rebuilt` (gold-patch validity of dev tasks).
 
 ## Agent communication topology (researched 2026-09-26)
