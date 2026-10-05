@@ -19,19 +19,26 @@ step-by-step explanations, research-backed answers, and decides personally when 
 - Testing tiers: Mac + Ollama `gemma4-12b-32k` (plumbing only) → Kaggle L4×4 notebook with the real 31B →
   1 LB submission/day. Hosted APIs dropped. No Claude/GPT distillation.
 
-**Progress 2026-10-04 (evening):** committed 54eb1c8 — submissions/1a + 1b, scripts/fetch_data.py, pack.py,
-run_eval.py (Evaluator configured like the scorer; the `swegemma eval` CLI ignores eval_config.yaml and compaction),
-analyze.py, make_kaggle_notebook.py → kaggle/eval_compare.ipynb (sample vs 1a vs 1b, tasks fastapi_15588,
-fastapi_14786, rich_3882, rich_3469). Downloaded: data/wheelhouse (v28 harness wheels), data/wheels (124 test wheels).
-Interrupted (just re-run; each skips finished work): `uv sync` (first run hung on a lock — re-run if `.venv` is empty),
-`docker build -t swebench-sandbox:latest -f Dockerfile.public .` run from data/docker (data/wheels copied to
-data/docker/wheels), `python3 scripts/fetch_data.py --tasks fastapi_15588,fastapi_14786,rich_3882,rich_3469`.
-Docker VM: `colima start --cpu 4 --memory 6 --disk 60`.
-**Next step:** finish those three → `uv run scripts/pack.py submissions/1a` and `.../1b` → Mac smoke test
-`uv run scripts/run_eval.py submissions/1a --tasks rich_3469` (Ollama gemma4-12b-32k running) → fix issues →
-regenerate the notebook → user runs it on Kaggle (L4×4) → `python3 scripts/analyze.py` on the results → first LB
-submission. Not yet done: gold-patch check of the 4 dev tasks; commit uv.lock after a successful sync. Full session notes of 2026-09-27 → 10-04 are folded into
-"Findings 2026-09-27 → 10-04" below.
+**Progress 2026-10-05:** local pipeline works end to end (commits 54eb1c8, c7be418).
+- Done: `uv sync` (.venv), sandbox image `swebench-sandbox:latest` rebuilt as **linux/amd64** (the public test wheels
+  are x86_64-only; colima runs with `--vm-type vz --vz-rosetta`; built via run + docker cp + commit because the legacy
+  builder mishandles --platform). Missing public test wheels (typing-inspection, inline-snapshot, dirty-equals,
+  asttokens, executing; forum 745775) live in data/wheels_extra and are merged locally only (run_eval.wheels_dir_for).
+  swegemma caches unpacked wheels in $TMPDIR/swegemma_sp_cache_v8/sp_base.tar — delete it after changing wheels.
+- Dev set (gold patch passes via scripts/gold_check.py): fastapi_15588, fastapi_15589, rich_3882, rich_3470.
+  Dropped: fastapi_14786 (needs older starlette), rich_3469 (gold fails a pygments-dependent test).
+- pack.py validates + compiles 1a and 1b. Ollama ignores enable_thinking → run_eval sends reasoning_effort=none.
+- Smoke tests on rich_3470 with the 12B (results/smoke2_1a, smoke2_1b; not score-relevant): both time out unsolved.
+  1a: 36 calls, 22 repeated near-identical commands (looping). 1b: orchestrator explored, then called reader, which
+  worked 138 s and returned an EMPTY final message ({"raw": ""}); orchestrator re-asked and ran out of time. The 12B
+  never wrote the "progress line" text before tool calls. Added a single-quote rule to all prompts (12B sent
+  backslash-escaped quotes).
+- Open questions before/after Kaggle: should helpers get a hard tool-call cap + "stop and answer" rule, and should the
+  orchestrator continue on its own instead of re-asking after an empty reply? Judge on the 31B, not the 12B.
+**Next step:** user runs kaggle/eval_compare.ipynb on Kaggle (File → Import Notebook; attach competition data,
+metric/gemma-4-developer-agent-wheelhouse, model gemma-4-31b-it-qat-w4a16-ct v2; GPU L4×4; Run All; download
+results.zip into data/results/; stop the session) → `python3 scripts/analyze.py` per config → decide prompt changes
+→ first LB submission (dist/1a.zip or dist/1b.zip via `uv run scripts/pack.py`).
 
 ## Context
 Kaggle "Google – The Gemma 4 Developer Agent Competition" (Google DeepMind, Featured, $65k) + optional
