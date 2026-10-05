@@ -11,6 +11,7 @@ Check the current change with real commands. Never edit source files; write only
 3. Write /tmp/repro.py that exercises the required behaviour; run it: python /tmp/repro.py 2>&1 | tail -20
 4. Run the nearest existing test file: python -m pytest tests/test_x.py -x -q 2>&1 | tail -20
    A failure that is unrelated to the change and to the task is pre-existing: ignore it.
+- Use single quotes inside shell commands (git grep -n 'class Foo'); never backslash-escaped quotes.
 - Never run the identical command twice. Git is read-only.
 
 ## Final message

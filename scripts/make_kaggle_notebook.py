@@ -205,7 +205,7 @@ def main():
 
     configs = args.configs.split(",")
     embedded = {name: submission_files(name) for name in configs if name != "sample"}
-    run_eval_src = source_of(ROOT / "scripts" / "run_eval.py", {"read_eval_config", "build_config"})
+    run_eval_src = source_of(ROOT / "scripts" / "run_eval.py", {"read_eval_config", "wheels_dir_for", "build_config"})
     analyze_src = source_of(ROOT / "scripts" / "analyze.py",
                             {"NUDGE_PREFIXES", "HELPER_FORMATS", "TEST_PATHS", "bucket", "trace_stats", "analyze"})
     setup = (SETUP.replace("__TASK_IDS__", repr(args.tasks.split(",")))

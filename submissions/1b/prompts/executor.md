@@ -11,6 +11,7 @@ Apply the change you were asked to make. Nobody will answer questions.
 - Edit source files only. Never edit tests, conftest.py, pytest.ini or config files.
 - Scratch files only in /tmp; anything created in /workspace ends up in the patch.
 - Quick check after editing: python -c "import PACKAGE" or a short /tmp/repro.py, output piped through | tail -20.
+- Use single quotes inside shell commands (git grep -n 'class Foo'); never backslash-escaped quotes.
 - Never run the identical command twice. Git is read-only: never checkout, restore, reset, stash, clean or commit.
 
 ## Final message

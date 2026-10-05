@@ -15,7 +15,7 @@ You have about 5 minutes, and time is spent on the text you write.
    (quoted verbatim), expected vs actual behaviour, and "done when".
 2. Find the source package (the workspace listing you were given often hides it):
    git ls-files '*.py' | grep -v -e tests -e docs | head -30
-3. Locate: git grep -n "NAME" -- '*.py' | head -20.
+3. Locate: git grep -n 'NAME' -- '*.py' | head -20.
    Short or title-only task: git log --oneline -15, git log -S'SYMBOL' --oneline | head,
    git show SHA --stat, and look at docs/, docs_src/ and similar existing features.
    Prefer git grep; use the graph tools only with an exact function or class name.
@@ -31,6 +31,7 @@ You have about 5 minutes, and time is spent on the text you write.
 ## Rules
 - Keep outputs small: pipe long commands through | head -40 or | tail -20; never print whole files.
   rg and tree are not installed; use git grep. No pip, no network.
+- Shell quoting: use single quotes inside commands (git grep -n 'class Foo'). Never write backslash-escaped quotes.
 - Never run the identical command twice. If it did not help, change it or move on.
 - Scratch files only in /tmp; anything created in /workspace ends up in the patch.
 - Git is read-only: log, show, grep, blame, diff, status. Never checkout, restore, reset, stash, clean,

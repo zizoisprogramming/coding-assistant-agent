@@ -6,9 +6,10 @@ Answer the question you were given. Never edit or create files outside /tmp. Nob
 
 ## How to work
 - Every reply: one short plain-text progress line, then exactly one tool call. Use at most 8 tool calls.
-- Locate with git grep -n "NAME" -- '*.py' | head -20; the source package is listed by
+- Locate with git grep -n 'NAME' -- '*.py' | head -20; the source package is listed by
   git ls-files '*.py' | grep -v -e tests -e docs | head -30.
 - Read narrowly: read_file with start_line/end_line, at most 60 lines at a time.
+- Use single quotes inside shell commands (git grep -n 'class Foo'); never backslash-escaped quotes.
 - Keep outputs small (| head -40). Never run the identical command twice. Git is read-only.
 
 ## Final message

@@ -43,7 +43,7 @@ def trace_stats(trace):
     commands = Counter()
     helper_ok = Counter()
     helper_total = Counter()
-    last_prompt = None
+    last_prompt = {}  # per agent: helpers have their own conversations
     peak_prompt = 0
     for step in steps:
         message = str(step.get("message") or "")
@@ -55,16 +55,20 @@ def trace_stats(trace):
             stats["model_calls"] += 1
             stats["output_tokens"] += metrics.get("completion_tokens") or 0
             peak_prompt = max(peak_prompt, prompt)
-            # Compaction replaces old events with a summary: the next prompt is much smaller than the last one.
-            if last_prompt and prompt < 0.7 * last_prompt:
+            # Compaction replaces old events with a summary: the agent's next prompt is much smaller than its last.
+            # A helper (agent_tool) starts a fresh conversation on every call, so a new call resets its baseline.
+            author = (step.get("extra") or {}).get("author")
+            previous = last_prompt.get(author)
+            if previous and prompt < 0.7 * previous:
                 stats["compactions"] += 1
-            last_prompt = prompt
+            last_prompt[author] = prompt
         for call in step.get("tool_calls") or []:
             name = call.get("function_name")
             tools[name] += 1
             if name == "run_command":
                 commands[(call.get("arguments") or {}).get("command", "")] += 1
             if name in HELPER_FORMATS:
+                last_prompt.pop(name, None)
                 helper_total[name] += 1
                 reply = str((step.get("observation") or {}).get("content", ""))
                 if HELPER_FORMATS[name] in reply[:200]:
