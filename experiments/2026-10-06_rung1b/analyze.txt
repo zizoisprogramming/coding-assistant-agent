@@ -1,0 +1,41 @@
+################ sample
+
+## sample: 1/4 resolved
+task             outcome              sec calls out_tok peak_in compact nudge repeat errors broken  tools / helpers
+-------------------------------------------------------------------------------------------------------------------
+fastapi_15588    wrong fix            214    21    5519   14838       1     0      1      5      0  edit_file×8, read_file×5, run_command×4, search_similar_code×1, write_file×1, submit_patch×1
+                 patch: fastapi/sse.py
+fastapi_15589    wrong fix            309    28    8763   15438       2     0      2      1      0  read_file×12, run_command×11, edit_file×3, write_file×2
+                 patch: fastapi/dependencies/utils.py, fastapi/openapi/utils.py, repro.py
+                 error: Agent exceeded session timeout (5.0 min)
+rich_3882        resolved              96    20    2959   12913       0     0      1      0      0  run_command×8, read_file×4, write_file×3, submit_patch×2, edit_file×1, get_status×1
+                 patch: rich/prompt.py
+rich_3470        edited tests         305    50    7775   14574       1     0      5      5      0  run_command×23, read_file×22, write_file×5
+                 patch: test_capture.py, test_record_capture.py
+                 error: Agent exceeded session timeout (5.0 min)
+################ 1a
+
+## 1a: 3/4 resolved
+task             outcome              sec calls out_tok peak_in compact nudge repeat errors broken  tools / helpers
+-------------------------------------------------------------------------------------------------------------------
+fastapi_15588    wrong fix             64    14    1174   14630       1     0      0      0      0  run_command×6, read_file×4, edit_file×2, submit_patch×1
+                 patch: fastapi/sse.py
+fastapi_15589    resolved             171    23    4878   14659       1     0      0      0      0  run_command×16, read_file×4, edit_file×1, submit_patch×1
+                 patch: fastapi/dependencies/utils.py
+rich_3882        resolved             115    27    3716    9968       0     0      9      1      0  run_command×22, read_file×2, edit_file×1, submit_patch×1
+                 patch: rich/prompt.py
+rich_3470        resolved             135    33    3934   15524       1     1      1      2      1  read_file×16, run_command×12, edit_file×2, submit_patch×1
+                 patch: rich/console.py
+################ 1b
+
+## 1b: 2/4 resolved
+task             outcome              sec calls out_tok peak_in compact nudge repeat errors broken  tools / helpers
+-------------------------------------------------------------------------------------------------------------------
+fastapi_15588    overflow             188    51    5012   29417       0     0      0      4      0  read_file×27, run_command×17, edit_file×6, reader×1, executor×1 | format ok reader 1/1
+                 error: Sandbox execution error: litellm.ContextWindowExceededError: litellm.BadRequestError: ContextWindowExceededError: OpenAIException - This model's maxim
+fastapi_15589    resolved             229    41    6714   15783       1     0      1      4      0  run_command×24, read_file×9, edit_file×3, reader×1, executor×1, verifier×1, submit_patch×1 | format ok reader 0/1, executor 1/1, verifier 1/1
+                 patch: fastapi/dependencies/utils.py
+rich_3882        resolved              83    30    2492    9113       0     0      2      2      0  run_command×16, read_file×7, get_status×1, reader×1, executor×1, edit_file×1, verifier×1, submit_patch×1 | format ok reader 1/1, executor 1/1, verifier 1/1
+                 patch: rich/prompt.py
+rich_3470        wrong fix            221    53    7008   14297       0     1      1      6      1  run_command×29, read_file×13, executor×2, edit_file×2, verifier×2, reader×1, submit_patch×1 | format ok reader 0/1, executor 2/2, verifier 0/2
+                 patch: rich/console.py
