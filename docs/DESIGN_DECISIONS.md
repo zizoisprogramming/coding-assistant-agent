@@ -87,6 +87,17 @@ step had an empty message). **Options:** keep, drop (saves tokens), or replace w
 1a has no verifier; it relies on the prompt's "re-run repro + nearest tests". **Option:** give 1a the verifier as its
 only helper (= ladder rung 2). **Settled by:** wrong-fix rate of 1a vs 1b.
 
+### D6b. Merge executor and verifier (user idea, 2026-10-06)
+**Question:** for simple tasks, do separate helpers waste time and lose context? Evidence that they can: Google
+"Towards a Science of Scaling Agent Systems" (arXiv 2512.08296: sequential tasks −39–70 % under multi-agent variants;
+coordination tax on tool-heavy tasks), MAST (arXiv 2503.13657: hand-off information loss), our 12B reader returning
+nothing after 138 s. Counter-argument: a verifier needs the diff + tests (on disk), not the executor's memory; a
+separate checker gives "fresh eyes" (self-checking tends to confirm: arXiv 2603.25764; review loops helped in
+SWE-Review, arXiv 2607.06065).
+**Options:** 1a already = merged (one agent edits and verifies); 1b = separated; candidate **1c** = orchestrator +
+reader + one "fixer" that edits *and* runs the checks.
+**Settled by:** first Kaggle comparison — if 1b's verifier mostly costs time without catching wrong fixes, build 1c.
+
 ### D7. Planner (`{plan}` re-injected every turn) and replanner
 Ladder rungs 3–4 (PLAN.md). Planner = SequentialAgent [planner (output_key=plan) → executor with `{plan}` in its
 instruction]. Paper evidence: planning helps weaker models (+11.6 pts for a 30B at tight budgets). **When:** after
@@ -126,6 +137,49 @@ tight) or per-task early stops. **Settled by:** time-to-first-edit and timeout r
 ### D13. Dev set size
 Currently 4 gold-checked tasks (1 task = 25 %, directional only). **Plan:** grow to ~20 gold-checked tasks across
 fastapi / rich / requests before trusting differences (~2 h Kaggle wall = ~4 h quota per config).
+
+### D15. Time — how to let the agent finish faster
+**Where time goes (verified, 09-27 traces):** decode ≈ 25 tok/s on 4×L4; prefill is fast (vLLM prefix caching on).
+Time ≈ output tokens / 25 + steps × (per-step overhead + command runtime). For us, **output tokens and number of
+turns dominate**; input size matters mostly for the 32k limit, not for time — consistent with
+[Token Reduction Is Not Cost Reduction (arXiv 2607.12161)](https://arxiv.org/html/2607.12161v5).
+
+**Levers we control (research):**
+1. *Write less per step.* [The Danger of Overthinking (arXiv 2502.08235)](https://arxiv.org/pdf/2502.08235): more
+   internal reasoning instead of acting → worse SWE-bench Verified results; choosing less-overthinking runs gave
+   ~+30 % performance at −43 % compute. [TACT (arXiv 2605.05980)](https://arxiv.org/html/2605.05980): reducing
+   overthinking/overacting cut steps-to-resolve by up to 26 %. → thinking off or budgeted (D9), short replies.
+2. *Fewer turns via turn limits + reminders.* [More with Less (arXiv 2510.16786)](https://arxiv.org/html/2510.16786):
+   limit at the 75th percentile of baseline turns + "X turns left" reminder → −24 % to −68 % cost with negligible
+   solve-rate loss; dynamic budget (start small, one extension) → further −12 % to −24 %. We cannot inject reminders
+   (harness owns the loop), but get_status is free and the prompt can set step targets from our measured distribution.
+3. *Several tool calls in one reply.* [LLMCompiler (arXiv 2312.04511)](https://arxiv.org/pdf/2312.04511): parallel
+   function calls → 2.89× lower latency. ADK runs multiple calls from one reply, concurrently only for async tools
+   ([ADK tool performance](https://google.github.io/adk-docs/tools-custom/performance/)); swegemma tools are sync
+   (verified) → they run sequentially, but one model turn replaces several.
+4. *Fewer exploration steps.* [Agentless (arXiv 2407.01489)](https://huggingface.co/papers/2407.01489): fixed
+   localize → repair → validate pipeline, 32 % SWE-bench Lite at low cost. [SWE-Pruner (arXiv 2601.16746)](https://arxiv.org/html/2601.16746v3):
+   focused context → up to 26 % fewer rounds. → repo-map skill (D8), git grep over browsing.
+5. *Cheaper edits.* [SWE-Edit (arXiv 2604.26102)](https://arxiv.org/html/2604.26102v1): better edit mechanics → −17.9 %
+   cost and +2.1 % resolve rate. → small edit_file calls with minimal old_string.
+6. *Concurrent model work (untested idea).* Decode is memory-bound, so 2–4 concurrent requests cost ~the same time per
+   token as one ([vLLM optimization](https://docs.vllm.ai/en/stable/configuration/optimization/),
+   [continuous batching](https://www.zeroentropy.dev/concepts/continuous-batching/)). ADK ParallelAgent could run e.g.
+   two readers at once. Risks: shared sandbox, unknown harness handling of a parallel tree → test locally first.
+
+**Levers we do not control:**
+- Speculative decoding with Gemma 4's MTP drafter: ~3× faster decode for the 31B (42.6 → 135.9 tok/s on H100,
+  [Google blog](https://blog.google/innovation-and-ai/technology/developers-tools/multi-token-prediction-gemma-4/),
+  [vLLM PR #41745](https://github.com/vllm-project/vllm/pull/41745)). Scorer runs `speculative_config=None` (09-27 vLLM
+  log) — only a feature request to the hosts could change it.
+- History trimming between steps ([AgentDiet, arXiv 2509.23586](https://arxiv.org/html/2509.23586v2): −40–60 % input
+  tokens) needs callbacks — not available.
+- Tasks run sequentially on the scorer.
+
+**Proposed order (not done yet):** (1) keep thinking off/budgeted + one line + one tool call per step;
+(2) prompt rule: batch independent lookups in one reply; (3) measure the turn distribution on Kaggle, set step targets
+at ~75th percentile; (4) repo-map skill; (5) later, test ParallelAgent locally.
+**Settled by:** time-to-first-edit, turns per task, output tokens per task, timeout rate (analyze.py).
 
 ### D14. LoRA
 Blocked: scorer loads adapters with zeroed weights (forum 743508); LoRA also shrinks KV cache. Training-data route

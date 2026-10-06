@@ -18,10 +18,10 @@ HELPER_FORMATS = {"reader": "LOCATION:", "executor": "CHANGED:", "verifier": "VE
 TEST_PATHS = ("tests/", "test_", "conftest.py", "pytest.ini")
 
 
-def bucket(task):
-    """Coarse failure bucket from the harness result."""
+def bucket(task, patch=""):
+    """Coarse failure bucket from the harness result (patch text comes from patches/<id>.patch)."""
     error = (task.get("error") or "").lower()
-    patch = task.get("agent_patch") or ""
+    patch = patch or task.get("agent_patch") or ""
     if task.get("resolved"):
         return "resolved"
     if "context" in error and ("window" in error or "length" in error):
@@ -69,10 +69,25 @@ def trace_stats(trace):
                 commands[(call.get("arguments") or {}).get("command", "")] += 1
             if name in HELPER_FORMATS:
                 last_prompt.pop(name, None)
-                helper_total[name] += 1
-                reply = str((step.get("observation") or {}).get("content", ""))
-                if HELPER_FORMATS[name] in reply[:200]:
-                    helper_ok[name] += 1
+        # Observations are tagged with the tool that produced them. Helper (agent_tool) replies arrive as
+        # {"raw": "<final text>"} in the step whose observation is tagged with the helper's name.
+        observation = step.get("observation") or {}
+        source = (observation.get("extra") or {}).get("tool_name")
+        content = str(observation.get("content", ""))
+        if '"status": "error"' in content[:40] or "'status': 'error'" in content[:40] or content.startswith('{"error"'):
+            stats["tool_errors"] += 1
+        if source in HELPER_FORMATS:
+            helper_total[source] += 1
+            try:
+                reply = json.loads(content).get("raw", content)
+            except (ValueError, AttributeError):
+                reply = content
+            if HELPER_FORMATS[source] in reply[:300]:
+                helper_ok[source] += 1
+            if "<|tool_call>" in reply:
+                stats["broken_calls"] += 1
+        if "<|tool_call>" in message:
+            stats["broken_calls"] += 1
     stats["peak_prompt"] = peak_prompt
     stats["repeated_cmds"] = sum(n - 1 for n in commands.values() if n > 1)
     helpers = {h: f"{helper_ok[h]}/{helper_total[h]}" for h in helper_total}
@@ -84,7 +99,7 @@ def analyze(results_dir):
     tasks = [json.loads(line) for line in (results_dir / "task_results.jsonl").read_text().splitlines() if line]
     print(f"\n## {results_dir.name}: {sum(t.get('resolved', False) for t in tasks)}/{len(tasks)} resolved")
     header = (f"{'task':<16} {'outcome':<18} {'sec':>5} {'calls':>5} {'out_tok':>7} {'peak_in':>7} "
-              f"{'compact':>7} {'nudge':>5} {'repeat':>6}  tools / helpers")
+              f"{'compact':>7} {'nudge':>5} {'repeat':>6} {'errors':>6} {'broken':>6}  tools / helpers")
     print(header)
     print("-" * len(header))
     for task in tasks:
@@ -92,11 +107,17 @@ def analyze(results_dir):
         trace_file = results_dir / "traces" / f"trace_{task_id}.json"
         trace = json.loads(trace_file.read_text()) if trace_file.exists() else {}
         stats, tools, helpers = trace_stats(trace)
+        patch_file = results_dir / "patches" / f"{task_id}.patch"
+        patch = patch_file.read_text() if patch_file.exists() else ""
         tool_list = ", ".join(f"{name}×{n}" for name, n in tools.most_common())
         helper_list = (" | format ok " + ", ".join(f"{h} {v}" for h, v in helpers.items())) if helpers else ""
-        print(f"{task_id:<16} {bucket(task):<18} {task.get('duration_seconds', 0):>5.0f} {stats['model_calls']:>5} "
+        print(f"{task_id:<16} {bucket(task, patch):<18} {task.get('duration_seconds', 0):>5.0f} {stats['model_calls']:>5} "
               f"{stats['output_tokens']:>7} {stats['peak_prompt']:>7} {stats['compactions']:>7} "
-              f"{stats['nudges']:>5} {stats['repeated_cmds']:>6}  {tool_list}{helper_list}")
+              f"{stats['nudges']:>5} {stats['repeated_cmds']:>6} {stats['tool_errors']:>6} {stats['broken_calls']:>6}  "
+              f"{tool_list}{helper_list}")
+        if patch:
+            changed = [line.split(" b/")[-1] for line in patch.splitlines() if line.startswith("diff --git")]
+            print(f"{'':<16} patch: {', '.join(changed)}")
         if task.get("error"):
             print(f"{'':<16} error: {task['error'][:150]}")
 
