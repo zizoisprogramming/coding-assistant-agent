@@ -146,6 +146,8 @@ from google.adk.apps._configs import EventsCompactionConfig
 from swegemma.config import EvalConfig, build_submission_limits
 from swegemma.evaluate import Evaluator
 
+DATA = DATA_DIR  # default used by build_config (copied from scripts/run_eval.py)
+
 
 __RUN_EVAL__
 

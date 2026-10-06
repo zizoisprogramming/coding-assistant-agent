@@ -100,7 +100,17 @@ search (graphs miss async code), test finder (nearest tests for a file). **Risk:
 ### D9. Thinking on + budget
 Since the Sep 30 wheelhouse, thoughts are kept between tool calls and `thinking_budget` is forwarded (forum,
 host-confirmed). Thinking may now help instead of re-deriving the task every step, but kept thoughts fill the 32k
-context faster. **Measure:** 1a with `include_thoughts: true, thinking_budget: 512/1024` vs off.
+context faster.
+**How thoughts persist (Gemma 4 `chat_template.jinja`, HF main; Kaggle's copy may differ):** a past thought is
+rendered only if it comes after the last *user* message. Tool results are not user messages, so within one task all
+thoughts stay in the prompt; a harness nudge is a new user message and drops all earlier thoughts.
+**We cannot strip thoughts ourselves:** no callbacks to edit history; `include_thoughts: false` disables thinking
+entirely (no "think but don't keep" mode, forum 745059 unanswered).
+**Options:** (a) thinking everywhere with `thinking_budget` 512/1024; (b) **thinking only in helpers (1b)** — each
+agent has its own generate_content_config, and a helper's whole session (thoughts included) is discarded when it
+returns, so reasoning costs time but not orchestrator context; (c) off (current).
+**Cost:** ~25 tok/s → a 1,000-token thought ≈ 40 s per step.
+**Measure:** 1a off vs 1a budget 512; 1b with thinking only in reader/verifier vs all off.
 
 ### D10. Temperature 1.0 vs 0.2
 Google recommends 1.0; one forum test saw more loops at 0.7 than 0.2. **Measure** after the first comparison.
