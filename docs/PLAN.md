@@ -35,6 +35,7 @@ step-by-step explanations, research-backed answers, and decides personally when 
   backslash-escaped quotes).
 - Open questions before/after Kaggle: should helpers get a hard tool-call cap + "stop and answer" rule, and should the
   orchestrator continue on its own instead of re-asking after an empty reply? Judge on the 31B, not the 12B.
+**Open design questions:** `docs/DESIGN_DECISIONS.md` (settled S1–S10, open D1–D14 incl. context offloading).
 **Next step:** user runs kaggle/eval_compare.ipynb on Kaggle (File → Import Notebook; attach competition data,
 metric/gemma-4-developer-agent-wheelhouse, model gemma-4-31b-it-qat-w4a16-ct v2; GPU L4×4; Run All; download
 results.zip into data/results/; stop the session) → `python3 scripts/analyze.py` per config → decide prompt changes
