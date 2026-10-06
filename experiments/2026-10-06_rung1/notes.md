@@ -43,3 +43,9 @@ Raw results: `data/results/2026-10-06_rung1/` (gitignored). Full table: `analyze
   no backticks in tool arguments or helper requests.
 - Conventions: "match existing error messages, names and style in the same file".
 - Then decide D2/D6b (1b helpers) with clean runs.
+
+## Applied (commit after this note)
+Prompt round 2 applied to 1a and all four 1b prompts: heredoc-only /tmp scratch files + delete stray /workspace
+files before submit; examples written as "run_command: ..."; never write tool calls as text, tool name is always a
+real tool; no backticks (orchestrator requests plain text); match existing message wording/naming/style and cover
+equivalent cases (\r and \n); helpers stop after their tool cap and answer in plain text. Re-run: same 4 tasks.
