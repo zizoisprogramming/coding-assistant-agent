@@ -1,0 +1,21 @@
+
+## 1a: 1/4 resolved
+task             outcome              sec calls out_tok peak_in compact nudge repeat errors broken  tools / helpers
+-------------------------------------------------------------------------------------------------------------------
+fastapi_15588    wrong fix            162    19    4127   14753       1     0      1      2      0  run_command×9, edit_file×5, read_file×3, submit_patch×1
+                 patch: fastapi/sse.py
+fastapi_15589    timeout, no patch    307    44    9180   14418       1     0      6     10      0  run_command×24, read_file×11, edit_file×9
+                 error: Agent exceeded session timeout (5.0 min)
+rich_3882        resolved              41    17     976   10941       0     0      0      0      0  run_command×7, read_file×7, edit_file×1, submit_patch×1
+                 patch: rich/prompt.py
+rich_3470        no patch             142    53    3790   14481       1     0      1      1      0  read_file×32, run_command×16, edit_file×3, submit_patch×1
+
+## 1b: 1/4 resolved
+task             outcome              sec calls out_tok peak_in compact nudge repeat errors broken  tools / helpers
+-------------------------------------------------------------------------------------------------------------------
+fastapi_15588    wrong fix            186    46    5572   14043       0     0      2      6      0  run_command×35, edit_file×4, reader×1, executor×1, verifier×1, submit_patch×1 | format ok reader 0/1, executor 1/1, verifier 1/1
+                 patch: fastapi/sse.py
+fastapi_15589    no patch             176    29    4695   14806       1     0      0      0      0  run_command×21, read_file×4, reader×1, get_status×1, submit_patch×1 | format ok reader 0/1
+rich_3882        resolved              80    24    2489    6886       0     0      1      0      0  run_command×17, read_file×1, executor×1, edit_file×1, verifier×1, submit_patch×1 | format ok executor 0/1, verifier 1/1
+                 patch: rich/prompt.py
+rich_3470        no patch             218    63    6590   13793       0     0      2      3      0  run_command×50, reader×2, executor×2, edit_file×2, get_status×1, verifier×1, submit_patch×1 | format ok reader 1/2, executor 1/2, verifier 1/1
