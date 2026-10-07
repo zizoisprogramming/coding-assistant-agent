@@ -5,7 +5,7 @@ what result would settle it. "Measure" means: change one thing, run it on the de
 `scripts/analyze.py`. Evidence labels: **verified** (harness/ADK source or our own runs), **forum** (other participants,
 not checked by us), **12B** (Mac smoke test — behaviour only, not quality).
 
-Last updated: 2026-10-06.
+Last updated: 2026-10-07.
 
 ---
 
@@ -21,7 +21,7 @@ Last updated: 2026-10-06.
 | S6 | No formatter agent; root agent uses unformatted helper replies as-is | Extra model call; cannot recover an empty reply | — |
 | S7 | 1b delegates once `get_status.tool_calls_used ≥ 6` | Model cannot see its token count; get_status is free (verified) | D3 |
 | S8 | Only the root agent calls `submit_patch` | Avoids a helper ending the task early | — |
-| S9 | Budgets: 5 min/task, 240 s command timeout, 90 turns, 60 (1a) / 80 (1b) tool calls | ~120 tasks × ~5.3 min ≈ 10.6 h < 12 h hard limit | D12 |
+| S9 | Budgets: 5 min/task, 240 s command timeout, 90 turns, 60 (1a) / 80 (1b) tool calls. **Leaderboard submissions: 4 min / 50 calls** (since 10-07) | ~120 tasks × ~5.3 min ≈ 10.6 h < 12 h hard limit; the first 1a submission (5 min) ended in "Kaggle Error" after ~13 h (likely the 12 h limit, unconfirmed) | D12, D17 |
 | S10 | Shell commands use single quotes | 12B sent backslash-escaped quotes and re-ran failing greps (12B) | — |
 
 ---
@@ -96,7 +96,17 @@ separate checker gives "fresh eyes" (self-checking tends to confirm: arXiv 2603.
 SWE-Review, arXiv 2607.06065).
 **Options:** 1a already = merged (one agent edits and verifies); 1b = separated; candidate **1c** = orchestrator +
 reader + one "fixer" that edits *and* runs the checks.
-**Settled by:** first Kaggle comparison — if 1b's verifier mostly costs time without catching wrong fixes, build 1c.
+**Rung-1b evidence (10-06, 4 tasks):** the verifier caught one real regression (rich_3470, round 1: "test_capture_and_record
+fails"), but its second reply was prose without a VERDICT and the orchestrator submitted a still-broken fix. Round 3 makes
+the orchestrator run the baseline test file itself before submitting (fix E).
+**SWE-Edit ([arXiv 2604.26102](https://arxiv.org/abs/2604.26102)):** the closest published design to 1b — main agent +
+Viewer (returns only task-relevant code) + Editor (applies an edit from a plain-language plan); +2.1 % resolved,
+−17.9 % cost on SWE-bench Verified. There is **no verifier helper**: the main agent runs the tests itself. Their savings
+come from a cheaper helper model and fewer main-agent *input* tokens; neither applies to us (one model; input tokens
+cost almost no time, D15), so for us the split is about context (32k) and edit reliability (edit success
+93.4 → 96.1 %), not speed. Delegating edits made their main agent explore more (+10 % cost).
+**Settled by:** round-3 run — if the verifier still adds time without catching wrong fixes that the orchestrator's own
+test run would miss, build 1c (orchestrator runs tests; no verifier helper).
 
 ### D7. Planner (`{plan}` re-injected every turn) and replanner
 Ladder rungs 3–4 (PLAN.md). Planner = SequentialAgent [planner (output_key=plan) → executor with `{plan}` in its
@@ -120,7 +130,7 @@ entirely (no "think but don't keep" mode, forum 745059 unanswered).
 **Options:** (a) thinking everywhere with `thinking_budget` 512/1024; (b) **thinking only in helpers (1b)** — each
 agent has its own generate_content_config, and a helper's whole session (thoughts included) is discarded when it
 returns, so reasoning costs time but not orchestrator context; (c) off (current).
-**Cost:** ~25 tok/s → a 1,000-token thought ≈ 40 s per step.
+**Cost:** ~36 tok/s measured (D15) → a 1,000-token thought ≈ 28 s per step.
 **Measure:** 1a off vs 1a budget 512; 1b with thinking only in reader/verifier vs all off.
 
 ### D10. Temperature 1.0 vs 0.2
@@ -131,17 +141,22 @@ Declared only as crash insurance (S5); `search_similar_code` returned 0 results 
 on 09-27 (verified). **Decide:** remove once the host confirms unknown tool calls no longer end the task.
 
 ### D12. Per-task time budget
-5 min is set by the 12 h total. If tasks often time out right before submitting, consider 5.5 min (≈ 11.5 h total,
-tight) or per-task early stops. **Settled by:** time-to-first-edit and timeout rate.
+5 min was set by the 12 h total. **10-07:** the first leaderboard submission (1a, 5 min / 60 calls) ran ~13 h and ended
+in "Kaggle Error" (no logs; likely the 12 h limit — the host said overruns error the whole submission, forum 743063).
+Resubmitted with 4 min / 50 calls (worst case 8 h agent time + setup). On our dev tasks 1a needed 64–171 s, so the
+hidden tasks are probably harder/longer. Never go above 5 min again until the host confirms unfinished tasks score 0.
+**Settled by:** whether the 4-min submission scores; time-to-first-edit and timeout rate; D17.
 
 ### D13. Dev set size
 Currently 4 gold-checked tasks (1 task = 25 %, directional only). **Plan:** grow to ~20 gold-checked tasks across
 fastapi / rich / requests before trusting differences (~2 h Kaggle wall = ~4 h quota per config).
 
 ### D15. Time — how to let the agent finish faster
-**Where time goes (verified, 09-27 traces):** decode ≈ 25 tok/s on 4×L4; prefill is fast (vLLM prefix caching on).
-Time ≈ output tokens / 25 + steps × (per-step overhead + command runtime). For us, **output tokens and number of
-turns dominate**; input size matters mostly for the 32k limit, not for time — consistent with
+**Where time goes (measured 10-07, 424 model calls of 1a + sample, both 10-06 Kaggle runs; per-call timestamps in the
+traces):** one turn (model reply + its tool run) ≈ **1.4 s fixed + 28 ms per output token (≈ 36 tok/s)**; prompt size
+has no measurable effect (prefill is fast). Median turn: 2.0 s / 39 output tokens (1a), 2.7 s / 66 tokens (sample,
+thinking on). So **output tokens dominate**; the turn count matters much less (~1.4 s each); input size matters for the
+32k limit, not for time — consistent with
 [Token Reduction Is Not Cost Reduction (arXiv 2607.12161)](https://arxiv.org/html/2607.12161v5).
 
 **Levers we control (research):**
@@ -177,9 +192,52 @@ turns dominate**; input size matters mostly for the 32k limit, not for time — 
 - Tasks run sequentially on the scorer.
 
 **Proposed order (not done yet):** (1) keep thinking off/budgeted + one line + one tool call per step;
-(2) prompt rule: batch independent lookups in one reply; (3) measure the turn distribution on Kaggle, set step targets
-at ~75th percentile; (4) repo-map skill; (5) later, test ParallelAgent locally.
+(2) cheaper scratch scripts and notes (D16) — the biggest measured cost; (3) turn control (D17); (4) repo-map skill;
+(5) later, test ParallelAgent locally.
+**Where 1a's output tokens go (rung-1b, 4 tasks, 13.7k tokens):** repro/check scripts written with heredocs **53 %**
+(23 turns, ≈ 200 s ≈ 50 s/task, ~40 % of task time; usually the whole script rewritten to change one line); replies
+without a tool call 19 % (incl. one 2,048-token reply cut off while writing notes → broken call → nudge, rich_3470);
+edit_file 8 %; read_file 7 %; notes 5 %; test runs 5 %.
+**Paper details (10-07 reading):**
+- *More with Less:* the reminder was injected after every tool result ("ENVIRONMENT REMINDER: You have X turns left").
+  The 75th-percentile limit raised Gemini 2.5 Pro's solve rate (+3 %) at −68 % cost; tight limits (25th pct) made it
+  collapse ("threshold effect") and raised the number of empty patches. Cites TALE "token elasticity": too
+  aggressive a per-reply token budget makes replies *longer*. → D17.
+- *Overthinking:* three failure patterns — analysis paralysis, **rogue actions** (several dependent actions in one
+  turn without waiting for results), premature disengagement. Rogue actions = the 1b collision on rich_3470 (verifier
+  + run_command in one reply, both writing /tmp/repro.py) → round-3 fix C. Its +30 % / −43 % result came from running
+  each task twice and picking the less-overthinking run — not possible here (one sandbox, one patch).
+- *LLMCompiler:* parallel independent calls (up to 3.7× faster). **Low value for us:** a turn's fixed cost is only
+  ~1.4 s, swegemma tools run sequentially, and multiple calls per reply invite rogue actions. Batching independent
+  lookups into one shell command (git grep A; git grep B) already gives the benefit. Not pursued.
+- *SWE-Edit:* see D6b and D18.
 **Settled by:** time-to-first-edit, turns per task, output tokens per task, timeout rate (analyze.py).
+
+### D16. Cheaper scratch scripts and notes (from D15 measurement)
+**Evidence (verified):** repro/check scripts are 53 % of 1a's output tokens (≈ 50 s/task); a notes heredoc hit the
+2,048-token reply cap once and became a broken call.
+**Proposal (prompt rules, 1a and 1b):** repro script at most ~15 lines, written once and re-run; small checks with
+python -c; to change a script, write a second small one instead of rewriting the whole file; notes at most ~10 lines
+per write (append with cat >> /tmp/notes.md).
+**Risk:** too-strict length rules can backfire ("token elasticity", D15) — phrase as guidance, not hard counts.
+**Settled by:** heredoc share of output tokens and seconds per task drop without a lower solve rate.
+
+### D17. Turn control (More with Less, arXiv 2510.16786)
+**Paper:** limit at the 75th percentile of normal turn counts + a turns-left reminder: −24 to −68 % cost, solve rate
+about the same; "start small, extend once" saved another 12–24 %; tight limits caused collapses and empty patches.
+**What we can do:** we cannot inject reminders (the harness owns the loop), but: (a) prompt checkpoint — "no edit by
+call N → make your best edit now" (the "start small" stage); (b) "call get_status every ~8 calls" as a self-reminder;
+(c) set max_tool_calls near our measured 75th percentile — the harness keeps the unsubmitted diff when the limit
+is hit (verified), and it also bounds the 12 h total (D12).
+**Needs:** turn counts from a larger dev set (D13); 4 tasks give 14–33 calls for 1a.
+**Settled by:** solve rate and seconds per task at the new limit vs the current one.
+
+### D18. Lighter reader in 1b ("viewer", from SWE-Edit)
+SWE-Edit's Viewer is a focused lookup — the main agent called it ~7.5×/task and it returned ~40 % of the requested
+file. Our reader runs up to 8 turns per call and has no compaction (helpers never compact, verified in
+agent_tool.py). **Option:** reader limited to 1–2 calls (git grep + one sed range), returning the snippet with line
+numbers; the orchestrator asks it more often with narrower questions.
+**Settled by:** reader time per call and format-ok rate vs the current reader; no change in solve rate.
 
 ### D14. LoRA
 Blocked: scorer loads adapters with zeroed weights (forum 743508); LoRA also shrinks KV cache. Training-data route
