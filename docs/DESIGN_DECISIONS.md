@@ -56,6 +56,49 @@ the prompt again → only read slices (`grep`, `tail`, `read_file` with line ran
 persist on the 31B. **Settled by:** traces show notes/findings files written and read back, fewer repeated commands,
 no lost helper work, without a big increase in calls per task.
 
+**Measured 10-07 (rung-1 + rung-1b traces, 8 task runs per config) — what is actually needed again later:**
+
+| Information | Fetched again later (1a) | Write it down? |
+|---|---|---|
+| Code already read (same lines re-read) | 17 of 54 reads, ~1,000 lines | **yes** — the main thing they come back for |
+| Test results (same file re-run) | 7 of 14 runs | partly — re-running after an edit is correct; which tests failed *before* any change is worth one line |
+| Failed approaches | rich_3470 (1b) tried one fix, test failed, tried another | **yes** — avoids repeating a dead end |
+| Search hits (git grep) | 4 of 27 | no — rarely re-needed, cheap to redo |
+| Git history | 1 of 2 | no |
+
+1b: 140 of 186 reads re-read lines already seen (mostly the executor's 17-read loop); **13 are cross-agent** (a helper
+re-reading what the orchestrator had already read). Notes in 1a: written 6×, **read back 0×** — they cost ~5 % of
+output tokens and gave nothing.
+
+**D1e — Tagged notes, written and read at fixed moments (user idea, 10-07; proposed, to verify in the next run):**
+write only four kinds of line, nothing else (no search hits, no file dumps, no plans):
+```
+TASK: exact names / messages / values from the task, verbatim
+LOC: path/file.py:34-37 function_name | the 2-4 key lines verbatim
+BASE: tests/test_x.py: failing before any change: test_a, test_b (or none)
+TRIED: what was tried -> why it failed
+```
+Read back with one command, at fixed moments: before editing → grep -e '^LOC' -e '^TASK' /tmp/notes.md; before
+submitting → grep '^BASE' /tmp/notes.md; after a failed test → grep '^TRIED' /tmp/notes.md. In 1b the orchestrator
+points helpers at those lines instead of re-typing code in requests.
+**Expected gain:** small in time for 1a (a re-read is ~1.4 s + a few tokens; input tokens are nearly free, D15);
+real gain in context (32k) and in 1b hand-offs.
+**Settled by:** notes read back > 0; fewer re-reads of the same lines (especially cross-agent in 1b); no rise in
+output tokens per task.
+
+**D1f — 1b hand-off through files (measured 10-07; proposed, to verify in the next run):** what helpers report today:
+- Executor: always names the changed source file (CHANGED line); mentions a /tmp script only if it appears in CHECK.
+- Verifier: twice replied "VERDICT: PASS / EVIDENCE: python3 /tmp/x.py / FIX: none" — a command name, **no output**,
+  although the prompt asks for up to 20 lines of real output; in rung-1 it overwrote the orchestrator's
+  /tmp/repro.py (fixed in round 3, fix D).
+- Reader: writes nothing; everything inline (240–2,900 chars); one empty reply lost all its work.
+Changes: (a) reader appends its LOC lines to /tmp/notes.md as well as replying (work survives an empty reply);
+(b) verifier saves full test output to /tmp/verify.log and replies VERDICT + last ~10 lines + "full log:
+/tmp/verify.log" — the orchestrator can grep FAILED in it instead of trusting the verdict; (c) every helper's final
+reply ends with a FILES: line listing every file it wrote (source and /tmp), so the pre-submit cleanup knows what
+to check.
+**Settled by:** verifier evidence contains real output; no work lost on empty replies; no stray files in patches.
+
 ### D2. Empty or unusable helper replies (1b)
 **Evidence:** 12B reader worked 138 s and returned an empty final message; orchestrator re-asked and timed out (12B).
 Forum: Gemma rarely writes text next to tool calls.
@@ -221,6 +264,18 @@ python -c; to change a script, write a second small one instead of rewriting the
 per write (append with cat >> /tmp/notes.md).
 **Risk:** too-strict length rules can backfire ("token elasticity", D15) — phrase as guidance, not hard counts.
 **Settled by:** heredoc share of output tokens and seconds per task drop without a lower solve rate.
+
+**Search and read in one command (user ideas, 10-07; proposed, to verify in the next run):**
+- *Combine independent searches:* git grep -n -e 'record' -e 'capture' -- '*.py' | head -30. Measured: only 4 runs of
+  2+ consecutive searches (11 turns) in 8 task runs → saves ~7 turns ≈ 10–15 s in total. Small but free. Safe: one
+  shell command runs in order and the model sees all output (not the "rogue actions" of D15, which are several
+  dependent tool calls in one reply). Output must still end with | head.
+- *Search and show the code in one step:* a search was followed directly by read_file **14 times** (14 extra turns,
+  and read_file line ranges are what trigger the start_line" bug). Instead: git grep -n -W 'def name' -- '*.py' |
+  head -60 (-W prints the whole enclosing function; tested 10-07), git grep -n -A 15 'class Foo' (match + next 15
+  lines), git grep -n -e 'record' --and -e 'def ' (lines with both words). 0 of 28 searches used such flags.
+  Risk: -W on a class prints the whole class → always | head -60.
+**Settled by:** fewer search→read pairs and turns per task; no rise in context overflows.
 
 ### D17. Turn control (More with Less, arXiv 2510.16786)
 **Paper:** limit at the 75th percentile of normal turn counts + a turns-left reminder: −24 to −68 % cost, solve rate
