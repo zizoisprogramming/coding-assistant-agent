@@ -1,5 +1,5 @@
-# Sampling: temperature 0.2 for repeatability (D10, from 10-07); top_p/top_k per the Gemma 4 model card; thinking off.
-temperature: 0.2
+# Google's recommended sampling for Gemma 4 (model card); thinking off.
+temperature: 1.0
 top_p: 0.95
 top_k: 64
 max_output_tokens: 2048

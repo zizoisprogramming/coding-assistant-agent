@@ -182,6 +182,9 @@ Google recommends 1.0; one forum test saw more loops at 0.7 than 0.2. **Measure*
 differences on 4 tasks. Dev runs switched to **0.2** together with prompt fixes A–C (rung-1d), each config run 3×
 on the same 4 tasks. Confounded with the prompt fixes by design (user decision); the repeats show whether results
 become stable. The leaderboard submission still uses 1.0.
+**10-07 (later):** rung-1d 1a_r1 scored 0/4 → user decision: **1a and 1b are changed separately, never in the same
+round.** 1a reverted to its 3/4 version (commit 30a8c5b: round-2 prompt, temperature 1.0); fixes A–C and 0.2 stay
+on 1b only. A 1a change is tested on its own later.
 
 ### D11. Graph tools
 Declared only as crash insurance (S5); `search_similar_code` returned 0 results in 140/142 calls (forum) and was useless
