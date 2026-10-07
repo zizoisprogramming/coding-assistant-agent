@@ -76,11 +76,14 @@ def run_sync(coro):
 
 RESULTS = WORKING_DIR / 'results'
 shutil.rmtree(RESULTS, ignore_errors=True)
+# Repeats are interleaved (r1 of every config, then r2, ...) so a session that dies early still has complete pairs.
+RUNS = [(name, f'{name}_r{rep + 1}' if REPEATS > 1 else name) for rep in range(REPEATS) for name in CONFIGS]
 wall = {}
-for name in CONFIGS:
+for name, key in RUNS:
     start = time.time()
-    config = build_config(SUB_ROOT / name, TASK_IDS, RESULTS / name, models, data_dir=DATA_DIR,
+    config = build_config(SUB_ROOT / name, TASK_IDS, RESULTS / key, models, data_dir=DATA_DIR,
                           sandbox='subprocess', display_mode='single')
     result = run_sync(Evaluator(config).run())
-    wall[name] = time.time() - start
-    print(f'==> {name}: {result.resolved}/{result.total} resolved in {wall[name] / 60:.1f} min')
+    wall[key] = time.time() - start
+    print(f'==> {key}: {result.resolved}/{result.total} resolved in {wall[key] / 60:.1f} min')
+    shutil.make_archive(str(WORKING_DIR / 'results'), 'zip', RESULTS)  # partial results survive a crash

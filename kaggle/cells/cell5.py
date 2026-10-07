@@ -116,8 +116,8 @@ def analyze(results_dir):
             print(f"{'':<16} error: {task['error'][:150]}")
 
 
-for name in CONFIGS:
-    analyze(RESULTS / name)
+for _, key in RUNS:
+    analyze(RESULTS / key)
 shutil.make_archive(str(WORKING_DIR / 'results'), 'zip', RESULTS)
 print('\nWall clock per config (min):', {k: round(v / 60, 1) for k, v in wall.items()})
 print('Wrote /kaggle/working/results.zip')

@@ -2,10 +2,10 @@
 
 Usage:
     python3 scripts/make_kaggle_notebook.py --tasks fastapi_15588,fastapi_14786,rich_3882,rich_3469 \
-        [--configs sample,1a,1b]
+        [--configs sample,1a,1b] [--repeats 3]
 
 The notebook installs the wheelhouse FIRST (before anything imports google.adk), starts vLLM once, then runs every
-config on every task with the same Evaluator settings as scripts/run_eval.py, prints the analyze.py table and zips
+config on every task (--repeats times, interleaved: r1 of every config, then r2, ...) with the same Evaluator settings as scripts/run_eval.py, prints the analyze.py table and zips
 results to /kaggle/working/results.zip. "sample" is Google's sample_submission with its LoRA adapters removed (they are
 zero-weight on the scorer; removing them frees KV cache). Our submissions are embedded as text.
 
@@ -88,6 +88,7 @@ WORKING_DIR = Path('/kaggle/working')
 SUB_ROOT = WORKING_DIR / 'submissions'
 TASK_IDS = __TASK_IDS__
 CONFIGS = __CONFIGS__
+REPEATS = __REPEATS__
 EMBEDDED = __EMBEDDED__
 
 shutil.rmtree(SUB_ROOT, ignore_errors=True)
@@ -165,14 +166,17 @@ def run_sync(coro):
 
 RESULTS = WORKING_DIR / 'results'
 shutil.rmtree(RESULTS, ignore_errors=True)
+# Repeats are interleaved (r1 of every config, then r2, ...) so a session that dies early still has complete pairs.
+RUNS = [(name, f'{name}_r{rep + 1}' if REPEATS > 1 else name) for rep in range(REPEATS) for name in CONFIGS]
 wall = {}
-for name in CONFIGS:
+for name, key in RUNS:
     start = time.time()
-    config = build_config(SUB_ROOT / name, TASK_IDS, RESULTS / name, models, data_dir=DATA_DIR,
+    config = build_config(SUB_ROOT / name, TASK_IDS, RESULTS / key, models, data_dir=DATA_DIR,
                           sandbox='subprocess', display_mode='single')
     result = run_sync(Evaluator(config).run())
-    wall[name] = time.time() - start
-    print(f'==> {name}: {result.resolved}/{result.total} resolved in {wall[name] / 60:.1f} min')'''
+    wall[key] = time.time() - start
+    print(f'==> {key}: {result.resolved}/{result.total} resolved in {wall[key] / 60:.1f} min')
+    shutil.make_archive(str(WORKING_DIR / 'results'), 'zip', RESULTS)  # partial results survive a crash'''
 
 REPORT = '''# 5. Comparison table + results.zip (download it from the Output panel), then STOP THE SESSION.
 import json
@@ -182,8 +186,8 @@ from collections import Counter
 __ANALYZE__
 
 
-for name in CONFIGS:
-    analyze(RESULTS / name)
+for _, key in RUNS:
+    analyze(RESULTS / key)
 shutil.make_archive(str(WORKING_DIR / 'results'), 'zip', RESULTS)
 print('\\nWall clock per config (min):', {k: round(v / 60, 1) for k, v in wall.items()})
 print('Wrote /kaggle/working/results.zip')'''
@@ -202,6 +206,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--tasks", required=True)
     ap.add_argument("--configs", default="sample,1a,1b")
+    ap.add_argument("--repeats", type=int, default=1)
     ap.add_argument("--out", default=str(ROOT / "kaggle" / "eval_compare.ipynb"))
     args = ap.parse_args()
 
@@ -212,6 +217,7 @@ def main():
                             {"NUDGE_PREFIXES", "HELPER_FORMATS", "TEST_PATHS", "bucket", "trace_stats", "analyze"})
     setup = (SETUP.replace("__TASK_IDS__", repr(args.tasks.split(",")))
              .replace("__CONFIGS__", repr(configs))
+             .replace("__REPEATS__", repr(args.repeats))
              .replace("__EMBEDDED__", json.dumps(embedded, indent=1)))
 
     nb = {
@@ -232,7 +238,7 @@ def main():
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(nb, indent=1))
-    print(f"Wrote {out.relative_to(ROOT)} ({len(configs)} configs × {len(args.tasks.split(','))} tasks)")
+    print(f"Wrote {out.relative_to(ROOT)} ({len(configs)} configs × {len(args.tasks.split(','))} tasks × {args.repeats} repeats)")
 
 
 if __name__ == "__main__":

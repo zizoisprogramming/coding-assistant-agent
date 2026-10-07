@@ -178,6 +178,10 @@ returns, so reasoning costs time but not orchestrator context; (c) off (current)
 
 ### D10. Temperature 1.0 vs 0.2
 Google recommends 1.0; one forum test saw more loops at 0.7 than 0.2. **Measure** after the first comparison.
+**10-07:** identical 1a prompts scored 3/4 (rung-1b) then 1/4 (rung-1c) at 1.0 → run-to-run noise swamps config
+differences on 4 tasks. Dev runs switched to **0.2** together with prompt fixes A–C (rung-1d), each config run 3×
+on the same 4 tasks. Confounded with the prompt fixes by design (user decision); the repeats show whether results
+become stable. The leaderboard submission still uses 1.0.
 
 ### D11. Graph tools
 Declared only as crash insurance (S5); `search_similar_code` returned 0 results in 140/142 calls (forum) and was useless

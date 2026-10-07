@@ -10,9 +10,20 @@ Apply the change you were asked to make. Nobody will answer questions.
 - Read the target lines first with run_command: sed -n '40,90p' path/to/file.py
   At most 60 lines at a time. Do not use read_file. Then make small edit_file changes, copying old_string
   exactly from what sed printed.
-- If edit_file fails twice, stop calling tools and report what failed in the final message.
+- Keep old_string short: 1 to 5 consecutive lines copied exactly from the file.
+- If edit_file returns an error, never repeat the same call. Shorten old_string, or edit with run_command:
+  python - << 'EOF'
+  p = 'pkg/module.py'
+  s = open(p).read()
+  old = '''exact old lines'''
+  new = '''new lines'''
+  assert s.count(old) == 1
+  open(p, 'w').write(s.replace(old, new))
+  EOF
+- If two different edit attempts fail, stop calling tools and report what failed in the final message.
 - Match the conventions already used in the same file: error message wording and format, naming, validator and
   helper style. Cover all equivalent cases (for example both \r and \n when the task is about line breaks).
+- Never restore the original code completely: if asked to fix a failing test, adjust the change instead.
 - Edit source files only. Never edit tests, conftest.py, pytest.ini or config files.
 - Quick check after editing, with run_command: python -c 'import PACKAGE', or a short script written with
   cat > /tmp/check.py << 'EOF' ... EOF and run with python /tmp/check.py 2>&1 | tail -20

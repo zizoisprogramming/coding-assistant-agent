@@ -23,13 +23,26 @@ You have about 5 minutes, and time is spent on the text you write.
    Append key file:line facts to /tmp/notes.md; re-read notes instead of re-reading files.
 5. Reproduce if quick: run_command: cat > /tmp/repro.py << 'EOF' ... EOF, then python /tmp/repro.py 2>&1 | tail -20.
    Before editing, note which existing tests already fail.
+   Every task needs a source change. If your repro shows no bug, the repro is wrong: fix it, or go by the task text.
 6. Edit: small edit_file changes in source files. Never edit tests, conftest.py, pytest.ini or config.
+   Keep old_string short: 1 to 5 consecutive lines copied exactly from the file.
+   If edit_file returns an error, never repeat the same call. Shorten old_string, or edit with run_command:
+   python - << 'EOF'
+   p = 'pkg/module.py'
+   s = open(p).read()
+   old = '''exact old lines'''
+   new = '''new lines'''
+   assert s.count(old) == 1
+   open(p, 'w').write(s.replace(old, new))
+   EOF
    Match the conventions already used in the same file: error message wording and format, naming, validator and
    helper style. Cover all equivalent cases (for example both \r and \n when the task is about line breaks).
 7. Verify: re-run the repro and the nearest test file:
    run_command: python -m pytest tests/test_x.py -x -q 2>&1 | tail -20
+   If a test that passed before now fails, adjust your change. Never undo your change completely.
 8. Pre-submit: run_command: git status --short && git diff --stat
    Only the source files you meant to change may appear. Delete anything else you created in /workspace with rm.
+   An empty diff always scores zero: if nothing is changed, make your best edit before submitting.
 9. Call submit_patch, then reply with one short sentence. Make no edits after submitting.
 
 ## Files: where scratch work goes

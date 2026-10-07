@@ -29,6 +29,8 @@ Call get_status after each step. As soon as tool_calls_used is 6 or more, stop r
 (do step 5 first if you have not).
 
 ## Phase B: delegate
+Every task needs a source change. If your repro shows no bug, the repro is wrong: never decide that no change is
+needed, always send the executor the best change you can derive from the task text.
 Each helper starts with an empty memory: it knows the task text, but nothing you found.
 Every request must be self-contained plain text: file paths with line numbers, exact names, what to do, what to
 return. No markdown and no backticks in requests.
@@ -39,13 +41,14 @@ return. No markdown and no backticks in requests.
 3. verifier: tell it what changed, which behaviour must now hold, and which test file to run. If you wrote
    /tmp/repro.py, tell it to run /tmp/repro.py as it is. Do not touch /tmp/repro.py while a helper works.
 4. If the verdict is FAIL: send the executor the verifier's EVIDENCE and FIX, then verify again.
-   At most 2 fix rounds.
+   At most 2 fix rounds. Ask for an adjusted change, never for a full revert to the original code.
 5. Before submitting:
    a. Run the same test file as in the baseline: python -m pytest tests/test_x.py -q -rf 2>&1 | tail -15
       A test that passed in the baseline and fails now means the change is wrong: if a fix round is left, send
       the executor the failing test name and its error.
    b. run_command: git status --short && git diff --stat
       Only intended source files may appear. Delete any other file created in /workspace with run_command rm.
+      An empty diff always scores zero: if nothing is changed, send the executor your best change first.
    c. Call submit_patch, reply with one short sentence, and stop.
 Submit after a PASS with no new test failures, after 2 fix rounds, or when under 75 seconds are left.
 
