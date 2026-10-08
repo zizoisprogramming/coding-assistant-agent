@@ -182,6 +182,14 @@ Phase B; /tmp/repro.py written at most twice, then TRIED + delegate ("the repro 
 after a FAIL verdict; helpers cat notes as their first call, the reader appends LOC lines, all helpers end with a
 FILES line; requests point to the notes instead of repeating them. **Measure:** repro writes per task (was up to
 22), notes read-backs (was 0), helper re-searches, s/task, score vs round 4 (2.0).
+**Rung-1g result (round 6): mean 1.0/4.** The orchestrator writes **no text** (0/380 steps), so ADK compaction
+(text parts only) leaves a near-empty summary: after each compaction it restarted Phase A and `cat >` wiped its
+notes (21×). Repro cap and helper notes-reads were ignored (experiments/2026-10-08_rung1g).
+**Round 6b (10-08, user): resume-safe notes.** Step 1 is one command, `test -s /tmp/notes.md && cat /tmp/notes.md
+|| cat > /tmp/notes.md << 'EOF' ...` (tested in bash): existing notes are printed, never overwritten; if notes
+exist the orchestrator is resuming → no Phase A again, continue from the last STEP line. New STEP lines (Phase A
+done, each helper's result, fix round, ready to submit); only step 1 may create the file, everything else appends.
+**Measure:** Phase A restarts after compaction (round 6: every compaction), notes overwrites (21 → 0), score.
 
 ### D7. Planner (`{plan}` re-injected every turn) and replanner
 Ladder rungs 3–4 (PLAN.md). Planner = SequentialAgent [planner (output_key=plan) → executor with `{plan}` in its
