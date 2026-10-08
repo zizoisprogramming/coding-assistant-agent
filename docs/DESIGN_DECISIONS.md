@@ -168,6 +168,12 @@ rung-1d 1b (mean 2.0/4); watch for false PASS from self-checking.
 check.py, one pytest run, one fix only for an obvious slip in its own edit), never writes /tmp/repro.py, ~6 calls,
 reports and lets the orchestrator decide; orchestrator requests ≤ ~8 lines, no pasted repro. **Measure:** executor
 s/call back near 30 s, inner calls ≈ 6, score vs round 4.
+**Rung-1f result (round 5b): mean 1.33/4.** The fix worked (executor 30 s/call = executor + verifier in round 4;
+~5 inner calls; no repro.py writes); the remaining losses are the pre-existing repro loop and reader runaway.
+**Decision (user, 10-08) — round 6: back to separate executor + verifier** (round 4, commit 8a645b5) plus the 5b
+lessons that fit it: helper requests at most ~8 lines, no pasted repro or long code; the verifier request lists
+the baseline's already-failing tests, and the verifier treats exactly those as pre-existing. Hand-off/offloading
+work (file record, repro loop guard; D1e/D1f) continues on this architecture.
 
 ### D7. Planner (`{plan}` re-injected every turn) and replanner
 Ladder rungs 3–4 (PLAN.md). Planner = SequentialAgent [planner (output_key=plan) → executor with `{plan}` in its

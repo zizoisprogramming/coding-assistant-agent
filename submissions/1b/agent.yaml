@@ -1,5 +1,5 @@
 name: orchestrator
-description: Coordinates the fix; explores briefly, then delegates reading and editing (with checks) to helpers.
+description: Coordinates the fix; explores briefly, then delegates reading, editing and verifying to helpers.
 model: gemma-4-31b-it-qat-w4a16-ct
 instruction: !include prompts/orchestrator.md
 tools:
@@ -16,4 +16,6 @@ tools:
       config_path: sub_agents/reader.yaml
   - agent_tool:
       config_path: sub_agents/executor.yaml
+  - agent_tool:
+      config_path: sub_agents/verifier.yaml
 generate_content_config: !include configs/sampling.yaml
