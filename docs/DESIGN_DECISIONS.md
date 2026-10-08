@@ -160,6 +160,14 @@ request, git status), adjusts at most twice, and returns CHANGED / REPRO / TESTS
 "fresh eyes" check. 1a unchanged (control). **Measure:** solve rate, seconds per task and helper calls per task vs
 rung-1d 1b (mean 2.0/4); watch for false PASS from self-checking.
 **10-08 (user):** 1a parked; dev runs are 1b only (3 repeats) until further notice. 1a stays at 30a8c5b.
+**Rung-1e result (round 5): mean 1.0/4 (was 2.0).** Main loss = the pre-existing Phase-A repro-rewrite loop
+(fastapi_15589). But the merge prompts made the executor slow: requests 886 → 2,187 chars, inner tool calls median
+2 → 12 (max 37, the 14-call rule ignored), 63 s per call vs 14 + 17 s for executor + verifier; it rewrote
+/tmp/repro.py 8× and looped edit → check → edit (experiments/2026-10-08_rung1e). Separate roles had bounded the work.
+**Round 5b (10-08, user):** prompt-only fix of the merge: executor checks once (repro as-is or one ≤15-line
+check.py, one pytest run, one fix only for an obvious slip in its own edit), never writes /tmp/repro.py, ~6 calls,
+reports and lets the orchestrator decide; orchestrator requests ≤ ~8 lines, no pasted repro. **Measure:** executor
+s/call back near 30 s, inner calls ≈ 6, score vs round 4.
 
 ### D7. Planner (`{plan}` re-injected every turn) and replanner
 Ladder rungs 3–4 (PLAN.md). Planner = SequentialAgent [planner (output_key=plan) → executor with `{plan}` in its

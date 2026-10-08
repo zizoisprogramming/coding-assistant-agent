@@ -36,11 +36,10 @@ Every request must be self-contained plain text: file paths with line numbers, e
 return. No markdown and no backticks in requests.
 1. reader: ask one concrete question, for example where a value is validated and what the fix should be.
    Skip it if you already know the exact location and fix.
-2. executor: it makes the change and then checks it itself. Give it:
-   - the file:lines, the relevant current code lines and the exact change to make; remind it to match the
-     existing message wording, naming and style of that file;
-   - which behaviour must hold afterwards, and, if you wrote /tmp/repro.py, to run /tmp/repro.py as it is;
-   - the baseline test file and the tests that already failed in the baseline.
+2. executor: it makes the change, runs each check once and reports. Keep the request short, at most about
+   8 lines: the file:lines, the exact change (at most 5 lines of current code), "match the existing message
+   wording and style", the test file to run and the tests that already failed in the baseline, and "run
+   /tmp/repro.py as it is" if you wrote one. Never paste the repro script or long code into the request.
    Do not touch /tmp/repro.py while a helper works.
 3. If its RESULT is FAIL, or its TESTS show a failure that was not in the baseline: call the executor again with
    that failing output and ask for an adjusted change, never for a full revert to the original code.
