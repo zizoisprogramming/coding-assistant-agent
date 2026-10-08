@@ -14,7 +14,7 @@ from collections import Counter
 from pathlib import Path
 
 NUDGE_PREFIXES = ("Please continue your work", "Your previous response reached the token limit")
-HELPER_FORMATS = {"reader": "LOCATION:", "executor": "CHANGED:", "verifier": "VERDICT:"}
+HELPER_FORMATS = {"reader": "LOCATION:", "executor": "CHANGED:", "verifier": "VERDICT:"}  # verifier: runs before 10-08
 TEST_PATHS = ("tests/", "test_", "conftest.py", "pytest.ini")
 
 

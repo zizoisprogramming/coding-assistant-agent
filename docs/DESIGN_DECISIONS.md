@@ -150,6 +150,15 @@ cost almost no time, D15), so for us the split is about context (32k) and edit r
 93.4 → 96.1 %), not speed. Delegating edits made their main agent explore more (+10 % cost).
 **Settled by:** round-3 run — if the verifier still adds time without catching wrong fixes that the orchestrator's own
 test run would miss, build 1c (orchestrator runs tests; no verifier helper).
+**Rung-1d evidence (10-07, 1b round 4, 12 task runs):** 9 verdicts: 8 PASS, 1 FAIL. 2 PASSes were on wrong fixes
+(r1 fastapi_15588, r3 fastapi_15589); the one FAIL (r2 rich_3470) did not lead to a solve. The orchestrator's own
+baseline re-run (fix E) already covers regressions.
+**Decision (user, 10-08) — 1b round 5:** merged. The executor now makes the change *and* checks it (runs
+/tmp/repro.py as-is or one short /tmp/check.py, the baseline test file with the already-failing tests named in the
+request, git status), adjusts at most twice, and returns CHANGED / REPRO / TESTS / RESULT (PASS|FAIL); 14 tool calls
+(was 10). The verifier helper is removed; the orchestrator keeps its independent pre-submit test run (step 4a) as the
+"fresh eyes" check. 1a unchanged (control). **Measure:** solve rate, seconds per task and helper calls per task vs
+rung-1d 1b (mean 2.0/4); watch for false PASS from self-checking.
 
 ### D7. Planner (`{plan}` re-injected every turn) and replanner
 Ladder rungs 3–4 (PLAN.md). Planner = SequentialAgent [planner (output_key=plan) → executor with `{plan}` in its
