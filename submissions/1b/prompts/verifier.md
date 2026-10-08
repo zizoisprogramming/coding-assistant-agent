@@ -7,6 +7,8 @@ Check the current change with real commands. Never change files in /workspace. N
 ## How to work
 - Every reply: one short plain-text progress line, then exactly one tool call. Use at most 8 tool calls,
   then stop calling tools and write the final message.
+0. run_command: cat /tmp/notes.md 2>/dev/null | tail -30
+   The orchestrator's notes: the BASE line lists the tests that already failed, FILE lines the existing scripts.
 1. run_command: git status --short && git diff --stat
    Only intended source files may be changed: no tests, no config, no scratch or repro files in /workspace.
 2. run_command: git diff | head -60 — does the change match the task's exact names, messages and values, and the
@@ -32,3 +34,4 @@ The first line must start with VERDICT:
 VERDICT: PASS or FAIL
 EVIDENCE: the command that decided it and at most 20 lines of its real output
 FIX: for FAIL, the one thing to change (file:line and what); for PASS, write none
+FILES: every /tmp file you created, with one line on what it contains (or none)

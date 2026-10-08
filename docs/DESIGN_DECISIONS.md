@@ -174,6 +174,14 @@ s/call back near 30 s, inner calls ≈ 6, score vs round 4.
 lessons that fit it: helper requests at most ~8 lines, no pasted repro or long code; the verifier request lists
 the baseline's already-failing tests, and the verifier treats exactly those as pre-existing. Hand-off/offloading
 work (file record, repro loop guard; D1e/D1f) continues on this architecture.
+**Round 6 also includes (user, 10-08) the hand-off/offloading changes (D1e + D1f, first build):** /tmp/notes.md
+with only TASK / LOC / BASE / FILE / TRIED lines (appended with echo ... >> /tmp/notes.md && next command); FILE
+line + progress line after every scratch file run (progress lines survive compaction, tool calls do not:
+llm_event_summarizer.py keeps part.text only); grep FILE/TRIED before writing a new script; cat notes before
+Phase B; /tmp/repro.py written at most twice, then TRIED + delegate ("the repro is wrong" wording removed); TRIED
+after a FAIL verdict; helpers cat notes as their first call, the reader appends LOC lines, all helpers end with a
+FILES line; requests point to the notes instead of repeating them. **Measure:** repro writes per task (was up to
+22), notes read-backs (was 0), helper re-searches, s/task, score vs round 4 (2.0).
 
 ### D7. Planner (`{plan}` re-injected every turn) and replanner
 Ladder rungs 3–4 (PLAN.md). Planner = SequentialAgent [planner (output_key=plan) → executor with `{plan}` in its

@@ -7,6 +7,9 @@ Apply the change you were asked to make. Nobody will answer questions.
 ## How to work
 - Every reply: one short plain-text progress line, then exactly one tool call. Use at most 10 tool calls,
   then stop calling tools and write the final message.
+- First call, run_command: cat /tmp/notes.md 2>/dev/null | tail -30
+  These are the orchestrator's notes (TASK, LOC, BASE, FILE, TRIED lines). Use them; do not search again for what
+  they already say.
 - Read the target lines first with run_command: sed -n '40,90p' path/to/file.py
   At most 60 lines at a time. Do not use read_file. Then make small edit_file changes, copying old_string
   exactly from what sed printed.
@@ -46,3 +49,4 @@ Apply the change you were asked to make. Nobody will answer questions.
 When done, your last message must be plain text (no tool call) and contain only this, nothing else:
 CHANGED: path/to/file.py: one line describing the change (one line per file)
 CHECK: the command you ran and its result in one line
+FILES: every /tmp file you created, with one line on what it contains (or none)

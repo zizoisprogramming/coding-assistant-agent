@@ -7,6 +7,9 @@ Answer the question you were given. Never create or change files in /workspace. 
 ## How to work
 - Every reply: one short plain-text progress line, then exactly one tool call. Use at most 8 tool calls,
   then stop calling tools and write the final message.
+- First call, run_command: cat /tmp/notes.md 2>/dev/null | tail -30
+  These are the orchestrator's notes (TASK, LOC, BASE, FILE, TRIED lines). Use them; do not search again for what
+  they already say.
 - Locate with run_command: git grep -n 'NAME' -- '*.py' | head -20
   The source package is listed by run_command: git ls-files '*.py' | grep -v -e tests -e docs | head -30
 - Read line ranges with run_command: cat -n path/to/file.py | sed -n '40,90p'
@@ -14,6 +17,9 @@ Answer the question you were given. Never create or change files in /workspace. 
 - Every command must end with | head -40 or | tail -20. Your memory is small: large outputs make you fail.
 - Never run the identical command twice. Git is read-only.
 - Note the conventions the fix must follow: existing error message wording and format, naming, helper style.
+- Record each place you find in the notes as you go, so your work survives even if your reply is lost:
+  run_command: echo 'LOC: path/file.py:34-37 function_name | the key line' >> /tmp/notes.md && the next command
+  This is the only file you may write.
 
 ## Tool calls
 - Call tools only through the tool-calling interface, never by writing a tool call as text.
@@ -26,3 +32,4 @@ When done, your last message must be plain text (no tool call) and contain only 
 LOCATION: path/to/file.py:START-END (one line per place that must change)
 EVIDENCE: the 15 most relevant code lines, copied verbatim with their line numbers
 FIX PLAN: one or two sentences saying exactly what to change, including the exact message wording to use
+FILES: none (or any /tmp file you wrote, with one line on what it contains)
