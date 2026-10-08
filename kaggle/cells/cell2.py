@@ -5,7 +5,7 @@ WORKING_DIR = Path('/kaggle/working')
 SUB_ROOT = WORKING_DIR / 'submissions'
 TASK_IDS = ['fastapi_15588', 'fastapi_15589', 'rich_3882', 'rich_3470']
 CONFIGS = ['1b']
-REPEATS = 3
+REPEATS = 2
 EMBEDDED = {
  "1b": {
   "agent.yaml": "name: orchestrator\ndescription: Coordinates the fix; explores briefly, then delegates reading, editing and verifying to helpers.\nmodel: gemma-4-31b-it-qat-w4a16-ct\ninstruction: !include prompts/orchestrator.md\ntools:\n  - run_command\n  - read_file\n  - get_status\n  - submit_patch\n  # Declared only so a call never crashes the task (forum 745028); the prompt prefers git grep.\n  - search_similar_code\n  - get_code_neighbors\n  - get_code_subgraph\n  # skip_summarization stays false: true would end the orchestrator's run after every helper call.\n  - agent_tool:\n      config_path: sub_agents/reader.yaml\n  - agent_tool:\n      config_path: sub_agents/executor.yaml\n  - agent_tool:\n      config_path: sub_agents/verifier.yaml\ngenerate_content_config: !include configs/sampling.yaml\n",
