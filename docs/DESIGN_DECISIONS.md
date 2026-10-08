@@ -159,6 +159,7 @@ request, git status), adjusts at most twice, and returns CHANGED / REPRO / TESTS
 (was 10). The verifier helper is removed; the orchestrator keeps its independent pre-submit test run (step 4a) as the
 "fresh eyes" check. 1a unchanged (control). **Measure:** solve rate, seconds per task and helper calls per task vs
 rung-1d 1b (mean 2.0/4); watch for false PASS from self-checking.
+**10-08 (user):** 1a parked; dev runs are 1b only (3 repeats) until further notice. 1a stays at 30a8c5b.
 
 ### D7. Planner (`{plan}` re-injected every turn) and replanner
 Ladder rungs 3–4 (PLAN.md). Planner = SequentialAgent [planner (output_key=plan) → executor with `{plan}` in its
