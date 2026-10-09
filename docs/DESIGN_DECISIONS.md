@@ -236,6 +236,8 @@ instructions work. **Round 3d (user, 10-09): thinking_budget 1,024 → 512**, pr
 **Round 3e (user, 10-09): workflow reordered "fix first, then check":** locate → read → baseline → edit now (no
 repro before the edit) → repro + baseline tests as the check → adjust. The ignored time checkpoint is removed;
 target "first edit by ~call 12" (was 15). Budget 512 kept. Same 2 tasks × 3.
+**Rung-1q (3e):** reorder mostly ignored (repro before the edit in every task, edits 211–298 s or never); 2/6.
+Next options: harness budget_warning via lower max_tool_calls; verifier (below); or widen the dev set.
 **Verifier plan (user, 10-09), after 3d:** add only a verifier (no writer). The time check must be triggered by an
 event, not remembered: right after the first edit that passes the repro, call get_status; if
 time_seconds_remaining ≥ ~90, call the verifier (3-line request: what must hold, test file, already-failing tests;

@@ -1,0 +1,26 @@
+
+## 1a_r1: 1/2 resolved
+task             outcome              sec calls out_tok peak_in compact nudge repeat errors broken  tools / helpers
+-------------------------------------------------------------------------------------------------------------------
+fastapi_15589    resolved             317    20    9064   14922       1     0      2      0      0  run_command×19, edit_file×1
+                 patch: fastapi/dependencies/utils.py
+rich_3470        timeout, no patch    304    27    8339   15009       1     0      1      1      0  run_command×27
+                 error: Agent exceeded session timeout (5.0 min)
+
+## 1a_r2: 0/2 resolved
+task             outcome              sec calls out_tok peak_in compact nudge repeat errors broken  tools / helpers
+-------------------------------------------------------------------------------------------------------------------
+fastapi_15589    wrong fix            305    30    9452   14980       1     0      2      3      0  run_command×28, edit_file×2
+                 patch: fastapi/dependencies/utils.py
+                 error: Agent exceeded session timeout (5.0 min)
+rich_3470        timeout, no patch    301    42    8850   14380       1     1      4      2      0  run_command×41
+                 error: Agent exceeded session timeout (5.0 min)
+
+## 1a_r3: 1/2 resolved
+task             outcome              sec calls out_tok peak_in compact nudge repeat errors broken  tools / helpers
+-------------------------------------------------------------------------------------------------------------------
+fastapi_15589    wrong fix            305    27    9171   15149       1     0      1      0      0  run_command×25, edit_file×2
+                 patch: fastapi/dependencies/utils.py
+                 error: Agent exceeded session timeout (5.0 min)
+rich_3470        resolved             305    60    7812   14843       2     0      4      6      0  run_command×56, edit_file×4
+                 patch: rich/console.py
