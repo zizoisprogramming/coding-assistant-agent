@@ -1,0 +1,47 @@
+
+## 1b_r1: 1/4 resolved
+task             outcome              sec calls out_tok peak_in compact nudge repeat errors broken  tools / helpers
+-------------------------------------------------------------------------------------------------------------------
+fastapi_15588    wrong fix            321    20    9945   14024       0     0      0      0      0  run_command×15, edit_file×2, read_file×1, executor×1, verifier×1 | format ok executor 1/1
+                 patch: fastapi/sse.py
+                 error: Agent exceeded session timeout (5.0 min)
+fastapi_15589    timeout, no patch    315    18    8726   19762       1     1      1      0      0  run_command×18, executor×1
+                 error: Agent exceeded session timeout (5.0 min)
+rich_3882        resolved             308    35   10477    8543       0     0      0      1      0  run_command×31, executor×1, edit_file×1, verifier×1 | format ok executor 1/1
+                 patch: rich/prompt.py
+rich_3470        timeout, no patch    305    72    8559   14604       2     0     22      1      0  run_command×72
+                 error: Agent exceeded session timeout (5.0 min)
+
+## 1b_r2: 1/4 resolved
+task             outcome              sec calls out_tok peak_in compact nudge repeat errors broken  tools / helpers
+-------------------------------------------------------------------------------------------------------------------
+fastapi_15588    wrong fix            306    38    9636   14147       0     0      1      1      0  run_command×32, read_file×2, edit_file×2, executor×1, verifier×1 | format ok executor 1/1
+                 patch: fastapi/sse.py
+                 error: Agent exceeded session timeout (5.0 min)
+fastapi_15589    no patch             226    78    5539   14556       2     0     47      0      0  run_command×75, submit_patch×2
+rich_3882        resolved              92    30    2847    9333       0     0      3      1      0  run_command×25, executor×1, edit_file×1, verifier×1, submit_patch×1 | format ok executor 1/1, verifier 1/1
+                 patch: rich/prompt.py
+rich_3470        no patch             158    73    3463   14593       2     0     52      1      0  run_command×71, submit_patch×1
+## 1b_r1: 1/4 resolved
+fastapi_15588  --  321s helper@177 edit@246 repro×1 streak 1 
+                 compactions→[] notes {'notes_resume_cmd': 1, 'orch_reads_notes': 2, 'orch+LOC': 1}
+fastapi_15589  --  315s helper@224 edit@None repro×2 streak 1 
+                 compactions→['continue'] notes {'notes_resume_cmd': 1, 'orch_reads_notes': 2, 'orch+LOC': 1, 'orch+FILE': 1, 'orch+STEP': 1}
+rich_3470      --  305s helper@None edit@None repro×14 streak 1 
+                 compactions→['resume-check', 'resume-check'] notes {'notes_resume_cmd': 3, 'orch_reads_notes': 3}
+rich_3882      OK  308s helper@129 edit@141 repro×7 streak 1 
+                 compactions→[] notes {'notes_resume_cmd': 1, 'orch_reads_notes': 1, 'orch+LOC': 1, 'orch+STEP': 1, 'exec_reads_notes': 1}
+## 1b_r2: 1/4 resolved
+fastapi_15588  --  306s helper@72 edit@117 repro×1 streak 1 
+                 compactions→[] notes {'notes_resume_cmd': 2, 'orch_reads_notes': 3, 'orch+FILE': 1, 'orch+LOC': 3, 'orch+STEP': 1}
+fastapi_15589  --  226s helper@None edit@None repro×4 streak 22 orchestrator: "cat -n fastapi/dependencies/utils.py | sed -n '820,830p'"
+                 compactions→['resume-check', 'resume-check'] notes {'notes_resume_cmd': 3, 'orch_reads_notes': 3, 'orch+STEP': 1}
+rich_3470      --  158s helper@None edit@None repro×3 streak 37 orchestrator: "cat -n rich/console.py | sed -n '822,830p'"
+                 compactions→['resume-check', 'continue'] notes {'notes_resume_cmd': 2, 'orch_reads_notes': 2}
+rich_3882      OK   92s helper@59 edit@64 repro×1 streak 1 
+                 compactions→[] notes {'notes_resume_cmd': 1, 'orch_reads_notes': 2, 'orch+FILE': 1, 'orch+LOC': 1, 'orch+STEP': 1}
+
+## totals
+executor  calls   5  mean   53s  inner calls [3, 4, 5, 6, 6]  no reply 1
+verifier  calls   4  mean   11s  inner calls [2, 3, 9, 13]  no reply 3
+notes: {'exec_reads_notes': 1, 'notes_resume_cmd': 14, 'orch+FILE': 3, 'orch+LOC': 7, 'orch+STEP': 5, 'orch_reads_notes': 18}
