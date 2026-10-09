@@ -1,0 +1,62 @@
+
+## 1b_r1: 1/4 resolved
+task             outcome              sec calls out_tok peak_in compact nudge repeat errors broken  tools / helpers
+-------------------------------------------------------------------------------------------------------------------
+fastapi_15588    wrong fix            235    23    6970   10976       0     1      0      1      1  run_command×13, edit_file×3, read_file×1, executor×1, verifier×1, submit_patch×1 | format ok executor 1/1, verifier 0/1
+                 patch: fastapi/sse.py
+fastapi_15589    timeout, no patch    320    46    8073   14811       2     0      2      3      0  run_command×46
+                 error: Agent exceeded session timeout (5.0 min)
+rich_3882        resolved             152    25    4858    9370       0     0      0      0      0  run_command×19, executor×1, edit_file×1, verifier×1, submit_patch×1 | format ok executor 1/1, verifier 0/1
+                 patch: rich/prompt.py
+rich_3470        wrong fix            310    49    9354   14429       1     0      2      3      0  run_command×46, executor×2, edit_file×1 | format ok executor 0/1
+                 patch: rich/console.py
+                 error: Agent exceeded session timeout (5.0 min)
+
+## 1b_r2: 0/4 resolved
+task             outcome              sec calls out_tok peak_in compact nudge repeat errors broken  tools / helpers
+-------------------------------------------------------------------------------------------------------------------
+fastapi_15588    wrong fix            305    21    9402   17454       1     1      0      0      0  run_command×17, edit_file×2, read_file×1, executor×1
+                 patch: fastapi/sse.py
+                 error: Agent exceeded session timeout (5.0 min)
+fastapi_15589    timeout, no patch    302    12    9454   20751       0     2      0      1      0  run_command×11
+                 error: Agent exceeded session timeout (5.0 min)
+rich_3882        no patch              95     4    3319    6174       0     3      0      0      0  
+                 error: Agent completed execution without calling submit_patch.
+rich_3470        timeout, no patch    301    55    9310   14533       1     0      3      3      0  run_command×44, verifier×3, executor×2, edit_file×2 | format ok executor 2/2, verifier 0/2
+                 error: Agent exceeded session timeout (5.0 min)
+## 1b_r1: 1/4 resolved
+fastapi_15588  --  235s helper@118 edit@140 repro×1 streak 1 
+                 compactions→[] notes {'notes_resume_cmd': 1, 'orch_reads_notes': 2, 'orch+LOC': 3, 'orch+FILE': 1, 'orch+STEP': 1}
+fastapi_15589  --  320s helper@None edit@None repro×6 streak 1 
+                 compactions→['resume-check', 're-search'] notes {'notes_resume_cmd': 2, 'orch_reads_notes': 2}
+rich_3470      --  310s helper@155 edit@168 repro×5 streak 1 
+                 compactions→['continue'] notes {'notes_resume_cmd': 1, 'orch_reads_notes': 1, 'orch+TASK': 1, 'exec_reads_notes': 2}
+rich_3882      OK  152s helper@105 edit@121 repro×1 streak 1 
+                 compactions→[] notes {'notes_resume_cmd': 1, 'orch_reads_notes': 2, 'orch+FILE': 1, 'orch+STEP': 1}
+## 1b_r2: 0/4 resolved
+fastapi_15588  --  305s helper@159 edit@190 repro×3 streak 1 
+                 compactions→['continue'] notes {'notes_resume_cmd': 1, 'orch_reads_notes': 1, 'orch+LOC': 3, 'orch+FILE': 1, 'orch+STEP': 1, 'exec_reads_notes': 1}
+fastapi_15589  --  302s helper@None edit@None repro×2 streak 1 
+                 compactions→[] notes {'notes_resume_cmd': 1, 'orch_reads_notes': 1}
+rich_3470      --  301s helper@116 edit@128 repro×1 streak 1 
+                 compactions→['continue'] notes {'notes_resume_cmd': 1, 'orch_reads_notes': 1, 'orch+FILE': 1, 'orch+LOC': 1, 'orch+STEP': 1, 'veri_reads_notes': 2}
+rich_3882      --   95s helper@None edit@None repro×0 streak 0 
+                 compactions→[] notes {}
+
+## totals
+executor  calls   7  mean   44s  inner calls [3, 3, 4, 4, 7, 10, 14]  no reply 2
+verifier  calls   5  mean   32s  inner calls [0, 0, 2, 2, 7]  no reply 1
+notes: {'exec_reads_notes': 3, 'notes_resume_cmd': 8, 'orch+FILE': 4, 'orch+LOC': 7, 'orch+STEP': 4, 'orch+TASK': 1, 'orch_reads_notes': 10, 'veri_reads_notes': 2}
+## data/results/2026-10-09_rung1j/results/1b_r1
+agent        kind                         n  out tok tok/call text chars   sec
+orchestrator short command               84    12162      144          0   425
+orchestrator write script / py-edit      15     5272      351          0   177
+executor     short command               20     4547      227          0    81
+orchestrator text reply                   4     2605      651       1986    79
+executor     edit_file                    5     1595      319          0    44
+executor     text reply                   4     1505      376        395    42
+orchestrator request to executor          4      764      191          0    17
+verifier     text reply                   3      396      132        205    13
+orchestrator request to verifier          2      179       89          0     5
+executor     write script / py-edit       1      138      138          0     4
+verifier     short command                1       92       92          0     3
