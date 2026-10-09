@@ -1,0 +1,45 @@
+
+## 1b_r1: 1/4 resolved
+task             outcome              sec calls out_tok peak_in compact nudge repeat errors broken  tools / helpers
+-------------------------------------------------------------------------------------------------------------------
+fastapi_15588    wrong fix            315    35    9997   13395       0     0      3      4      0  run_command×28, edit_file×3, executor×2, verifier×1 | format ok executor 1/2, verifier 1/1
+                 patch: fastapi/sse.py
+                 error: Agent exceeded session timeout (5.0 min)
+fastapi_15589    timeout, no patch    318    22    9601   10706       0     1      0      1      0  run_command×19, reader×2 | format ok reader 0/1
+                 error: Agent exceeded session timeout (5.0 min)
+rich_3882        resolved             124    28    3957    7790       0     0      1      0      0  run_command×21, executor×1, edit_file×1, verifier×1, submit_patch×1 | format ok executor 1/1, verifier 0/1
+                 patch: rich/prompt.py
+rich_3470        timeout, no patch    306    33    8708   26217       1     1      0      2      0  run_command×32, reader×1
+                 error: Agent exceeded session timeout (5.0 min)
+## 1b_r1: 1/4 resolved
+fastapi_15588  --  315s helper@75 edit@197 repro×2 streak 1 
+                 compactions→[] notes {'notes_resume_cmd': 1, 'orch_reads_notes': 2, 'orch+LOC': 3, 'orch+FILE': 1, 'orch+BASE': 1, 'orch+STEP': 1, 'exec_reads_notes': 1}
+fastapi_15589  --  318s helper@68 edit@None repro×2 streak 1 
+                 compactions→[] notes {'notes_resume_cmd': 1, 'orch_reads_notes': 1, 'orch+LOC': 1, 'orch+FILE': 1, 'orch+STEP': 1}
+rich_3470      --  306s helper@244 edit@None repro×3 streak 1 
+                 compactions→['re-search'] notes {'notes_resume_cmd': 1, 'orch_reads_notes': 1, 'read_reads_notes': 1}
+rich_3882      OK  124s helper@44 edit@51 repro×1 streak 1 
+                 compactions→[] notes {'notes_resume_cmd': 1, 'orch_reads_notes': 2, 'orch+LOC': 1, 'orch+FILE': 1, 'orch+STEP': 2, 'exec_reads_notes': 1}
+
+## totals
+executor  calls   3  mean   62s  inner calls [3, 5, 7]  no reply 0
+verifier  calls   2  mean   39s  inner calls [0, 7]  no reply 0
+reader    calls   3  mean   72s  inner calls [3, 5, 5]  no reply 2
+notes: {'exec_reads_notes': 2, 'notes_resume_cmd': 4, 'orch+BASE': 1, 'orch+FILE': 3, 'orch+LOC': 5, 'orch+STEP': 4, 'orch_reads_notes': 6, 'read_reads_notes': 1}
+## data/results/2026-10-09_rung1i/1b_r1
+agent        kind                         n  out tok tok/call text chars   sec
+orchestrator short command               60    10056      167          0   260
+orchestrator write script / py-edit       8     4168      521          0   124
+reader       short command                8     3888      486          0    51
+executor     short command                7     3471      495          0    44
+orchestrator request to executor          3     1353      451          0    34
+executor     text reply                   4     1295      323        409    38
+verifier     text reply                   3     1136      378        332    32
+verifier     short command                5     1061      212          0    33
+executor     edit_file                    4      999      249          0    28
+executor     write script / py-edit       2      775      387          0    21
+reader       text reply                   5      727      145        358    21
+verifier     write script / py-edit       1      490      490          0    13
+orchestrator request to reader            3      350      116          0    11
+orchestrator request to verifier          2      283      141          0     8
+orchestrator text reply                   2      163       81        404     5
