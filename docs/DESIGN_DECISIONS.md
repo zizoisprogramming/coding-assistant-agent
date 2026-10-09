@@ -228,6 +228,13 @@ update 0/13 + 0/? : edits come at ≥ 230 s or never. **Round 3c (user):** gener
 reading the main code; at agent_elapsed_seconds ≥ 150 with no source edit, make the best edit now, then test and
 adjust; no task-specific content. Test on fastapi_15589 + rich_3470 only, 3 repeats. Next candidate: thinking
 budget 1,024 → 512. Note: the "\r and \n ... line breaks" example (round 2) was inspired by fastapi_15588.
+**Rung-1o (round 3c):** checkpoint not followed (get_status 0 calls; edits at 220–299 s); fastapi_15589 2/3 (likely
+chance), rich_3470 0/3 wrong fixes. Lesson: rules to apply later are ignored; config changes and error-triggered
+instructions work. **Round 3d (user, 10-09): thinking_budget 1,024 → 512**, prompt unchanged; same 2 tasks × 3.
+**Verifier plan (user, 10-09), after 3d:** add only a verifier (no writer). The time check must be triggered by an
+event, not remembered: right after the first edit that passes the repro, call get_status; if
+time_seconds_remaining ≥ ~90, call the verifier (3-line request: what must hold, test file, already-failing tests;
+diff/repro on disk), otherwise run the repro and test file in place and submit.
 **Then (D6/D6b):** one helper, most likely the verifier with a file-based hand-off (request ≈ 3 lines, diff/repro/
 notes on disk, reply VERDICT + ≤ 10 lines); a strict viewer only if thinking makes context the bottleneck.
 
