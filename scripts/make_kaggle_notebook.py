@@ -17,6 +17,7 @@ accelerator GPU L4 ×4, then Run All. Stop the session as soon as it finishes (L
 import argparse
 import ast
 import json
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -37,6 +38,12 @@ def source_of(path, names):
 
 
 def submission_files(name):
+    """Files of submissions/<name>; 'name@REV' takes them from git revision REV (e.g. 1a@30a8c5b = the reference)."""
+    if "@" in name:
+        sub, rev = name.split("@", 1)
+        git = lambda *a: subprocess.run(["git", *a], cwd=ROOT, check=True, capture_output=True, text=True).stdout
+        paths = git("ls-tree", "-r", "--name-only", rev, f"submissions/{sub}/").split()
+        return {p.removeprefix(f"submissions/{sub}/"): git("show", f"{rev}:{p}") for p in paths}
     sub = ROOT / "submissions" / name
     return {p.relative_to(sub).as_posix(): p.read_text() for p in sorted(sub.rglob("*")) if p.is_file()}
 

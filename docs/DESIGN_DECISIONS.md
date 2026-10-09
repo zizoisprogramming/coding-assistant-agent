@@ -206,6 +206,19 @@ latest; executor and verifier unchanged; reader.md / reader.yaml removed. Temper
 **Measure:** time to first edit, Phase A loops, score vs round 6c. Next candidates (user): thinking in helpers (D9b);
 a 2-agent design (main agent edits itself + verifier) compared head-to-head with 1a (30a8c5b).
 
+### D19. 1a round 3: the free fixes from 1b (user, 2026-10-09)
+**Evidence (1a, 20 task runs before the wheelhouse update):** 7 solved, 6 wrong fixes (5 = unguessable
+fastapi_15588), **7 no patch** (3 timeouts on fastapi_15589, 3 on rich_3470, 1 = the 81× broken edit_file loop).
+Context: reading code = 67 % of tool output (read_file 53 %, search 14 %); time: writing repro/check scripts = 60 %
+of output tokens, edits 24 % (scripts/context_split.py). Compaction 1–2× per task wipes memory (no text written).
+**Changes (all proven in 1b):** resume-safe tagged notes (TASK/LOC/BASE/FILE/TRIED/STEP, step 1 never overwrites);
+sed line reads instead of read_file; short old_string + no identical retry + Python edit fallback (1b: 0 broken
+edit loops); repro at most twice and a passing repro is no reason to skip the change; baseline BASE line and
+"adjust, never undo completely"; empty diff never submitted. Thinking setting: decided by the 1a vs 1a_think run.
+**Compare:** `1a@30a8c5b` (reference, embedded from git by make_kaggle_notebook.py) vs `1a` round 3, same tasks.
+**Then (D6/D6b):** one helper, most likely the verifier with a file-based hand-off (request ≈ 3 lines, diff/repro/
+notes on disk, reply VERDICT + ≤ 10 lines); a strict viewer only if thinking makes context the bottleneck.
+
 ### D7. Planner (`{plan}` re-injected every turn) and replanner
 Ladder rungs 3–4 (PLAN.md). Planner = SequentialAgent [planner (output_key=plan) → executor with `{plan}` in its
 instruction]. Paper evidence: planning helps weaker models (+11.6 pts for a 30B at tight budgets). **When:** after

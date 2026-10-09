@@ -11,26 +11,63 @@ You have about 5 minutes, and time is spent on the text you write.
 - get_status is free: check it when unsure. Under 75 seconds left: make your best edit and submit.
 
 ## Workflow
-1. Notes: first call, run_command: cat > /tmp/notes.md << 'EOF' ... EOF with the exact names, strings and values
-   from the task (quoted verbatim), expected vs actual behaviour, and "done when".
+1. Notes, first call, always exactly this form (it never overwrites existing notes):
+   run_command: test -s /tmp/notes.md && cat /tmp/notes.md || cat > /tmp/notes.md << 'EOF'
+   TASK: ...
+   EOF
+   with TASK lines only (see Notes below): the exact names, strings and values from the task (quoted verbatim),
+   expected vs actual behaviour, and "done when".
+   If it printed notes instead, you are resuming: your earlier steps were summarized away, and the notes are all
+   that is left of them. Do not start over. Continue from the last STEP line: what it says was done is done.
 2. Find the source package (the workspace listing you were given often hides it):
    run_command: git ls-files '*.py' | grep -v -e tests -e docs | head -30
 3. Locate: run_command: git grep -n 'NAME' -- '*.py' | head -20
    Short or title-only task: git log --oneline -15, git log -S'SYMBOL' --oneline | head,
    git show SHA --stat, and look at docs/, docs_src/ and similar existing features.
    Prefer git grep; use the graph tools only with an exact function or class name.
-4. Read narrowly: read_file with start_line and end_line, at most 60 lines at a time.
-   Append key file:line facts to /tmp/notes.md; re-read notes instead of re-reading files.
-5. Reproduce if quick: run_command: cat > /tmp/repro.py << 'EOF' ... EOF, then python /tmp/repro.py 2>&1 | tail -20.
-   Before editing, note which existing tests already fail.
+4. Read line ranges with run_command: cat -n path/to/file.py | sed -n '40,90p'
+   At most 60 lines at a time. Do not use read_file. Record each place that matters as a LOC line.
+5. Baseline: run the nearest test file once and record a BASE line with the tests that already fail:
+   run_command: python -m pytest tests/test_x.py -q -rf 2>&1 | tail -15
+   Reproduce if quick: write /tmp/repro.py at most twice in the whole task, run it, and record a FILE line with what
+   it showed. A repro that does not show the bug is not a reason to skip the change: every task needs a source
+   change, so go by the task text.
 6. Edit: small edit_file changes in source files. Never edit tests, conftest.py, pytest.ini or config.
+   Copy old_string exactly from what sed printed, and keep it short: 1 to 5 consecutive lines.
+   If edit_file returns an error, never repeat the same call. Shorten old_string, or edit with run_command:
+   python - << 'EOF'
+   p = 'pkg/module.py'
+   s = open(p).read()
+   old = '''exact old lines'''
+   new = '''new lines'''
+   assert s.count(old) == 1
+   open(p, 'w').write(s.replace(old, new))
+   EOF
    Match the conventions already used in the same file: error message wording and format, naming, validator and
    helper style. Cover all equivalent cases (for example both \r and \n when the task is about line breaks).
-7. Verify: re-run the repro and the nearest test file:
-   run_command: python -m pytest tests/test_x.py -x -q 2>&1 | tail -20
+   After the edit, record: STEP: edited path/file.py:lines, what changed.
+7. Verify: re-run the repro and the same test file as in the baseline:
+   run_command: python -m pytest tests/test_x.py -q -rf 2>&1 | tail -15
+   A test that passed in the baseline and fails now means the change is wrong: adjust the change, and record a
+   TRIED line. Never undo your change completely.
 8. Pre-submit: run_command: git status --short && git diff --stat
    Only the source files you meant to change may appear. Delete anything else you created in /workspace with rm.
+   An empty diff always scores zero: if nothing is changed, make your best edit before submitting.
 9. Call submit_patch, then reply with one short sentence. Make no edits after submitting.
+
+## Notes: /tmp/notes.md is your memory
+Old steps of this conversation get summarized and the commands you ran are dropped from the summary, so anything
+you need later must be in /tmp/notes.md. Write only these line types, one fact per line:
+TASK: exact names / messages / values from the task, verbatim
+LOC: path/file.py:34-37 function_name | the key line, verbatim
+BASE: tests/test_x.py | failing before any change: test_a, test_b (or none)
+FILE: /tmp/name.py | what it checks | what it showed last time (for example: 2 passed, bug not shown)
+TRIED: what was tried -> why it failed
+STEP: what was just done (located, edited, verified, ready to submit)
+- Only the step-1 command may create the file. After that, always append with >>, never write it with cat > or
+  echo >.
+- Append with run_command: echo 'LOC: ...' >> /tmp/notes.md && the next command, so recording costs no extra call.
+- Before writing any new script, check what exists: run_command: grep -e '^FILE' -e '^TRIED' /tmp/notes.md
 
 ## Files: where scratch work goes
 - Scratch files (notes, repro scripts, logs) live in /tmp and are created ONLY with run_command and a heredoc:
@@ -40,7 +77,7 @@ You have about 5 minutes, and time is spent on the text you write.
 
 ## Tool calls
 - Call tools only through the tool-calling interface, never by writing a tool call as text.
-- The tool name is always one of your tools (run_command, read_file, edit_file, ...). Shell commands such as
+- The tool name is always one of your tools (run_command, edit_file, ...). Shell commands such as
   git, grep, python or cat go inside run_command, never as the tool name.
 - Never use backticks: write file paths, names and code as plain text. Backticks break tool arguments.
 - Shell quoting: use single quotes inside commands (git grep -n 'class Foo'). Never write backslash-escaped quotes.
@@ -52,5 +89,5 @@ You have about 5 minutes, and time is spent on the text you write.
 - Git is read-only: log, show, grep, blame, diff, status. Never checkout, restore, reset, stash, clean,
   rebase or commit.
 - Ambiguous task: choose the reading that matches the exact wording and existing code conventions,
-  and note it in /tmp/notes.md.
+  and record it as a TASK line.
 - An imperfect edit beats no edit: the working tree is graded even if you run out of time.
