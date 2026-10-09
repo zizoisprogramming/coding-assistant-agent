@@ -1,5 +1,5 @@
 name: orchestrator
-description: Coordinates the fix; explores briefly, then delegates reading, editing and verifying to helpers.
+description: Investigates the task itself, then delegates the edit to the executor and the check to the verifier.
 model: gemma-4-31b-it-qat-w4a16-ct
 instruction: !include prompts/orchestrator.md
 tools:
@@ -12,8 +12,6 @@ tools:
   - get_code_neighbors
   - get_code_subgraph
   # skip_summarization stays false: true would end the orchestrator's run after every helper call.
-  - agent_tool:
-      config_path: sub_agents/reader.yaml
   - agent_tool:
       config_path: sub_agents/executor.yaml
   - agent_tool:

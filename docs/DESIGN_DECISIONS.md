@@ -195,6 +195,17 @@ done, each helper's result, fix round, ready to submit); only step 1 may create 
 repetition *before* any compaction: repro.py rewritten identically 10× / 12× in a row, a reader running the same
 git grep 57× → next: temperature back to 1.0 (D10).
 
+### D6c. Fewer agents: merge orchestrator and reader (user, 2026-10-09)
+**Why:** 4 agents for a 5-minute task; in rounds 4–6b the orchestrator already did reader work itself in Phase A
+(29–59 % of all task time, and nearly all its loops), then asked the reader to search again with a blank memory;
+request writing alone ≈ 8–10 % of time. The reader also ran away on rich_3470 (13–68 calls) and returned empty
+replies. Same direction as the multi-agent overhead evidence in D6b (arXiv 2512.08296).
+**Round 7 (= round 6c minus the reader):** the orchestrator investigates until it knows file:lines, the current
+code and the exact change (plus conventions to match), then hands off at tool_calls_used 14 or 120 s elapsed at the
+latest; executor and verifier unchanged; reader.md / reader.yaml removed. Temperature 1.0 (round 6c).
+**Measure:** time to first edit, Phase A loops, score vs round 6c. Next candidates (user): thinking in helpers (D9b);
+a 2-agent design (main agent edits itself + verifier) compared head-to-head with 1a (30a8c5b).
+
 ### D7. Planner (`{plan}` re-injected every turn) and replanner
 Ladder rungs 3–4 (PLAN.md). Planner = SequentialAgent [planner (output_key=plan) → executor with `{plan}` in its
 instruction]. Paper evidence: planning helps weaker models (+11.6 pts for a 30B at tight budgets). **When:** after
