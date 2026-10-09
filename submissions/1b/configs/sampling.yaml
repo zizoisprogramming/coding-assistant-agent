@@ -1,6 +1,7 @@
-# Sampling: Google's recommended values for Gemma 4 (model card); back to 1.0 on 10-09 because 0.2 produced
-# identical back-to-back command loops (D10, rung-1h); thinking off.
-temperature: 1.0
+# Sampling: temperature 0.2 again for round 7 (10-09): since wheelhouse 0.2.13, at 1.0 the model opens the thought
+# channel despite thinking off (hidden tokens, text-only tool calls; rung-1i/1j). 0.2 loops instead (D10); the
+# notebook's sampling diagnostic picks the next setting. top_p/top_k per the Gemma 4 model card; thinking off.
+temperature: 0.2
 top_p: 0.95
 top_k: 64
 max_output_tokens: 2048

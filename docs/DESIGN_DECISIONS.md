@@ -237,6 +237,11 @@ Suspected: the model reasons despite the flag and 0.2.13 hides it (unverified). 
 versions and runs a direct-call diagnostic (thinking off, T 0.2 / 1.0, reasoning vs content length). If the model
 does think anyway: try `thinking_budget: 0` (checked before include_thoughts in 0.2.13), or thinking on with a
 small budget since we pay for it regardless.
+**Rung-1j (10-09):** short diagnostic prompt → no reasoning at all; real runs at T 1.0 → hidden reasoning in all
+agents (2.7–5.0×) and replies with `<|channel>thought<channel|>` + the tool call written as text (no call parsed →
+nudges). **Next run:** replay the real first orchestrator request (full 1b prompt + harness task message, built at
+runtime from tasks.jsonl) under T1.0/p.95/k64, T1.0/p.80/k20, T0.6, T0.4, T0.2 (3 samples × 2 tasks, thinking off),
+reporting reasoning, marker leaks and proper tool calls. The eval in the same session runs round 7 at T 0.2.
 
 ### D10. Temperature 1.0 vs 0.2
 Google recommends 1.0; one forum test saw more loops at 0.7 than 0.2. **Measure** after the first comparison.
