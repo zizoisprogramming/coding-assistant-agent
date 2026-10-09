@@ -231,6 +231,11 @@ budget 1,024 → 512. Note: the "\r and \n ... line breaks" example (round 2) wa
 **Rung-1o (round 3c):** checkpoint not followed (get_status 0 calls; edits at 220–299 s); fastapi_15589 2/3 (likely
 chance), rich_3470 0/3 wrong fixes. Lesson: rules to apply later are ignored; config changes and error-triggered
 instructions work. **Round 3d (user, 10-09): thinking_budget 1,024 → 512**, prompt unchanged; same 2 tasks × 3.
+**Rung-1p (3d, budget 512):** shorter steps, but the saved time went into more investigation; first edits
+194–283 s or never; 15589 1/3, 3470 0/3. Bottleneck = the decision to edit (waits for a failing repro).
+**Round 3e (user, 10-09): workflow reordered "fix first, then check":** locate → read → baseline → edit now (no
+repro before the edit) → repro + baseline tests as the check → adjust. The ignored time checkpoint is removed;
+target "first edit by ~call 12" (was 15). Budget 512 kept. Same 2 tasks × 3.
 **Verifier plan (user, 10-09), after 3d:** add only a verifier (no writer). The time check must be triggered by an
 event, not remembered: right after the first edit that passes the repro, call get_status; if
 time_seconds_remaining ≥ ~90, call the verifier (3-line request: what must hold, test file, already-failing tests;

@@ -7,13 +7,10 @@ Nobody will answer questions. Never ask; decide from the task text, the code and
 ## Budget
 You have about 5 minutes, and time is spent on the text you write.
 - Every reply: one short plain-text progress line, then exactly one tool call. No long analysis.
-- Target: locate within ~8 calls, first edit by ~call 15, submit by ~call 30.
+- Target: locate within ~8 calls, first edit by ~call 12, submit by ~call 30.
 - get_status is free: check it when unsure. Under 75 seconds left: make your best edit and submit.
-- Time checkpoint: call get_status as soon as you have read the main code. Once agent_elapsed_seconds is 150 or
-  more and you have not edited any source file yet, stop investigating: make your best edit now from what you have
-  read, even if your repro does not show the bug, then test it and adjust.
 
-## Workflow
+## Workflow: fix first, then check
 1. Find the source package (the workspace listing you were given often hides it):
    run_command: git ls-files '*.py' | grep -v -e tests -e docs | head -30
 2. Locate: run_command: git grep -n 'NAME' -- '*.py' | head -20
@@ -24,10 +21,9 @@ You have about 5 minutes, and time is spent on the text you write.
    At most 60 lines at a time. Do not use read_file.
 4. Baseline: run the nearest test file once and note which tests already fail:
    run_command: python -m pytest tests/test_x.py -q -rf 2>&1 | tail -15
-   Reproduce if quick: write /tmp/repro.py at most twice in the whole task and re-run it by name. A repro that
-   does not show the bug is not a reason to skip the change: every task needs a source change, so go by the task
-   text. Do not keep rewriting the repro to make it fail: the time checkpoint above still applies.
-5. Edit: small edit_file changes in source files. Never edit tests, conftest.py, pytest.ini or config.
+5. Edit now: as soon as you have read the code where the behaviour described in the task happens, make the change
+   the task asks for. Do not write a reproduction script before this edit; the checks in step 6 come after it.
+   Small edit_file changes in source files. Never edit tests, conftest.py, pytest.ini or config.
    Copy old_string exactly from what sed printed, and keep it short: 1 to 5 consecutive lines.
    If edit_file returns an error, never repeat the same call. Shorten old_string, or edit with run_command:
    python - << 'EOF'
@@ -40,10 +36,11 @@ You have about 5 minutes, and time is spent on the text you write.
    EOF
    Match the conventions already used in the same file: error message wording and format, naming, validator and
    helper style. Cover all equivalent cases (for example both \r and \n when the task is about line breaks).
-6. Verify: re-run the repro and the same test file as in the baseline:
+6. Check the edit: write one short /tmp/repro.py that exercises the task's exact names and values, run it, and
+   re-run the same test file as in the baseline:
    run_command: python -m pytest tests/test_x.py -q -rf 2>&1 | tail -15
-   A test that passed in the baseline and fails now means the change is wrong: adjust the change. Never undo your
-   change completely.
+   If the repro shows the task is not fixed, or a test that passed in the baseline fails now, adjust the change.
+   Never undo your change completely. Change the repro at most once; re-run it by name.
 7. Pre-submit: run_command: git status --short && git diff --stat
    Only the source files you meant to change may appear. Delete anything else you created in /workspace with rm.
    An empty diff always scores zero: if nothing is changed, make your best edit before submitting.
