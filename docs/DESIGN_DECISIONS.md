@@ -220,6 +220,14 @@ edit loops); repro at most twice and a passing repro is no reason to skip the ch
 notes ignored (0 notes reads); the multi-line step-1 notes block was copied as **text** in 3/8 tasks (no tool call,
 fastapi_15589 r2 lost). **Round 3b (user, 10-09):** notes system removed entirely (thoughts now survive compaction
 as text); keeps sed reads, edit fix, repro cap, baseline, never-undo, no empty diff.
+**Rung-1n (round 3b, log only, zip lost): run 1 = 1/4** (rich_3882); no text tool calls; edit fallback rescued
+fastapi_15588's edits; timeouts on fastapi_15589 / rich_3470 dominated by 25–40 s thinking steps.
+**Two failing tasks, all 31 runs (10-09):** both are 1-line gold fixes. Solves edited the right spot at 111–261 s;
+failures = no edit (repro never shows the bug, agent keeps investigating) or a different location/guess. Since the
+update 0/13 + 0/? : edits come at ≥ 230 s or never. **Round 3c (user):** generic time checkpoint — get_status after
+reading the main code; at agent_elapsed_seconds ≥ 150 with no source edit, make the best edit now, then test and
+adjust; no task-specific content. Test on fastapi_15589 + rich_3470 only, 3 repeats. Next candidate: thinking
+budget 1,024 → 512. Note: the "\r and \n ... line breaks" example (round 2) was inspired by fastapi_15588.
 **Then (D6/D6b):** one helper, most likely the verifier with a file-based hand-off (request ≈ 3 lines, diff/repro/
 notes on disk, reply VERDICT + ≤ 10 lines); a strict viewer only if thinking makes context the bottleneck.
 

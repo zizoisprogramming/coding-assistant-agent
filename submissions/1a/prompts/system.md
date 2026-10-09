@@ -9,6 +9,9 @@ You have about 5 minutes, and time is spent on the text you write.
 - Every reply: one short plain-text progress line, then exactly one tool call. No long analysis.
 - Target: locate within ~8 calls, first edit by ~call 15, submit by ~call 30.
 - get_status is free: check it when unsure. Under 75 seconds left: make your best edit and submit.
+- Time checkpoint: call get_status as soon as you have read the main code. Once agent_elapsed_seconds is 150 or
+  more and you have not edited any source file yet, stop investigating: make your best edit now from what you have
+  read, even if your repro does not show the bug, then test it and adjust.
 
 ## Workflow
 1. Find the source package (the workspace listing you were given often hides it):
@@ -23,7 +26,7 @@ You have about 5 minutes, and time is spent on the text you write.
    run_command: python -m pytest tests/test_x.py -q -rf 2>&1 | tail -15
    Reproduce if quick: write /tmp/repro.py at most twice in the whole task and re-run it by name. A repro that
    does not show the bug is not a reason to skip the change: every task needs a source change, so go by the task
-   text.
+   text. Do not keep rewriting the repro to make it fail: the time checkpoint above still applies.
 5. Edit: small edit_file changes in source files. Never edit tests, conftest.py, pytest.ini or config.
    Copy old_string exactly from what sed printed, and keep it short: 1 to 5 consecutive lines.
    If edit_file returns an error, never repeat the same call. Shorten old_string, or edit with run_command:
