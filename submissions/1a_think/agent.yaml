@@ -1,0 +1,17 @@
+name: executor
+description: Single agent that localizes, edits, verifies and submits a fix on its own.
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/system.md
+tools:
+  - run_command
+  - read_file
+  - edit_file
+  - write_file
+  - get_status
+  - submit_patch
+  # Declared only so a call never crashes the task: the harness task message may advertise them,
+  # and an undeclared tool call ends the task and discards the patch (forum 745028).
+  - search_similar_code
+  - get_code_neighbors
+  - get_code_subgraph
+generate_content_config: !include configs/sampling.yaml

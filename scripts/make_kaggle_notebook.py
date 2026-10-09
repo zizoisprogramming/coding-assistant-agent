@@ -217,8 +217,10 @@ def _sampling_diagnostic(task_ids=("rich_3882", "fastapi_15589"), samples=3):
         print(f"  {_name}: mean {sum(r[0] for r in _rows) / _n:5.1f}s  mean out_tok {sum(r[1] for r in _rows) / _n:6.0f}  "
               f"with reasoning {sum(r[2] > 0 for r in _rows)}/{_n}  marker leaks {sum(r[3] for r in _rows)}/{_n}  "
               f"proper tool calls {sum(r[4] for r in _rows)}/{_n}")
+RUN_SAMPLING_DIAGNOSTIC = False  # rung-1k answered it: direct calls never think
 try:
-    _sampling_diagnostic()
+    if RUN_SAMPLING_DIAGNOSTIC:
+        _sampling_diagnostic()
 except Exception as _e:  # never block the evaluation
     print("sampling diagnostic failed:", repr(_e))'''
 

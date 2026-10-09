@@ -1,0 +1,10 @@
+# 1a with thinking ON (10-09 experiment; only difference from 1a = this thinking_config).
+# Forum 746250: thinking off 17.8 % vs on 37-40 % (129 tasks, long caps). Budget capped for our 5-min limit:
+# 1,024 thinking tokens ~ 28 s at ~36 tok/s worst case per step. include_thoughts true keeps thought summaries.
+temperature: 1.0
+top_p: 0.95
+top_k: 64
+max_output_tokens: 2048
+thinking_config:
+  include_thoughts: true
+  thinking_budget: 1024

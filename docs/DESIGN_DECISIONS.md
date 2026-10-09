@@ -242,6 +242,11 @@ agents (2.7–5.0×) and replies with `<|channel>thought<channel|>` + the tool c
 nudges). **Next run:** replay the real first orchestrator request (full 1b prompt + harness task message, built at
 runtime from tasks.jsonl) under T1.0/p.95/k64, T1.0/p.80/k20, T0.6, T0.4, T0.2 (3 samples × 2 tasks, thinking off),
 reporting reasoning, marker leaks and proper tool calls. The eval in the same session runs round 7 at T 0.2.
+**Rung-1k result:** direct calls never think (0/30); hidden tokens in agent runs date exactly to the wheelhouse update
+(before 1.0×, after 2.8–3.4× at any temperature). Forum 746250: thinking off 17.8 % vs on 37–40 % (129 tasks).
+**10-09 (user): focus moves to 1a; 1b parked.** First 1a comparison, one notebook, 4 tasks × 2 repeats:
+`1a` (reference 30a8c5b, thinking off) vs `1a_think` (identical except `include_thoughts: true`,
+`thinking_budget: 1024`). **Measure:** solve rate, seconds per task, timeouts, thinking tokens per step.
 
 ### D10. Temperature 1.0 vs 0.2
 Google recommends 1.0; one forum test saw more loops at 0.7 than 0.2. **Measure** after the first comparison.
