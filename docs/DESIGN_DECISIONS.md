@@ -216,6 +216,10 @@ sed line reads instead of read_file; short old_string + no identical retry + Pyt
 edit loops); repro at most twice and a passing repro is no reason to skip the change; baseline BASE line and
 "adjust, never undo completely"; empty diff never submitted. Thinking setting: decided by the 1a vs 1a_think run.
 **Compare:** `1a@30a8c5b` (reference, embedded from git by make_kaggle_notebook.py) vs `1a` round 3, same tasks.
+**Rung-1m (round 3): 1/4, 1/4** vs 1a_think 1/4, 2/4. Edit errors 10/29 → 2/13; read_file halved; repro cap and
+notes ignored (0 notes reads); the multi-line step-1 notes block was copied as **text** in 3/8 tasks (no tool call,
+fastapi_15589 r2 lost). **Round 3b (user, 10-09):** notes system removed entirely (thoughts now survive compaction
+as text); keeps sed reads, edit fix, repro cap, baseline, never-undo, no empty diff.
 **Then (D6/D6b):** one helper, most likely the verifier with a file-based hand-off (request ≈ 3 lines, diff/repro/
 notes on disk, reply VERDICT + ≤ 10 lines); a strict viewer only if thinking makes context the bottleneck.
 
