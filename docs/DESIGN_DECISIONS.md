@@ -229,6 +229,11 @@ become stable. The leaderboard submission still uses 1.0.
 **10-07 (later):** rung-1d 1a_r1 scored 0/4 → user decision: **1a and 1b are changed separately, never in the same
 round.** 1a reverted to its 3/4 version (commit 30a8c5b: round-2 prompt, temperature 1.0); fixes A–C and 0.2 stay
 on 1b only. A 1a change is tested on its own later.
+**10-09 (user): 1b back to 1.0** (round 6c = round 6b + temperature only). At 0.2 the longest identical back-to-back
+command streak per task grew 13 → 15 → 34 → 43 → 57 over rungs 1d–1h (repro.py rewritten word for word, a reader
+running the same git grep 57×), while 1b at 1.0 (rungs 1b/1c, 8 task runs) never exceeded 2. Low temperature is a
+known cause of repetition (Holtzman et al., ICLR 2020). **Measure:** streak lengths, repro writes, score, and the
+spread between repeats.
 
 ### D11. Graph tools
 Declared only as crash insurance (S5); `search_similar_code` returned 0 results in 140/142 calls (forum) and was useless
