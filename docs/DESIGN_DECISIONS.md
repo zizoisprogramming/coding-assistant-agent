@@ -260,6 +260,10 @@ reporting reasoning, marker leaks and proper tool calls. The eval in the same se
 **10-09 (user): focus moves to 1a; 1b parked.** First 1a comparison, one notebook, 4 tasks × 2 repeats:
 `1a` (reference 30a8c5b, thinking off) vs `1a_think` (identical except `include_thoughts: true`,
 `thinking_budget: 1024`). **Measure:** solve rate, seconds per task, timeouts, thinking tokens per step.
+**Rung-1l result:** 1a 1/4, 0/4 vs 1a_think 1/4, 2/4. With "thinking off" 1a still reasoned invisibly (2.5–3.2×
+hidden, ~260 output tokens/step), the same cost as thinking on (1.0×, thoughts kept). **Decision: thinking on
+(budget 1,024) for 1a from now on.** Since the update every step costs ~2× the tokens of before (≈ 130 → 260),
+so only about half as many steps fit in 5 minutes.
 
 ### D10. Temperature 1.0 vs 0.2
 Google recommends 1.0; one forum test saw more loops at 0.7 than 0.2. **Measure** after the first comparison.

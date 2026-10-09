@@ -1,7 +1,10 @@
-# Google's recommended sampling for Gemma 4 (model card); thinking off.
+# Thinking ON since 10-09 (rung-1l): with "thinking off" the model reasoned anyway, invisibly, at the same cost
+# (2.5-3.2x hidden tokens since wheelhouse 0.2.13); thinking on makes the thoughts visible and keeps them.
+# Budget 1,024: median 119, p90 677 thinking+answer tokens per step. Sampling per the Gemma 4 model card.
 temperature: 1.0
 top_p: 0.95
 top_k: 64
 max_output_tokens: 2048
 thinking_config:
-  include_thoughts: false
+  include_thoughts: true
+  thinking_budget: 1024
