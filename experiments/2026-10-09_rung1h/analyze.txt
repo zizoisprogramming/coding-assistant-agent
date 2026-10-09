@@ -1,0 +1,46 @@
+
+## 1b_r1: 1/4 resolved
+task             outcome              sec calls out_tok peak_in compact nudge repeat errors broken  tools / helpers
+-------------------------------------------------------------------------------------------------------------------
+fastapi_15588    wrong fix            150    36    3894   14832       0     0      1      3      0  run_command×26, edit_file×5, reader×1, executor×1, verifier×1, submit_patch×1 | format ok reader 1/1, executor 1/1, verifier 1/1
+                 patch: fastapi/sse.py
+fastapi_15589    timeout, no patch    307    25    8421   14448       2     0     15      0      0  run_command×25
+                 error: Agent exceeded session timeout (5.0 min)
+rich_3882        resolved              70    28    1907    9496       0     0      1      3      0  run_command×23, executor×1, edit_file×1, verifier×1, submit_patch×1 | format ok executor 1/1, verifier 1/1
+                 patch: rich/prompt.py
+rich_3470        wrong fix            197    84    5539   14421       1     0     37      2      0  run_command×79, executor×1, edit_file×1, verifier×1, submit_patch×1 | format ok executor 1/1, verifier 1/1
+                 patch: rich/console.py
+
+## 1b_r2: 1/4 resolved
+task             outcome              sec calls out_tok peak_in compact nudge repeat errors broken  tools / helpers
+-------------------------------------------------------------------------------------------------------------------
+fastapi_15588    wrong fix            182    34    5107   16675       1     0      1      3      0  run_command×25, edit_file×3, reader×1, executor×1, verifier×1, get_status×1, submit_patch×1 | format ok reader 1/1, executor 1/1, verifier 1/1
+                 patch: fastapi/sse.py
+fastapi_15589    no patch             188    84    5672   13171       0     0     67      1      0  run_command×81, reader×1, submit_patch×1 | format ok reader 0/1
+rich_3882        resolved              66    27    1860    9505       0     0      1      3      0  run_command×22, executor×1, edit_file×1, verifier×1, submit_patch×1 | format ok executor 1/1, verifier 1/1
+                 patch: rich/prompt.py
+rich_3470        no patch             184    86    5009   14340       1     0     28      3      0  run_command×78, executor×2, edit_file×2, reader×1, verifier×1, submit_patch×1 | format ok reader 0/1, executor 2/2, verifier 1/1
+## 1b_r1: 1/4 resolved
+fastapi_15588  --  150s helper@33 edit@78 repro×1 streak 1 
+                 compactions→[] notes {'notes_resume_cmd': 1, 'orch_reads_notes': 3, 'orch+FILE': 1, 'orch+STEP': 1}
+fastapi_15589  --  307s helper@None edit@None repro×18 streak 10 orchestrator: "cat > /tmp/repro.py << 'EOF'\nfrom fastapi import FastAPI, Header\nfrom "
+                 compactions→['RESTART(notes overwritten)', 'continue'] notes {'notes_resume_cmd': 1, 'orch_reads_notes': 1, 'notes_overwrite': 1}
+rich_3470      --  197s helper@156 edit@163 repro×27 streak 12 orchestrator: "cat > /tmp/repro.py << 'EOF'\nfrom rich.console import Console\n\nconsole"
+                 compactions→['resume-check'] notes {'notes_resume_cmd': 2, 'orch_reads_notes': 3}
+rich_3882      OK   70s helper@35 edit@40 repro×2 streak 1 
+                 compactions→[] notes {'notes_resume_cmd': 1, 'orch_reads_notes': 2, 'orch+LOC': 1, 'orch+FILE': 1, 'orch+STEP': 1}
+## 1b_r2: 1/4 resolved
+fastapi_15588  --  182s helper@53 edit@110 repro×4 streak 1 
+                 compactions→['continue'] notes {'notes_resume_cmd': 1, 'orch_reads_notes': 3, 'orch+LOC': 2, 'orch+FILE': 1, 'orch+STEP': 1, 'read+LOC': 2}
+fastapi_15589  --  188s helper@69 edit@None repro×3 streak 57 reader: "git grep -n 'convert_underscores' -- 'fastapi/params/*.py' | head -20"
+                 compactions→[] notes {'notes_resume_cmd': 1, 'orch_reads_notes': 2, 'orch+STEP': 1}
+rich_3470      --  184s helper@82 edit@110 repro×13 streak 1 
+                 compactions→['resume-check'] notes {'notes_resume_cmd': 2, 'orch_reads_notes': 6}
+rich_3882      OK   66s helper@36 edit@41 repro×2 streak 1 
+                 compactions→[] notes {'notes_resume_cmd': 1, 'orch_reads_notes': 2, 'orch+LOC': 1, 'orch+FILE': 1, 'orch+STEP': 1}
+
+## totals
+reader    calls   4  mean   44s  inner calls [7, 8, 10, 68]  no reply 0
+executor  calls   7  mean   17s  inner calls [3, 4, 4, 5, 5, 6, 8]  no reply 0
+verifier  calls   6  mean   14s  inner calls [2, 2, 3, 6, 6, 7]  no reply 0
+notes: {'notes_overwrite': 1, 'notes_resume_cmd': 10, 'orch+FILE': 4, 'orch+LOC': 4, 'orch+STEP': 5, 'orch_reads_notes': 22, 'read+LOC': 2}

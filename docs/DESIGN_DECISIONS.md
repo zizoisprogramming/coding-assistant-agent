@@ -190,6 +190,10 @@ notes (21×). Repro cap and helper notes-reads were ignored (experiments/2026-10
 exist the orchestrator is resuming → no Phase A again, continue from the last STEP line. New STEP lines (Phase A
 done, each helper's result, fix round, ready to submit); only step 1 may create the file, everything else appends.
 **Measure:** Phase A restarts after compaction (round 6: every compaction), notes overwrites (21 → 0), score.
+**Rung-1h result (round 6b, 2 repeats): 1/4, 1/4.** Resume fix works: notes overwrites 21 → 1; after compaction
+2× resume-check, 1× continue, 1× restart (was mostly restarts). STEP lines written (5). Remaining loss = identical
+repetition *before* any compaction: repro.py rewritten identically 10× / 12× in a row, a reader running the same
+git grep 57× → next: temperature back to 1.0 (D10).
 
 ### D7. Planner (`{plan}` re-injected every turn) and replanner
 Ladder rungs 3–4 (PLAN.md). Planner = SequentialAgent [planner (output_key=plan) → executor with `{plan}` in its
@@ -236,6 +240,10 @@ in "Kaggle Error" (no logs; likely the 12 h limit — the host said overruns err
 Resubmitted with 4 min / 50 calls (worst case 8 h agent time + setup). On our dev tasks 1a needed 64–171 s, so the
 hidden tasks are probably harder/longer. Never go above 5 min again until the host confirms unfinished tasks score 0.
 **Settled by:** whether the 4-min submission scores; time-to-first-edit and timeout rate; D17.
+**10-09: both errors were platform failures (forum 743683/746480) and Kaggle rescored them:** 56888287 (1a round 2,
+5 min / 60 calls) **0.08**; 56907342 (same prompt, 4 min / 50 calls) **0.10** — middle of the leaderboard. So the
+4-min limit costs nothing visible (difference is within noise). Dev-set 1a ≈ 25–75 % vs 10 % hidden: our 4 dev
+tasks are easier than the hidden set (D13).
 
 ### D13. Dev set size
 Currently 4 gold-checked tasks (1 task = 25 %, directional only). **Plan:** grow to ~20 gold-checked tasks across
