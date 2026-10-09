@@ -138,7 +138,47 @@ vllm_cfg = VllmConfig(
 server_instance = VllmServer(vllm_cfg)
 server_instance.start()
 print(f'vLLM server started on {server_instance.base_url} (tp={tp_size})')
-models = server_instance.create_model_registry(aliases=[TARGET_MODEL_NAME], model_prefix='openai/', api_key='EMPTY')'''
+models = server_instance.create_model_registry(aliases=[TARGET_MODEL_NAME], model_prefix='openai/', api_key='EMPTY')
+
+# Installed harness versions (the wheelhouse changes over time; rung-1i notes).
+from importlib.metadata import version, PackageNotFoundError
+def _ver(p):
+    try:
+        return version(p)
+    except PackageNotFoundError:
+        return None
+print('VERSIONS', {p: _ver(p) for p in ('adk-submission', 'swegemma', 'adk-eval-core', 'google-adk', 'vllm')})
+
+# Thinking diagnostic (rung-1i): with thinking off, how many output tokens are hidden reasoning?
+def _thinking_diagnostic():
+    import json as _json, time, urllib.request as _url
+    _base = server_instance.base_url.rstrip('/')
+    _base = _base if _base.endswith('/v1') else _base + '/v1'
+    _served = _json.load(_url.urlopen(_base + '/models'))['data'][0]['id']
+    _tool = {"type": "function", "function": {"name": "run_command", "description": "Run a shell command.",
+             "parameters": {"type": "object", "properties": {"command": {"type": "string"}}, "required": ["command"]}}}
+    _msgs = [{"role": "system", "content": "You fix bugs in the repository at /workspace. Every reply: one short progress line, then exactly one tool call."},
+             {"role": "user", "content": "Task: headers with underscores must be rejected when convert_underscores=True. Find where headers are read in the fastapi package."}]
+    for _kw_name, _kw in (("enable_thinking=False", {"enable_thinking": False}), ("no template kwargs", None)):
+        for _temp in (0.2, 1.0):
+            for _rep in range(2):
+                _body = {"model": _served, "messages": _msgs, "tools": [_tool], "temperature": _temp, "top_p": 0.95,
+                         "top_k": 64, "max_tokens": 2048}
+                if _kw is not None:
+                    _body["chat_template_kwargs"] = _kw
+                _t = time.time()
+                _req = _url.Request(_base + '/chat/completions', data=_json.dumps(_body).encode(), headers={"Content-Type": "application/json"})
+                _r = _json.load(_url.urlopen(_req, timeout=300))
+                _m = _r['choices'][0]['message']
+                _reason = _m.get('reasoning_content') or _m.get('reasoning') or ''
+                print(f"{_kw_name:22} T={_temp} #{_rep + 1}: {time.time() - _t:5.1f}s  completion_tokens={_r['usage']['completion_tokens']:5}  "
+                      f"reasoning_chars={len(_reason):5}  content_chars={len(_m.get('content') or ''):4}  tool_calls={len(_m.get('tool_calls') or [])}")
+                if _reason and _rep == 0:
+                    print('    reasoning starts:', repr(_reason[:200]))
+try:
+    _thinking_diagnostic()
+except Exception as _e:  # never block the evaluation
+    print('thinking diagnostic failed:', repr(_e))'''
 
 EVAL = '''# 4. Evaluate every config on the same tasks (Evaluator configured like the scorer; see scripts/run_eval.py)
 import asyncio, concurrent.futures, time, yaml

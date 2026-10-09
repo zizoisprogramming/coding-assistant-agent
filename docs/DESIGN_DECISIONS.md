@@ -230,6 +230,13 @@ agent has its own generate_content_config, and a helper's whole session (thought
 returns, so reasoning costs time but not orchestrator context; (c) off (current).
 **Cost:** ~36 tok/s measured (D15) → a 1,000-token thought ≈ 28 s per step.
 **Measure:** 1a off vs 1a budget 512; 1b with thinking only in reader/verifier vs all off.
+**10-09: wheelhouse 0.2.13 (adk_submission, 2026-10-08) changed thought handling:** `include_thoughts: false` still
+sends enable_thinking=false, but now also strips thought parts / reasoning_content from responses before they
+reach the session. Rung-1i (1b, T 1.0) showed 3.4× hidden output tokens (none in any earlier run) → timeouts.
+Suspected: the model reasons despite the flag and 0.2.13 hides it (unverified). The notebook now prints installed
+versions and runs a direct-call diagnostic (thinking off, T 0.2 / 1.0, reasoning vs content length). If the model
+does think anyway: try `thinking_budget: 0` (checked before include_thoughts in 0.2.13), or thinking on with a
+small budget since we pay for it regardless.
 
 ### D10. Temperature 1.0 vs 0.2
 Google recommends 1.0; one forum test saw more loops at 0.7 than 0.2. **Measure** after the first comparison.
