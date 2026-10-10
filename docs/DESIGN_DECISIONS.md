@@ -247,6 +247,14 @@ notes. Steps that write scripts = 32 % of output tokens.
 next tool call is that edit, even if not fully sure; no re-check first"; (2) scripts: change only the differing
 lines (sed -i or cat >>), never rewrite a whole script or write the same one twice. Same 2 tasks × 3.
 **Measure:** gap between the "found it" thought and the edit; script rewrites per task; score.
+**Rung-1r (3f): 1/6**; commit trigger and in-place script rule ignored; one task wrote imagined tool calls and
+outputs as text. Edits themselves are cheap (5–55 s per task); the time goes into reading and repro writing first.
+**Round 4 (user, 10-10): prompt rewritten from scratch** instead of patched: scoring explained (no edit = 0; early
+edit + adjust beats a perfect plan), one decision rule (name the change → next call is the edit), 6-step workflow
+(locate, read, baseline, edit, check, submit), two generic few-shot examples on an invented package written as
+prose (no copyable "run_command:" lines), one anti-example, explicit "never write tool calls or outputs as text".
+The "\r and \n" example (from fastapi_15588) is replaced by "cover every case the task names". Goal (user): 3/4 on
+the 4 dev tasks and 0.15 on the leaderboard before LoRA. Run: all 4 tasks × 2.
 **Verifier plan (user, 10-09), after 3d:** add only a verifier (no writer). The time check must be triggered by an
 event, not remembered: right after the first edit that passes the repro, call get_status; if
 time_seconds_remaining ≥ ~90, call the verifier (3-line request: what must hold, test file, already-failing tests;
