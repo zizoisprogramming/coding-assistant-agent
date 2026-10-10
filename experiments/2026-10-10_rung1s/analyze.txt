@@ -1,0 +1,33 @@
+
+## 1a_r1: 2/4 resolved
+task             outcome              sec calls out_tok peak_in compact nudge repeat errors broken  tools / helpers
+-------------------------------------------------------------------------------------------------------------------
+fastapi_15588    wrong fix            165    21    3573   14612       1     0      0      3      0  run_command×11, edit_file×7, read_file×1, submit_patch×1
+                 patch: fastapi/sse.py
+fastapi_15589    wrong fix            305    35    8740   14400       1     1      0      4      0  run_command×18, read_file×15, edit_file×1
+                 patch: fastapi/dependencies/utils.py
+                 error: Agent exceeded session timeout (5.0 min)
+rich_3882        resolved             106    20    3068   11594       0     0      0      2      0  run_command×14, read_file×3, edit_file×1, submit_patch×1
+                 patch: rich/prompt.py
+rich_3470        resolved             304    36    8516   15029       1     1      5      2      0  run_command×22, read_file×12, edit_file×1
+                 patch: rich/console.py
+
+## 1a_r2: 2/4 resolved
+task             outcome              sec calls out_tok peak_in compact nudge repeat errors broken  tools / helpers
+-------------------------------------------------------------------------------------------------------------------
+fastapi_15588    wrong fix            271    33    7891   14750       1     1      0      0      0  run_command×20, read_file×6, edit_file×3, submit_patch×2
+                 patch: fastapi/sse.py
+fastapi_15589    timeout, no patch    302    30    8061   15666       1     0      0      2      0  run_command×19, read_file×11
+                 error: Agent exceeded session timeout (5.0 min)
+rich_3882        resolved             146    27    4800   12507       0     0      2      0      0  run_command×17, read_file×7, edit_file×1, submit_patch×1
+                 patch: rich/prompt.py
+rich_3470        resolved             304    43    9242   14481       1     0      2      5      0  run_command×21, read_file×18, edit_file×4
+                 patch: rich/console.py
+1a_r1 fastapi_15588  first edit 63s | edit 52s/7, run script/tests 26s/2, read 21s/6, write script 11s/1, run_command 5s/2, submit_patch 1s/1, search 0s/1 | sequence RRSRWEREERREEEETTRRS
+1a_r1 fastapi_15589  first edit 270s | read 96s/15, search 91s/13, write script 36s/3, edit 16s/1, run script/tests 5s/2 | sequence SRRRRRRRSRRSRWWRRSSRSSRRSSSSETWSST
+1a_r1 rich_3470      first edit 260s | run script/tests 101s/9, search 64s/11, read 53s/12, write script 45s/2, edit 7s/1 | sequence SSSTRSRSRSRWSRRSRRSRTTSRTTRTWETTTSR
+1a_r1 rich_3882      first edit 44s | write script 42s/6, search 19s/5, read 13s/3, run_command 11s/2, edit 3s/1, run script/tests 2s/1, submit_patch 2s/1 | sequence SSRSSSWWWEWWWTRRRRS
+1a_r2 fastapi_15588  first edit 68s | read 53s/13, search 44s/5, run_command 43s/4, edit 43s/3, write script 39s/2, submit_patch 15s/2, run script/tests 4s/2 | sequence RRRRWEERRRETWSTRRRRSRRSRSSRSRRS
+1a_r2 fastapi_15589  first edit Nones | search 118s/12, run script/tests 57s/4, write script 52s/3, read 32s/11 | sequence SRRSRRTSWTSSRTWWSRSRRRRSTSSSRS
+1a_r2 rich_3470      first edit 277s | write script 90s/5, read 74s/18, search 72s/16, edit 37s/4 | sequence SSSRSRSRSRSRSRRRRSRWSSRWRRWRSRSRSRSSWWREEEE
+1a_r2 rich_3882      first edit 38s | search 31s/8, read 30s/7, write script 28s/3, run script/tests 20s/5, edit 16s/1, run_command 10s/1, submit_patch 2s/1 | sequence SSRSRSRSREWWTRWTSRTTTRRSSS
