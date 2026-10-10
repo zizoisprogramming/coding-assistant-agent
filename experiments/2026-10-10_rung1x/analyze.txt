@@ -1,0 +1,20 @@
+
+## 1a_r1: 1/2 resolved
+task             outcome              sec calls out_tok peak_in compact nudge repeat errors broken  tools / helpers
+-------------------------------------------------------------------------------------------------------------------
+fastapi_15589    resolved             305    25    9287   15040       1     0      2      2      0  run_command×13, read_file×11, edit_file×1
+                 patch: fastapi/dependencies/utils.py
+rich_3470        timeout, no patch    301    57    8896   14591       1     0      3     17      0  run_command×34, read_file×17, edit_file×6
+                 error: Agent exceeded session timeout (5.0 min)
+
+## 1a_r2: 0/2 resolved
+task             outcome              sec calls out_tok peak_in compact nudge repeat errors broken  tools / helpers
+-------------------------------------------------------------------------------------------------------------------
+fastapi_15589    timeout, no patch    302    23    9137   14899       1     0      2      0      0  run_command×15, read_file×8
+                 error: Agent exceeded session timeout (5.0 min)
+rich_3470        timeout, no patch    301    54    8272   14854       2     0      8      4      0  run_command×32, read_file×22
+                 error: Agent exceeded session timeout (5.0 min)
+1a_r1 fastapi_15589  first edit 275s | read 87s/11, write script 80s/3, run script/tests 58s/5, search 43s/5, edit 29s/1 | sequence SRRRSRWWTRSRTTRTSRRWETRRS
+1a_r1 rich_3470      first edit 276s | search 126s/29, read 77s/18, run_command 54s/4, edit 42s/6 | sequence SSSRSRSRSRSRRRSRRSSSRSRRRRSSSSSSRRSSSRSSSRSSRSSRSRREEEEEE
+1a_r2 fastapi_15589  first edit Nones | write script 188s/10, read 49s/8, search 32s/4, run_command 31s/1 | sequence SRRSRWWWWRWWWSRWRWRRSRW
+1a_r2 rich_3470      first edit Nones | search 122s/26, write script 96s/6, read 81s/22 | sequence SSSSSRSRSRSRSSRRRSRSRSRRSRSRSRWSRWWWWWSSSSRRSSRSSRRRSR
