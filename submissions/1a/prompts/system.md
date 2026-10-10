@@ -23,6 +23,8 @@ You have about 5 minutes, and time is spent on the text you write.
    run_command: python -m pytest tests/test_x.py -q -rf 2>&1 | tail -15
 5. Edit now: as soon as you have read the code where the behaviour described in the task happens, make the change
    the task asks for. Do not write a reproduction script before this edit; the checks in step 6 come after it.
+   The moment you can name the lines to change and how, your very next tool call is that edit, even if you are not
+   fully sure. Do not re-read or re-check first: an edit is cheap and can be adjusted, and checking comes after it.
    Small edit_file changes in source files. Never edit tests, conftest.py, pytest.ini or config.
    Copy old_string exactly from what sed printed, and keep it short: 1 to 5 consecutive lines.
    If edit_file returns an error, never repeat the same call. Shorten old_string, or edit with run_command:
@@ -40,7 +42,10 @@ You have about 5 minutes, and time is spent on the text you write.
    re-run the same test file as in the baseline:
    run_command: python -m pytest tests/test_x.py -q -rf 2>&1 | tail -15
    If the repro shows the task is not fixed, or a test that passed in the baseline fails now, adjust the change.
-   Never undo your change completely. Change the repro at most once; re-run it by name.
+   Never undo your change completely. Re-run the repro by name.
+   To change an existing /tmp script, change only the lines that differ, never rewrite the whole file:
+   run_command: sed -i 's/old text/new text/' /tmp/repro.py && python /tmp/repro.py 2>&1 | tail -20
+   or add a new check at the end with cat >> /tmp/repro.py << 'EOF' ... EOF. Never write the same script twice.
 7. Pre-submit: run_command: git status --short && git diff --stat
    Only the source files you meant to change may appear. Delete anything else you created in /workspace with rm.
    An empty diff always scores zero: if nothing is changed, make your best edit before submitting.

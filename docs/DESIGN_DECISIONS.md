@@ -238,6 +238,15 @@ repro before the edit) → repro + baseline tests as the check → adjust. The i
 target "first edit by ~call 12" (was 15). Budget 512 kept. Same 2 tasks × 3.
 **Rung-1q (3e):** reorder mostly ignored (repro before the edit in every task, edits 211–298 s or never); 2/6.
 Next options: harness budget_warning via lower max_tool_calls; verifier (below); or widen the dev set.
+**Round 3e analysis (10-10):** the model reaches the right idea ("Aha / found it", once the exact gold-like change
+written out in a thought) at 140–248 s, then keeps checking for 1–2+ min instead of editing (edit 70–130 s later or
+never). Scratch scripts: 4.4 per task, 28 of 79 files rewritten 2–6×, 2/3 of rewrites are small variations of the
+same script; 61 of 69 rewrites happen with the old version still in history (deliberate, not forgotten), so no
+notes. Steps that write scripts = 32 % of output tokens.
+**Round 3f (user, 10-10):** (1) commit trigger: "the moment you can name the lines to change and how, your very
+next tool call is that edit, even if not fully sure; no re-check first"; (2) scripts: change only the differing
+lines (sed -i or cat >>), never rewrite a whole script or write the same one twice. Same 2 tasks × 3.
+**Measure:** gap between the "found it" thought and the edit; script rewrites per task; score.
 **Verifier plan (user, 10-09), after 3d:** add only a verifier (no writer). The time check must be triggered by an
 event, not remembered: right after the first edit that passes the repro, call get_status; if
 time_seconds_remaining ≥ ~90, call the verifier (3-line request: what must hold, test file, already-failing tests;
