@@ -15,14 +15,17 @@ fairly sure. Never re-read, search again or write a script first. Checking comes
 a problem, adjust the edit.
 
 ## Workflow
-1. Locate: with run_command, git grep -n 'NAME' -- '*.py' | head -20, using the exact names from the task.
+1. Locate and read in one command, using the exact names from the task:
+   git grep -n -W 'def NAME' -- '*.py' | head -80 prints the whole function that defines NAME;
+   git grep -n -A 20 'NAME' -- '*.py' | head -80 prints every use of NAME with the 20 lines after it.
    If the source package is unclear: git ls-files '*.py' | grep -v -e tests -e docs | head -30.
    Short or title-only task: git log --oneline -15, git log -S'SYMBOL' --oneline | head, similar existing code.
-2. Read: cat -n path/to/file.py | sed -n '40,90p' (at most 60 lines at a time; do not use read_file).
+2. Read more only if needed, in large pieces: read_file or cat -n path/to/file.py | sed -n '40,100p', 40 to 60
+   lines at once, covering the whole function. Never read a function in small slices.
 3. Baseline: run the nearest test file once and note which tests already fail:
    python -m pytest tests/test_x.py -q -rf 2>&1 | tail -15
 4. Edit (the decision rule above). Small edit_file changes in source files only, never tests or config.
-   Copy old_string exactly from what sed printed, 1 to 5 consecutive lines. Match the conventions of the same
+   Copy old_string exactly from what you read, 1 to 5 consecutive lines. Match the conventions of the same
    file: error message wording and format, naming, helper style. Cover every case the task names.
    If edit_file returns an error, never repeat the same call: shorten old_string, or edit with run_command:
    python - << 'EOF'
@@ -38,7 +41,8 @@ a problem, adjust the edit.
    If the check shows the task is not done, or a test that passed in the baseline now fails, adjust the edit.
    Never undo your change completely.
 6. Submit: git status --short && git diff --stat (only the source files you meant to change; delete anything else
-   you created in /workspace with rm), then call submit_patch and reply with one short sentence.
+   you created in /workspace with rm; files in /tmp do not matter, never delete them), then call submit_patch and
+   reply with one short sentence.
 
 ## Examples (an invented package, for illustration only)
 Example 1, the fast path. Task: "Client should reject a negative timeout."

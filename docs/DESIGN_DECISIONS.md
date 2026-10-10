@@ -270,6 +270,15 @@ diff/repro on disk), otherwise run the repro and test file in place and submit.
 **Then (D6/D6b):** one helper, most likely the verifier with a file-based hand-off (request ≈ 3 lines, diff/repro/
 notes on disk, reply VERDICT + ≤ 10 lines); a strict viewer only if thinking makes context the bottleneck.
 
+### D21. 1a round 4.1: cheaper reading (user, 2026-10-10)
+**Measured (round 4, 8 task runs):** read_file 9.1 calls/task (73 total, ranges of 10–20 lines) despite "do not use
+read_file" (the harness task message advertises it); sed reads 1/task; 40 of 81 reads directly follow a search;
+4 calls spent deleting /tmp files. Each step ≈ 8–10 s.
+**Changes (prompt templates only):** step 1 locates and reads in one command (git grep -n -W 'def NAME' for the
+whole function, git grep -n -A 20 'NAME' for uses); step 2 allows read_file or sed in 40–60-line pieces covering
+the whole function; step 6: "/tmp files do not matter, never delete them". Expected ≈ 5–7 fewer calls per task.
+Test: fastapi_15589 + rich_3470 × 2 (user). **Measure:** calls/task, read sizes, first-edit time, score.
+
 ### D20. 1c = 1a round 4 + one verifier (user, 2026-10-10)
 **Why:** the main agent hesitates to edit because it wants to verify first (rich_3470: knows the fix at 107–159 s,
 then writes 9–11 scripts and never edits). Making checking the verifier's job gives the edit a purpose and moves
