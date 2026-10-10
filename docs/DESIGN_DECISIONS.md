@@ -255,6 +255,14 @@ edit + adjust beats a perfect plan), one decision rule (name the change → next
 prose (no copyable "run_command:" lines), one anti-example, explicit "never write tool calls or outputs as text".
 The "\r and \n" example (from fastapi_15588) is replaced by "cover every case the task names". Goal (user): 3/4 on
 the 4 dev tasks and 0.15 on the leaderboard before LoRA. Run: all 4 tasks × 2.
+**Rung-1s (round 4): 2/4, 2/4** (best since the update; fast path 38–68 s on clear tasks). rich_3470 solved by
+timing luck (old-behaviour test seen failing just before the deadline); fastapi_15589: simple case already works.
+**Round 4b (user, 10-10): whole prompt rewritten again** with three decision rules (1 edit as soon as you know;
+2 if the simple case already works, the bug is in another code path using the same names; 3 a newly failing test
+that asserts exactly the old behaviour the task changes → task wins, say which part in one sentence; otherwise
+regression) and a third generic example (simple case works → other path; old-default test fails → keep; contrast
+with an unrelated failing test). Also: "every task describes a real change" and "hidden tests run on your diff even
+if you run out of time". 4 tasks × 2.
 **Verifier plan (user, 10-09), after 3d:** add only a verifier (no writer). The time check must be triggered by an
 event, not remembered: right after the first edit that passes the repro, call get_status; if
 time_seconds_remaining ≥ ~90, call the verifier (3-line request: what must hold, test file, already-failing tests;
