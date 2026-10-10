@@ -22,3 +22,10 @@
 - Round 5 (user, 10-10): round 4 condensed to < 900 words; one decision rule that now also says "the first code
   you find that implements what the task names is usually where the fix goes: edit there first"; one example with
   the adjust-the-same-edit case folded in; the 4b rules dropped; overlapping sections merged.
+
+## Pending (user, 10-10): "When a step does not work" block, to test after round 5
+- grep finds nothing: try a shorter name, a related word from the task, or git log -S'NAME'; then go to step 2.
+- The code you read does not implement what the task names: go back to step 1 with the names you saw there.
+- The check script itself fails (syntax error, wrong import): fix only that line with sed -i and run it again.
+- The check runs but the task is not done: adjust the same edit (step 4). After two adjustments, submit.
+- No test file found for the baseline: skip step 3; your check script is the test.
