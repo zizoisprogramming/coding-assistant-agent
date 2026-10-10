@@ -1,0 +1,33 @@
+
+## 1c_r1: 1/4 resolved
+task             outcome              sec calls out_tok peak_in compact nudge repeat errors broken  tools / helpers
+-------------------------------------------------------------------------------------------------------------------
+fastapi_15588    wrong fix            306    31    9091   14695       1     0      3      1      0  run_command×19, read_file×4, edit_file×3, verifier×3 | format ok verifier 2/2
+                 patch: fastapi/sse.py
+                 error: Agent exceeded session timeout (5.0 min)
+fastapi_15589    timeout, no patch    302    33    9025   14634       1     0      1      4      0  run_command×17, read_file×14, write_file×1, edit_file×1
+                 error: Agent exceeded session timeout (5.0 min)
+rich_3882        resolved             176    23    5958    9765       0     0      0      2      0  run_command×13, read_file×4, edit_file×1, verifier×1, get_status×1, submit_patch×1 | format ok verifier 0/1
+                 patch: rich/prompt.py
+rich_3470        timeout, no patch    301    44    8654   14826       1     0      4      2      0  read_file×23, run_command×21
+                 error: Agent exceeded session timeout (5.0 min)
+
+## 1c_r2: 1/4 resolved
+task             outcome              sec calls out_tok peak_in compact nudge repeat errors broken  tools / helpers
+-------------------------------------------------------------------------------------------------------------------
+fastapi_15588    wrong fix            216    21    6098   14338       1     0      0      2      0  run_command×12, edit_file×5, verifier×1, submit_patch×1 | format ok verifier 1/1
+                 patch: fastapi/sse.py
+fastapi_15589    timeout, no patch    302    18    8984   15084       1     0      1      2      0  run_command×12, read_file×6
+                 error: Agent exceeded session timeout (5.0 min)
+rich_3882        resolved             140    28    4580    9843       0     0      1      2      0  run_command×19, read_file×3, edit_file×1, verifier×1, get_status×1, submit_patch×1 | format ok verifier 1/1
+                 patch: rich/prompt.py
+rich_3470        timeout, no patch    301    46    8591   14889       1     0      1      1      0  run_command×26, read_file×20
+                 error: Agent exceeded session timeout (5.0 min)
+1c_r1 fastapi_15588  first edit 69s | read 62s/7, write script 62s/4, verifier 50s/3, search 37s/4, edit 36s/3, run_command 31s/5, run script/tests 9s/3 | sequence RRSREESRTVRWWTEVRWWTRSRSRRRVR
+1c_r1 fastapi_15589  first edit 277s | read 100s/14, run script/tests 59s/6, search 49s/8, write script 40s/3, edit 22s/2 | sequence SRRRRTSSWWRRSRSRSRRRRSRSRTTTTTEWE
+1c_r1 rich_3470      first edit Nones | read 116s/23, search 111s/17, write script 48s/3, run script/tests 16s/1 | sequence SSRSRSSRRRSSRTSSRRSRRSRSSRRWSRRRSRRRSRWRSRRW
+1c_r1 rich_3882      first edit 74s | write script 53s/4, search 41s/6, read 18s/4, run_command 17s/2, run script/tests 5s/1, verifier 2s/1, submit_patch 1s/1, get_status 1s/1, edit 0s/1 | sequence SRSRSRSREVRWWSSWTWRGS
+1c_r2 fastapi_15588  first edit 96s | edit 42s/5, write script 35s/2, search 34s/2, read 30s/5, run script/tests 18s/2, verifier 7s/1, run_command 7s/1, submit_patch 3s/1 | sequence RRSTSREERREEEVRWWTS
+1c_r2 fastapi_15589  first edit Nones | write script 187s/10, read 71s/6, search 24s/2 | sequence SRRSRWWWWWWWWRWWRR
+1c_r2 rich_3470      first edit Nones | search 110s/18, write script 101s/7, read 75s/20, run script/tests 2s/1 | sequence SSSTRSRSRSRSRWSRRSRWSRSRSRWSSSRSRSRSRRWRRWWWRR
+1c_r2 rich_3882      first edit 41s | write script 39s/4, search 31s/6, run script/tests 26s/5, run_command 16s/4, verifier 7s/1, edit 6s/1, read 4s/3, get_status 1s/1, submit_patch 1s/1 | sequence SSRSRSWETWRRVRWSWSTTTTRGRS
