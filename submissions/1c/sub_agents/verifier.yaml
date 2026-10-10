@@ -1,0 +1,11 @@
+name: verifier
+description: >-
+  Checks your edit after you made it: writes and runs a reproduction from the task text and runs the test file.
+  Request in three lines: what must now hold, the test file, the tests already failing in the baseline.
+  Returns VERDICT (PASS or FAIL), EVIDENCE and FIX.
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include ../prompts/verifier.md
+tools:
+  - run_command
+  - read_file
+generate_content_config: !include ../configs/sampling.yaml

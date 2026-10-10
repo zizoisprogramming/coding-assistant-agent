@@ -270,6 +270,20 @@ diff/repro on disk), otherwise run the repro and test file in place and submit.
 **Then (D6/D6b):** one helper, most likely the verifier with a file-based hand-off (request ≈ 3 lines, diff/repro/
 notes on disk, reply VERDICT + ≤ 10 lines); a strict viewer only if thinking makes context the bottleneck.
 
+### D20. 1c = 1a round 4 + one verifier (user, 2026-10-10)
+**Why:** the main agent hesitates to edit because it wants to verify first (rich_3470: knows the fix at 107–159 s,
+then writes 9–11 scripts and never edits). Making checking the verifier's job gives the edit a purpose and moves
+repro writing out of the main agent. Risks from 1b: the orchestrator still wrote its own repros; the verifier
+returned FAIL on correct rich_3470 fixes because an existing test asserts the old behaviour.
+**Design:** main agent `engineer` = round-4 prompt with step 5 replaced: right after the edit call get_status; if
+time_seconds_remaining >= 90 call the verifier with three lines (what must hold, test file, already-failing tests),
+never write check scripts itself; else run the baseline test file once; on FAIL with real output adjust the same
+edit once. Verifier (364 words): git diff, one /tmp/verify.py from the task text, the test file, judge failures
+(already failing → ignore; asserts exactly the old behaviour the task changes → task wins; else regression),
+≤ 6 calls, VERDICT / EVIDENCE / FIX. max_tool_calls 70 (shared). Main prompt 899 words.
+**Measure (vs 1a round 4: 2/4, 2/4):** main-agent script writes before the first edit, first-edit time, verifier
+calls and verdicts (any FAIL on a correct fix), score.
+
 ### D7. Planner (`{plan}` re-injected every turn) and replanner
 Ladder rungs 3–4 (PLAN.md). Planner = SequentialAgent [planner (output_key=plan) → executor with `{plan}` in its
 instruction]. Paper evidence: planning helps weaker models (+11.6 pts for a 30B at tight budgets). **When:** after
