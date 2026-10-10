@@ -280,7 +280,7 @@ time_seconds_remaining >= 90 call the verifier with three lines (what must hold,
 never write check scripts itself; else run the baseline test file once; on FAIL with real output adjust the same
 edit once. Verifier (364 words): git diff, one /tmp/verify.py from the task text, the test file, judge failures
 (already failing → ignore; asserts exactly the old behaviour the task changes → task wins; else regression),
-≤ 6 calls, VERDICT / EVIDENCE / FIX. max_tool_calls 70 (shared). Main prompt 899 words.
+≤ 6 calls, VERDICT / EVIDENCE / FIX. max_tool_calls 70 (shared). Main prompt 905 words.
 **Measure (vs 1a round 4: 2/4, 2/4):** main-agent script writes before the first edit, first-edit time, verifier
 calls and verdicts (any FAIL on a correct fix), score.
 
