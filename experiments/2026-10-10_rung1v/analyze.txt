@@ -1,0 +1,36 @@
+
+## 1c_r1: 1/4 resolved
+task             outcome              sec calls out_tok peak_in compact nudge repeat errors broken  tools / helpers
+-------------------------------------------------------------------------------------------------------------------
+fastapi_15588    wrong fix            306    35    8135   14393       2     0      1      5      0  run_command×18, read_file×11, edit_file×5, write_file×1
+                 patch: fastapi/sse.py
+                 error: Agent exceeded session timeout (5.0 min)
+fastapi_15589    wrong fix            305    34    8038   15041       1     0      4      8      0  run_command×19, read_file×11, edit_file×3, write_file×1
+                 patch: fastapi/dependencies/utils.py, fastapi/openapi/utils.py, repro.py
+                 error: Agent exceeded session timeout (5.0 min)
+rich_3882        resolved              96    20    3059    9774       0     0      3      0      0  run_command×10, edit_file×3, read_file×2, write_file×2, get_status×1, submit_patch×1
+                 patch: rich/prompt.py
+rich_3470        wrong fix            304    47    9288   15511       1     0      1     10      0  run_command×21, read_file×18, edit_file×7, get_status×1
+                 patch: rich/console.py
+                 error: Agent exceeded session timeout (5.0 min)
+
+## 1c_r2: 1/4 resolved
+task             outcome              sec calls out_tok peak_in compact nudge repeat errors broken  tools / helpers
+-------------------------------------------------------------------------------------------------------------------
+fastapi_15588    wrong fix            226    28    6201   14587       1     0      2      4      0  run_command×16, edit_file×7, read_file×2, write_file×1, submit_patch×1
+                 patch: fastapi/sse.py
+fastapi_15589    wrong fix            305    25    8924   14400       1     0      2      7      0  run_command×10, read_file×9, write_file×6
+                 patch: reproduction.py
+                 error: Agent exceeded session timeout (5.0 min)
+rich_3882        resolved             111    28    3482   13882       0     0      3      0      0  run_command×19, read_file×4, write_file×1, edit_file×1, get_status×1, submit_patch×1
+                 patch: rich/prompt.py
+rich_3470        wrong fix            274    43    8527   14557       1     0      3      5      0  run_command×23, read_file×13, edit_file×3, submit_patch×2, get_status×1
+                 patch: rich/console.py
+1c_r1 fastapi_15588  first edit 59s | read 154s/17, edit 61s/6, run script/tests 43s/5, search 37s/6, run_command 2s/1 | sequence RRSEEEEETRTRTETRSRRRRSRRTRSSRSRRRRR
+1c_r1 fastapi_15589  first edit 139s | search 106s/13, edit 70s/4, run script/tests 51s/5, read 47s/11, run_command 2s/1 | sequence SRSRTSRSSSRSRRSRSETEEETSRRSRSRSRTT
+1c_r1 rich_3470      first edit 160s | search 110s/17, edit 70s/8, read 58s/18, write script 22s/3, get_status 1s/1 | sequence SSRRSSRSRSRRRSSRRSRRSSRESREEEEEEEGWWSRWSRSSRRSR
+1c_r1 rich_3882      first edit 38s | edit 35s/5, search 29s/4, run_command 18s/5, read 4s/2, run script/tests 2s/1, get_status 1s/1, submit_patch 1s/1 | sequence SRSRSERERERERETSRGS
+1c_r2 fastapi_15588  first edit 60s | edit 127s/10, read 41s/8, search 31s/4, run script/tests 5s/3, run_command 4s/1, submit_patch 1s/1 | sequence RSREEERRRREEEESEETSTRRETRSS
+1c_r2 fastapi_15589  first edit 183s | read 103s/10, edit 92s/6, write script 46s/5, search 18s/4 | sequence SRRSRRSRSRWWRWWRWEEEEEERR
+1c_r2 rich_3470      first edit 233s | write script 104s/8, read 65s/13, search 57s/11, edit 20s/4, run_command 19s/3, get_status 2s/1, submit_patch 2s/2 | sequence SSRSRSRSRSRWSSRRSRRSRSRWWWRRWWEEREEWWGSRRS
+1c_r2 rich_3882      first edit 37s | search 30s/8, run script/tests 27s/5, edit 19s/2, read 14s/7, run_command 13s/3, submit_patch 4s/1, get_status 1s/1 | sequence SRSSRERERTTTTTSRRRGSSSRSRRS
