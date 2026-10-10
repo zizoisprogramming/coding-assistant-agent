@@ -1,0 +1,30 @@
+
+## 1a_r1: 0/2 resolved
+task             outcome              sec calls out_tok peak_in compact nudge repeat errors broken  tools / helpers
+-------------------------------------------------------------------------------------------------------------------
+fastapi_15589    timeout, no patch    334    22    8516   14363       1     0      4      0      0  run_command×22
+                 error: Agent exceeded session timeout (5.0 min)
+rich_3470        timeout, no patch    309    51    8338   16147       2     0      4      1      0  run_command×51
+                 error: Agent exceeded session timeout (5.0 min)
+
+## 1a_r2: 1/2 resolved
+task             outcome              sec calls out_tok peak_in compact nudge repeat errors broken  tools / helpers
+-------------------------------------------------------------------------------------------------------------------
+fastapi_15589    resolved             290    25    8902   14468       1     0      0      2      0  run_command×22, edit_file×1, submit_patch×1
+                 patch: fastapi/dependencies/utils.py
+rich_3470        no patch             182     4    6424    8416       0     3      0      0      0  
+                 error: Agent completed execution without calling submit_patch.
+
+## 1a_r3: 0/2 resolved
+task             outcome              sec calls out_tok peak_in compact nudge repeat errors broken  tools / helpers
+-------------------------------------------------------------------------------------------------------------------
+fastapi_15589    timeout, no patch    302    25    9442   14635       1     0      3      0      0  run_command×25
+                 error: Agent exceeded session timeout (5.0 min)
+rich_3470        timeout, no patch    301    50    7923   14503       2     3      3      2      0  run_command×47
+                 error: Agent exceeded session timeout (5.0 min)
+1a_r1 fastapi_15589  first edit Nones | read 137s/13, write script 115s/5, search 32s/4 | sequence SRRSRRWWRRRWRRWRSRSRRW
+1a_r1 rich_3470      first edit Nones | read 140s/29, search 78s/18, write script 50s/4 | sequence SRRSRSRSRSRRSRSSRRRSSRSRSRSRRSRSRRWWWRRRSRSRRSRWRRR
+1a_r2 fastapi_15589  first edit 245s | write script 122s/5, read 108s/9, search 22s/4, run_command 17s/2, run script/tests 5s/2, edit 4s/1, submit_patch 1s/1 | sequence SRRSRWWWRRRRRWWETSTSRRRS
+1a_r2 rich_3470      first edit Nones |  | sequence 
+1a_r3 fastapi_15589  first edit Nones | read 157s/16, write script 87s/4, search 47s/5 | sequence SRRSRRWRRRWRSRRWSRSRWRRRR
+1a_r3 rich_3470      first edit Nones | read 157s/26, search 60s/18, write script 38s/3 | sequence SSRSRSRSRSRSRSRRSSRRRRSRSRRSRSRRRSRSRRWSWRRRSWR
