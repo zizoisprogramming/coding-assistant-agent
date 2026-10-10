@@ -360,6 +360,10 @@ hidden tasks are probably harder/longer. Never go above 5 min again until the ho
 4-min limit costs nothing visible (difference is within noise). Dev-set 1a ≈ 25–75 % vs 10 % hidden: our 4 dev
 tasks are easier than the hidden set (D13).
 
+**10-10 (user): leaderboard submission of 1a round 4** (prompt 9abba5d, thinking on budget 512, T 1.0) with
+4.5 min / 50 tool calls (worst case ≈ 120 × 5.2 min ≈ 10.4 h < 12 h). Dev: 2/4, 2/4. Previous LB: 0.10 (1a round 2,
+thinking off, 4 min, before the 10-08 wheelhouse). Zip: dist/submission.zip (from dist/src_1a_r4_lb).
+
 ### D13. Dev set size
 Currently 4 gold-checked tasks (1 task = 25 %, directional only). **Plan:** grow to ~20 gold-checked tasks across
 fastapi / rich / requests before trusting differences (~2 h Kaggle wall = ~4 h quota per config).
