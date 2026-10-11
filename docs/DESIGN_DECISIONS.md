@@ -289,6 +289,10 @@ hidden 2,560, 42 layers, 8 heads, 2 KV heads) so vLLM serves it natively; E2B li
 submissions/1a_e4b = round 4 with only `model:` changed; 4 tasks × 2, TP 4 as on the scorer.
 **Rung-1y result: E4B 0/4, 0/4** (all wrong fixes, even rich_3882); ~2.5× tokens/s, edits at 11–73 s, tasks end
 after 39–129 s / 7–21 steps. Too weak; stay on 31B (12B pending the host's vLLM fix).
+**10-11 host fix for the 12B (forum 748287 reply; "the scorer has this update already"):** start vLLM with
+`--hf-overrides '{"architectures": ["Gemma4ForCausalLM"], "model_type": "gemma4"}'` for gemma-4-12b-it-qat-w4a16-ct
+(VllmConfig extra_args, per-model dict MODEL_VLLM_EXTRA_ARGS). Added to the notebook's vLLM cell; next run = 1a_12b
+on the 4 dev tasks × 2.
 
 ### D21. 1a round 4.1: cheaper reading (user, 2026-10-10)
 **Measured (round 4, 8 task runs):** read_file 9.1 calls/task (73 total, ranges of 10–20 lines) despite "do not use

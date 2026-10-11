@@ -130,6 +130,14 @@ _cands = sorted(p for p in glob.glob(f'/kaggle/input/models/google/gemma-4/**/{T
 assert _cands, f'Model {TARGET_MODEL_NAME} not found under /kaggle/input: attach it as a notebook input'
 MODEL_PATH = Path(_cands[-1])  # latest version
 print('MODEL_PATH', MODEL_PATH)
+# Per-model vLLM flags (host, forum 748287; the scorer has the same): the 12B checkpoint is labelled
+# gemma4_unified, which vLLM 0.19.1 cannot load, so vLLM is told to load it as the regular gemma4 text model.
+MODEL_VLLM_EXTRA_ARGS: dict[str, tuple[str, ...]] = {
+    'gemma-4-12b-it-qat-w4a16-ct': (
+        '--hf-overrides',
+        '{"architectures": ["Gemma4ForCausalLM"], "model_type": "gemma4"}',
+    ),
+}
 gpu_count = torch.cuda.device_count() if torch.cuda.is_available() else 1
 tp_size = 4 if gpu_count >= 4 else (2 if gpu_count >= 2 else 1)
 
@@ -146,6 +154,7 @@ vllm_cfg = VllmConfig(
     enable_lora=False,
     tensor_parallel_size=tp_size,
     startup_timeout=60 * 20,
+    extra_args=list(MODEL_VLLM_EXTRA_ARGS.get(TARGET_MODEL_NAME, ())),
 )
 server_instance = VllmServer(vllm_cfg)
 server_instance.start()
