@@ -1,0 +1,32 @@
+
+## 1a_e4b_r1: 0/4 resolved
+task             outcome              sec calls out_tok peak_in compact nudge repeat errors broken  tools / helpers
+-------------------------------------------------------------------------------------------------------------------
+fastapi_15588    wrong fix            129    12    8934   14793       1     2      0      4      2  edit_file×5, read_file×3, submit_patch×1
+                 patch: fastapi/sse.py
+fastapi_15589    wrong fix             74    10    5415   11784       0     2      0      1      0  run_command×4, read_file×1, edit_file×1, submit_patch×1
+                 patch: fastapi/dependencies/utils.py
+rich_3882        wrong fix             51     9    3943   12458       0     0      0      0      0  read_file×3, run_command×3, edit_file×1, submit_patch×1
+                 patch: rich/prompt.py
+rich_3470        wrong fix             91    16    5704   14561       1     0      0      3      0  read_file×6, run_command×5, edit_file×3, submit_patch×1
+                 patch: rich/console.py
+
+## 1a_e4b_r2: 0/4 resolved
+task             outcome              sec calls out_tok peak_in compact nudge repeat errors broken  tools / helpers
+-------------------------------------------------------------------------------------------------------------------
+fastapi_15588    wrong fix             66    12    5276   11818       0     1      0      3      0  edit_file×6, read_file×3, submit_patch×1
+                 patch: fastapi/sse.py
+fastapi_15589    wrong fix             39     7    2922    9776       0     2      0      1      0  run_command×1, read_file×1, edit_file×1, submit_patch×1
+                 patch: fastapi/dependencies/utils.py
+rich_3882        wrong fix             58    10    3359   14739       1     0      0      2      0  run_command×4, read_file×3, edit_file×1, submit_patch×1
+                 patch: rich/prompt.py
+rich_3470        wrong fix            122    21    6758   14636       2     0      0      6      0  run_command×8, read_file×6, edit_file×5, submit_patch×1
+                 patch: rich/console.py
+1a_e4b_r1 fastapi_15588  first edit 73s | edit 36s/5, submit_patch 11s/1, read 7s/3 | sequence RREEEREES
+1a_e4b_r1 fastapi_15589  first edit 36s | write script 24s/2, edit 5s/1, search 5s/2, read 4s/1, submit_patch 1s/1 | sequence SSREWWS
+1a_e4b_r1 rich_3470      first edit 44s | read 12s/6, edit 9s/3, search 9s/3, run_command 2s/1, run script/tests 2s/1, submit_patch 0s/1 | sequence RSRRRRSRRSEEETS
+1a_e4b_r1 rich_3882      first edit 44s | read 8s/3, search 6s/3, edit 0s/1, submit_patch 0s/1 | sequence RSRRSSES
+1a_e4b_r2 fastapi_15588  first edit 11s | edit 27s/6, read 8s/3, submit_patch 2s/1 | sequence REEEREERES
+1a_e4b_r2 fastapi_15589  first edit 32s | read 2s/1, submit_patch 0s/1, search 0s/1, edit 0s/1 | sequence SRES
+1a_e4b_r2 rich_3470      first edit 40s | edit 43s/5, read 21s/7, run script/tests 13s/3, search 7s/3, run_command 2s/1, submit_patch 0s/1 | sequence SSRRRRSRREETEREETRTS
+1a_e4b_r2 rich_3882      first edit 31s | search 6s/2, read 5s/3, run script/tests 4s/2, edit 0s/1, submit_patch 0s/1 | sequence SRRSRETTS
