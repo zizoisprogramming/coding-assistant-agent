@@ -284,6 +284,9 @@ vLLM 0.19.1 (wheelhouse 10-09) has no native class for it, falls back to its Tra
 profile_run: `ValueError: Expected hidden_size to be 3840, but found: 256` in self_attn.v_norm (a per-head RMSNorm
 without weights replaced by vLLM's RMSNorm sized to hidden_size). Not caused by our settings (TP 4, bf16, 32k).
 No wheelhouse/notebook update since the 10-11 announcement; waiting for the host (forum post drafted).
+**Next: E4B** (`gemma-4-e4b-it-qat-w4a16-ct`): same architecture as the 31B (`Gemma4ForConditionalGeneration`,
+hidden 2,560, 42 layers, 8 heads, 2 KV heads) so vLLM serves it natively; E2B likewise (hidden 1,536, 35 layers).
+submissions/1a_e4b = round 4 with only `model:` changed; 4 tasks × 2, TP 4 as on the scorer.
 
 ### D21. 1a round 4.1: cheaper reading (user, 2026-10-10)
 **Measured (round 4, 8 task runs):** read_file 9.1 calls/task (73 total, ranges of 10–20 lines) despite "do not use

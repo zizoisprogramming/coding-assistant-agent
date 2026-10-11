@@ -3,7 +3,7 @@ import litellm, torch
 from adk_submission import VllmConfig, VllmServer
 
 litellm.drop_params = True
-TARGET_MODEL_NAME = 'gemma-4-12b-it-qat-w4a16-ct'
+TARGET_MODEL_NAME = 'gemma-4-e4b-it-qat-w4a16-ct'
 # The model must be attached as notebook input (Add Input -> Models -> google/gemma-4, variant TARGET_MODEL_NAME).
 _cands = sorted(p for p in glob.glob(f'/kaggle/input/models/google/gemma-4/**/{TARGET_MODEL_NAME}/*', recursive=True)
                 if Path(p, 'config.json').exists())
