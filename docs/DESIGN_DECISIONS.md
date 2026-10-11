@@ -295,7 +295,12 @@ after 39–129 s / 7–21 steps. Too weak; stay on 31B (12B pending the host's v
 on the 4 dev tasks × 2. **Run 1 with the flag:** the architecture resolves (Gemma4ForCausalLM) but weight
 loading fails: `KeyError: 'vision_embedder.patch_dense.weight'` (gemma4.py load_weights; the 12B checkpoint is one
 10.3 GB file with vision + audio towers, wheelhouse v30 = 10-09, no newer one). Local-only workaround: the vLLM cell
-patches the installed gemma4.py to skip weights without a parameter. Unknown whether the scorer's vLLM has an
+adds "vision_embedder." to gemma4.py's existing multimodal skip list (audio_tower./vision_tower./embed_audio./
+embed_vision.). Checked against the real files: vLLM wheel v30 has that list once and filters by substring before
+loading; the 12B safetensors header (1,335 tensors) has only model.language_model.* (48 standard gemma4 layers,
+8 without v_proj = k_eq_v), embed_audio/embed_vision projections, lm_head (tied) and 9 model.vision_embedder.*
+tensors, so nothing else is skipped. (A first, broader "skip any unknown weight" patch was replaced: with a
+quantized model vLLM does not check for unloaded weights, so it could hide a missing text weight.) Unknown whether the scorer's vLLM has an
 equivalent fix: do not submit a 12B until the host confirms or his Monday notebook runs unpatched.
 
 ### D21. 1a round 4.1: cheaper reading (user, 2026-10-10)
