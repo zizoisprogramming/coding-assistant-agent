@@ -123,8 +123,13 @@ import litellm, torch
 from adk_submission import VllmConfig, VllmServer
 
 litellm.drop_params = True
-TARGET_MODEL_NAME = 'gemma-4-31b-it-qat-w4a16-ct'
-MODEL_PATH = Path(glob.glob('/kaggle/input/models/google/gemma-4/**/gemma-4-31b-it-qat-w4a16-ct/2', recursive=True)[0])
+TARGET_MODEL_NAME = '__MODEL__'
+# The model must be attached as notebook input (Add Input -> Models -> google/gemma-4, variant TARGET_MODEL_NAME).
+_cands = sorted(p for p in glob.glob(f'/kaggle/input/models/google/gemma-4/**/{TARGET_MODEL_NAME}/*', recursive=True)
+                if Path(p, 'config.json').exists())
+assert _cands, f'Model {TARGET_MODEL_NAME} not found under /kaggle/input: attach it as a notebook input'
+MODEL_PATH = Path(_cands[-1])  # latest version
+print('MODEL_PATH', MODEL_PATH)
 gpu_count = torch.cuda.device_count() if torch.cuda.is_available() else 1
 tp_size = 4 if gpu_count >= 4 else (2 if gpu_count >= 2 else 1)
 
@@ -298,6 +303,7 @@ def main():
     ap.add_argument("--tasks", required=True)
     ap.add_argument("--configs", default="sample,1a,1b")
     ap.add_argument("--repeats", type=int, default=1)
+    ap.add_argument("--model", default="gemma-4-31b-it-qat-w4a16-ct", help="served Gemma 4 variant (forum 748287)")
     ap.add_argument("--out", default=str(ROOT / "kaggle" / "eval_compare.ipynb"))
     args = ap.parse_args()
 
@@ -321,7 +327,7 @@ def main():
                           "dataset and the 31B model; accelerator L4 ×4; Run All; stop the session when done."),
             code_cell(INSTALL),
             code_cell(setup),
-            code_cell(VLLM),
+            code_cell(VLLM.replace("__MODEL__", args.model)),
             code_cell(EVAL.replace("__RUN_EVAL__", run_eval_src)),
             code_cell(REPORT.replace("__ANALYZE__", analyze_src)),
         ],

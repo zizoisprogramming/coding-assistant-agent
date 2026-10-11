@@ -65,6 +65,10 @@ def validate(sub_dir):
     model = validate_single_declared_model(sub_dir)
     limits, gen_constraints = build_submission_limits()
     models = setup_gemma_model_registry(api_base="http://127.0.0.1:8000/v1", api_key="EMPTY")
+    if model not in models.list_available():
+        # Newer variants (e.g. gemma-4-12b-it-qat-w4a16-ct, forum 748287) are missing from our older local package;
+        # on Kaggle the registry is built from the served model. Stand in with the 31B entry for compilation only.
+        models.register(model, models.get("gemma-4-31b-it-qat-w4a16-ct"))
     agent = compile_submission(
         submission_dir=sub_dir,
         tool_registry={name: stand_in(name) for name in TOOL_NAMES},

@@ -3,8 +3,13 @@ import litellm, torch
 from adk_submission import VllmConfig, VllmServer
 
 litellm.drop_params = True
-TARGET_MODEL_NAME = 'gemma-4-31b-it-qat-w4a16-ct'
-MODEL_PATH = Path(glob.glob('/kaggle/input/models/google/gemma-4/**/gemma-4-31b-it-qat-w4a16-ct/2', recursive=True)[0])
+TARGET_MODEL_NAME = 'gemma-4-12b-it-qat-w4a16-ct'
+# The model must be attached as notebook input (Add Input -> Models -> google/gemma-4, variant TARGET_MODEL_NAME).
+_cands = sorted(p for p in glob.glob(f'/kaggle/input/models/google/gemma-4/**/{TARGET_MODEL_NAME}/*', recursive=True)
+                if Path(p, 'config.json').exists())
+assert _cands, f'Model {TARGET_MODEL_NAME} not found under /kaggle/input: attach it as a notebook input'
+MODEL_PATH = Path(_cands[-1])  # latest version
+print('MODEL_PATH', MODEL_PATH)
 gpu_count = torch.cuda.device_count() if torch.cuda.is_available() else 1
 tp_size = 4 if gpu_count >= 4 else (2 if gpu_count >= 2 else 1)
 

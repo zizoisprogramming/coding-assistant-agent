@@ -270,6 +270,15 @@ diff/repro on disk), otherwise run the repro and test file in place and submit.
 **Then (D6/D6b):** one helper, most likely the verifier with a file-based hand-off (request ≈ 3 lines, diff/repro/
 notes on disk, reply VERDICT + ≤ 10 lines); a strict viewer only if thinking makes context the bottleneck.
 
+### D22. Smaller model: 1a round 4 on gemma-4-12b (user, 2026-10-11)
+Forum 748287 allows gemma-4-12b / e4b / e2b (-it-qat-w4a16-ct), one variant per submission. Hypothesis: faster steps
+fit more work into 5 minutes (our bottleneck since the 10-08 update), at the cost of a weaker model.
+**Setup:** submissions/1a_12b = 1a round 4 with only `model:` changed; notebook `--model` selects the served
+variant (model attached as input, latest version found by name); pack.py stands in the 31B registry entry for
+newer aliases missing from our older local package. Needs the latest wheelhouse (swegemma 0.2.11, 10-09; 0.2.10's
+model list lacks the 12B qat alias). **Compare with 1a round 4 on 31B (2/4, 2/4):** score, seconds per step, steps
+per task, first-edit time, tool-call format errors.
+
 ### D21. 1a round 4.1: cheaper reading (user, 2026-10-10)
 **Measured (round 4, 8 task runs):** read_file 9.1 calls/task (73 total, ranges of 10–20 lines) despite "do not use
 read_file" (the harness task message advertises it); sed reads 1/task; 40 of 81 reads directly follow a search;
