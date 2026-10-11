@@ -278,6 +278,12 @@ variant (model attached as input, latest version found by name); pack.py stands 
 newer aliases missing from our older local package. Needs the latest wheelhouse (swegemma 0.2.11, 10-09; 0.2.10's
 model list lacks the 12B qat alias). **Compare with 1a round 4 on 31B (2/4, 2/4):** score, seconds per step, steps
 per task, first-edit time, tool-call format errors.
+**10-11 first attempt: vLLM cannot start the 12B.** Its config is `Gemma4UnifiedForConditionalGeneration`
+(model_type gemma4_unified, hidden 3,840, head_dim 256) — a different architecture from the 31B (`gemma4`).
+vLLM 0.19.1 (wheelhouse 10-09) has no native class for it, falls back to its Transformers backend and crashes in
+profile_run: `ValueError: Expected hidden_size to be 3840, but found: 256` in self_attn.v_norm (a per-head RMSNorm
+without weights replaced by vLLM's RMSNorm sized to hidden_size). Not caused by our settings (TP 4, bf16, 32k).
+No wheelhouse/notebook update since the 10-11 announcement; waiting for the host (forum post drafted).
 
 ### D21. 1a round 4.1: cheaper reading (user, 2026-10-10)
 **Measured (round 4, 8 task runs):** read_file 9.1 calls/task (73 total, ranges of 10–20 lines) despite "do not use
