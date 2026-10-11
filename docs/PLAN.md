@@ -1,45 +1,46 @@
 # Gemma 4 Developer Agent — Competition Plan (living doc)
 
-## >>> START HERE (session handoff, updated 2026-10-04) <<<
-**Where we are:** research + design done; first real 31B run done (Google's sample, 2026-09-27); user approved the
-build of two first agents on 2026-10-04 (see "NEXT"). User is a beginner to agents/ADK; wants learn-by-building,
-step-by-step explanations, research-backed answers, and decides personally when planning ends.
+## >>> START HERE (session handoff, updated 2026-10-11) <<<
+**User:** beginner to agents/ADK; wants step-by-step plain explanations, research-backed claims, chat before docs,
+decides when planning ends. Rules: change one agent/variable per round where possible; prompts must stay generic
+(no dev-task-specific content); competition data never committed; Kaggle token only in ~/.kaggle/access_token.
 
-**Decisions so far:**
-- Build and compare two first agents on identical tasks in one Kaggle session, together with Google's sample:
-  **1a** = plain single agent; **1b** = hybrid orchestrator (main agent never edits; works alone until `get_status`
-  shows `tool_calls_used ≥ 6`, then delegates to `reader` / `executor` / `verifier` agent_tools). No formatter agent.
-  This single-vs-orchestrated comparison is the paper's first ablation. Later rungs: planner `{plan}`, replanner,
-  skills, thinking-on + budget, temperature 0.2, LoRA once it works.
-- Sampling (both): temperature 1.0, top_p 0.95, top_k 64 (Google model card), max_output_tokens 2048, thinking off
-  (`include_thoughts: false`).
-- Budgets: 5 min/task, timeout_seconds 240, max_turns 90, max_tool_calls 60 (1a) / 80 (1b, helpers share it).
-- Declare the 3 graph tools on the root agent anyway (an undeclared/hallucinated tool call ends the task and
-  discards the patch, forum 745028); prompts prefer `git grep`.
-- Testing tiers: Mac + Ollama `gemma4-12b-32k` (plumbing only) → Kaggle L4×4 notebook with the real 31B →
-  1 LB submission/day. Hosted APIs dropped. No Claude/GPT distillation.
+**Current best = 1a round 4** (`submissions/1a`, prompt commit 9abba5d): single agent, gemma-4-31b-it-qat-w4a16-ct,
+thinking on (include_thoughts true, thinking_budget 512), T 1.0 / top_p 0.95 / top_k 64, 5 min / 60 calls.
+Dev (fastapi_15588, fastapi_15589, rich_3882, rich_3470): 2/4, 2/4. Prompt = scoring section + one decision rule
+("as soon as you can say which lines to change and how, the next call is the edit") + 6-step workflow + 2 generic
+examples on an invented package + edit_file fallback (Python replace) + "never write tool calls as text".
 
-**Progress 2026-10-05:** local pipeline works end to end (commits 54eb1c8, c7be418).
-- Done: `uv sync` (.venv), sandbox image `swebench-sandbox:latest` rebuilt as **linux/amd64** (the public test wheels
-  are x86_64-only; colima runs with `--vm-type vz --vz-rosetta`; built via run + docker cp + commit because the legacy
-  builder mishandles --platform). Missing public test wheels (typing-inspection, inline-snapshot, dirty-equals,
-  asttokens, executing; forum 745775) live in data/wheels_extra and are merged locally only (run_eval.wheels_dir_for).
-  swegemma caches unpacked wheels in $TMPDIR/swegemma_sp_cache_v8/sp_base.tar — delete it after changing wheels.
-- Dev set (gold patch passes via scripts/gold_check.py): fastapi_15588, fastapi_15589, rich_3882, rich_3470.
-  Dropped: fastapi_14786 (needs older starlette), rich_3469 (gold fails a pygments-dependent test).
-- pack.py validates + compiles 1a and 1b. Ollama ignores enable_thinking → run_eval sends reasoning_effort=none.
-- Smoke tests on rich_3470 with the 12B (results/smoke2_1a, smoke2_1b; not score-relevant): both time out unsolved.
-  1a: 36 calls, 22 repeated near-identical commands (looping). 1b: orchestrator explored, then called reader, which
-  worked 138 s and returned an EMPTY final message ({"raw": ""}); orchestrator re-asked and ran out of time. The 12B
-  never wrote the "progress line" text before tool calls. Added a single-quote rule to all prompts (12B sent
-  backslash-escaped quotes).
-- Open questions before/after Kaggle: should helpers get a hard tool-call cap + "stop and answer" rule, and should the
-  orchestrator continue on its own instead of re-asking after an empty reply? Judge on the 31B, not the 12B.
-**Open design questions:** `docs/DESIGN_DECISIONS.md` (settled S1–S10, open D1–D14 incl. context offloading).
-**Next step:** user runs kaggle/eval_compare.ipynb on Kaggle (File → Import Notebook; attach competition data,
-metric/gemma-4-developer-agent-wheelhouse, model gemma-4-31b-it-qat-w4a16-ct v2; GPU L4×4; Run All; download
-results.zip into data/results/; stop the session) → `python3 scripts/analyze.py` per config → decide prompt changes
-→ first LB submission (dist/1a.zip or dist/1b.zip via `uv run scripts/pack.py`).
+**Leaderboard:** 0.08 / 0.10 (1a round 2, thinking off, before the 10-08 wheelhouse). Submission 57045667 = 1a
+round 4 with 4.5 min / 50 calls (dist/submission.zip from dist/src_1a_r4_lb), sent 2026-10-10 15:10 UTC, queued
+(~33 h queue + ~10 h run). Check: `uvx --from kaggle kaggle competitions submissions gemma-4-developer-agent`.
+
+**Key facts learned (details in docs/DESIGN_DECISIONS.md D9–D22 and experiments/):**
+- Wheelhouse 0.2.13 (10-08): `include_thoughts: false` = thinking ON with a 4,096 budget (forum 747914, host:
+  intended); `thinking_budget: 0` is the off switch. Thinking on (visible) costs the same as the hidden thinking.
+- Steps cost ~2× more tokens since the update; hard tasks fail at the deadline. fastapi_15588 is unsolvable (hidden
+  error message). Hard tasks (15589, 3470) ~20–25 % in every round; the agent sees the right code in the first 1–5
+  calls and then hesitates (edge cases, "is this intended?") instead of editing there.
+- Prompt rules needing self-monitoring (time checkpoints, step order, notes, script caps, command templates like
+  git grep -W) are ignored; only event-triggered rules work (edit_file error → Python fallback). Longer prompts with
+  more rules did worse (4b, 5). Old-behaviour tests: rich_3470's existing test asserts the old behaviour; 11/54
+  attempts backed away from a correct fix because of it.
+- Verifier (1c): works mechanically when it is "the next call after an edit" and answers the harness's own "verify
+  before submitting" instruction, but costs 42–93 s per call and the hard tasks never reach an edit.
+- Smaller models (forum 748287): 12B = gemma4_unified, crashes vLLM 0.19.1 at startup (D22, waiting for the host);
+  E4B = 0/4, 0/4 (fast but wrong). Stay on 31B.
+
+**Tooling:** scripts/make_kaggle_notebook.py (--tasks --configs [name or name@rev] --repeats --model), pack.py,
+analyze.py, patterns.py, timeline.py (time per phase, --thoughts), token_split.py, context_split.py,
+hard_tasks.py. Kaggle: user pastes kaggle/cells/cell2.py (and cell3.py when the model or vLLM cell changes); results
+via `uvx --from kaggle kaggle kernels output ziad23samer/getting-started-gemma-4-developer-agent-4554ae -p DIR`
+or results.zip in ~/Downloads; unpack to data/results/<date>_<rung>/.
+
+**Open options (user to choose):** wait for the leaderboard score of round 4; user's plan: reach 0.15 (and 3/4 on
+dev) before LoRA; LoRA targets = edit right after finding the cause, fewer/bigger reads, change scripts in place;
+a skill tool that finds a symbol and shows its whole definition (D8); verifier again once edits come earlier;
+pending prompt block "when a step does not work" (experiments/2026-10-10_lessons/notes.md); bigger dev set
+(research/dev_tasks_feasibility.md, user declined swapping fastapi_15588 for now). 1b parked (submissions/1b).
 
 ## Context
 Kaggle "Google – The Gemma 4 Developer Agent Competition" (Google DeepMind, Featured, $65k) + optional
