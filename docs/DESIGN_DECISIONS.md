@@ -339,6 +339,15 @@ hidden, ~260 output tokens/step), the same cost as thinking on (1.0×, thoughts 
 (budget 1,024) for 1a from now on.** Since the update every step costs ~2× the tokens of before (≈ 130 → 260),
 so only about half as many steps fit in 5 minutes.
 
+**10-11 (forum 747914, host-confirmed "intended"):** under adk_submission 0.2.13, `include_thoughts: false` no longer
+turns thinking off: the runner merges a default thinking_budget of 4,096 and the budget is checked first, so the
+request carries enable_thinking=true + thinking_token_budget 4096 (one team: a 90 s task became 316 s). This is the
+mechanism behind our rung-1i–1l hidden tokens. `thinking_budget: 0` is the off switch now; `include_thoughts` only
+controls what is carried in the chat template between calls. Our current config (include_thoughts true, budget
+512) is explicit and unaffected.
+**10-11 (forum 748287):** smaller variants allowed: gemma-4-12b / e4b / e2b (-it-qat-w4a16-ct); one variant per
+submission (all agents the same model). Faster steps (more turns in 5 min) and cheaper LoRA; weaker model.
+
 ### D10. Temperature 1.0 vs 0.2
 Google recommends 1.0; one forum test saw more loops at 0.7 than 0.2. **Measure** after the first comparison.
 **10-07:** identical 1a prompts scored 3/4 (rung-1b) then 1/4 (rung-1c) at 1.0 → run-to-run noise swamps config
