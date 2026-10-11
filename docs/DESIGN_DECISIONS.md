@@ -299,7 +299,9 @@ adds "vision_embedder." to gemma4.py's existing multimodal skip list (audio_towe
 embed_vision.). Checked against the real files: vLLM wheel v30 has that list once and filters by substring before
 loading; the 12B safetensors header (1,335 tensors) has only model.language_model.* (48 standard gemma4 layers,
 8 without v_proj = k_eq_v), embed_audio/embed_vision projections, lm_head (tied) and 9 model.vision_embedder.*
-tensors, so nothing else is skipped. (A first, broader "skip any unknown weight" patch was replaced: with a
+tensors, so nothing else is skipped. **Rung-1z result: 12B 1/4, 1/4** (only rich_3882); ~1.8× the
+31B's tokens/s but ~2× the text per task, and 3/8 tasks hit a silent stall (a model call that never returned,
+114–236 s, never seen on 31B/E4B). Not better than 31B; stay on 31B (experiments/2026-10-11_rung1z_12b). (A first, broader "skip any unknown weight" patch was replaced: with a
 quantized model vLLM does not check for unloaded weights, so it could hide a missing text weight.) Unknown whether the scorer's vLLM has an
 equivalent fix: do not submit a 12B until the host confirms or his Monday notebook runs unpatched.
 
