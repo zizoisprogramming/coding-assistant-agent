@@ -292,7 +292,11 @@ after 39–129 s / 7–21 steps. Too weak; stay on 31B (12B pending the host's v
 **10-11 host fix for the 12B (forum 748287 reply; "the scorer has this update already"):** start vLLM with
 `--hf-overrides '{"architectures": ["Gemma4ForCausalLM"], "model_type": "gemma4"}'` for gemma-4-12b-it-qat-w4a16-ct
 (VllmConfig extra_args, per-model dict MODEL_VLLM_EXTRA_ARGS). Added to the notebook's vLLM cell; next run = 1a_12b
-on the 4 dev tasks × 2.
+on the 4 dev tasks × 2. **Run 1 with the flag:** the architecture resolves (Gemma4ForCausalLM) but weight
+loading fails: `KeyError: 'vision_embedder.patch_dense.weight'` (gemma4.py load_weights; the 12B checkpoint is one
+10.3 GB file with vision + audio towers, wheelhouse v30 = 10-09, no newer one). Local-only workaround: the vLLM cell
+patches the installed gemma4.py to skip weights without a parameter. Unknown whether the scorer's vLLM has an
+equivalent fix: do not submit a 12B until the host confirms or his Monday notebook runs unpatched.
 
 ### D21. 1a round 4.1: cheaper reading (user, 2026-10-10)
 **Measured (round 4, 8 task runs):** read_file 9.1 calls/task (73 total, ranges of 10–20 lines) despite "do not use

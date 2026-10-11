@@ -18,6 +18,19 @@ MODEL_VLLM_EXTRA_ARGS: dict[str, tuple[str, ...]] = {
         '{"architectures": ["Gemma4ForCausalLM"], "model_type": "gemma4"}',
     ),
 }
+# LOCAL TEST WORKAROUND (not on the scorer): with that flag, vLLM 0.19.1 (wheelhouse v30) still crashes on the
+# 12B's vision weights (KeyError 'vision_embedder.patch_dense.weight' in gemma4.py load_weights). Patch the
+# installed gemma4.py so the text-only model skips weights it has no parameter for (vision/audio towers).
+if TARGET_MODEL_NAME == 'gemma-4-12b-it-qat-w4a16-ct':
+    import re, importlib.util  # locate the file without importing vLLM's model code in this process
+    _src_path = Path(importlib.util.find_spec('vllm').origin).parent / 'model_executor' / 'models' / 'gemma4.py'
+    _src = _src_path.read_text()
+    if 'SKIP_UNKNOWN_WEIGHTS' not in _src:
+        _src, _n = re.subn(r'^([ \t]*)param = params_dict\[name\]\n',
+                           r'\1if name not in params_dict:  # SKIP_UNKNOWN_WEIGHTS\n\1    continue\n\1param = params_dict[name]\n',
+                           _src, flags=re.M)
+        _src_path.write_text(_src)
+        print(f'gemma4.py patched at {_n} places (skip weights without a parameter)')
 gpu_count = torch.cuda.device_count() if torch.cuda.is_available() else 1
 tp_size = 4 if gpu_count >= 4 else (2 if gpu_count >= 2 else 1)
 
