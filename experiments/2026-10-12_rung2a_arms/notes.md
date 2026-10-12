@@ -37,3 +37,18 @@ vs earlier sequential runs (31B round 4: ~3–4 s median gap, ~29 tokens/s).
 - Concurrency 2 cost ~5–10 % tokens/s (25–30 vs 29–31 sequential); a SILENT stall appeared once (r4_think r1
   rich_3470, 78 s).
 - bf failure mode: after the call budget is exhausted it loops submit_patch until max_turns 80 (empty patch).
+
+## bf vs r4_budget, same budget (8 min / 28 calls) — what differs (scripts/behaviour.py)
+Differences between the two: prompt (bf 685 words vs 927), sampling (bf T 0.2, thinking 4096, max_output 8192;
+r4 T 1.0, thinking 512, max_output 2048), tools (bf 6, r4 9).
+- fastapi_15589 (bf 2/2, r4_budget 0/2): bf takes few, deep steps (r1: 18 steps, 734 output tokens/step) and finds
+  the real place (request_params_to_args: the loop over received header keys) at 405–433 s; r4_budget edits a
+  plausible but wrong place (analyze_param alias) at 235 s or never edits. → deep thinking + time wins here.
+- rich_3470 (r4_budget 2/2, bf 0/2): both explore the same way (9–15 greps, 9–13 reads). r4_budget edits right
+  after the call-18 warning (steps 23–27); bf ignores the warning and its own "edit by call 12" rule, runs out of
+  calls (r2's edit at call 29 was rejected: budget exhausted), then calls submit_patch 49–50 times until max_turns.
+  → our decision rule + examples make the model act on the warning; bf's prompt does not.
+- Both reach rich_3882 easily; both edit fastapi_15588 early (unsolvable task).
+- bf_r1 15589 left repro_model.py in /workspace and still resolved (new non-test files do not break grading).
+Combination hypothesis: r4 prompt (acts on the warning) + bf sampling (thinking 4096 / max_output 8192, maybe T 0.2)
+at 8 min / 28 calls.
