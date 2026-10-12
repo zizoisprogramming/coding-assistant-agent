@@ -37,7 +37,7 @@ def wheels_dir_for(data_dir):
 
 
 def build_config(submission_dir, task_ids, results_dir, models, data_dir=DATA, sandbox="docker",
-                 adapter_manifest=None, display_mode="single"):
+                 adapter_manifest=None, display_mode="single", concurrency=1):
     limits, gen_constraints = build_submission_limits()
     budgets = read_eval_config(submission_dir)
     return EvalConfig(
@@ -59,6 +59,7 @@ def build_config(submission_dir, task_ids, results_dir, models, data_dir=DATA, s
             compaction_interval=5, overlap_size=2, token_threshold=14336, event_retention_size=5,
         ),
         display_mode=display_mode,
+        concurrency=concurrency,
         **budgets,
     )
 
@@ -82,7 +83,8 @@ wall = {}
 for name, key in RUNS:
     start = time.time()
     config = build_config(SUB_ROOT / name, TASK_IDS, RESULTS / key, models, data_dir=DATA_DIR,
-                          sandbox='subprocess', display_mode='single')
+                          sandbox='subprocess', display_mode='single' if CONCURRENCY == 1 else 'quiet',
+                          concurrency=CONCURRENCY)
     result = run_sync(Evaluator(config).run())
     wall[key] = time.time() - start
     print(f'==> {key}: {result.resolved}/{result.total} resolved in {wall[key] / 60:.1f} min')

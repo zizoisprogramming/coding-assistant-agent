@@ -96,6 +96,7 @@ SUB_ROOT = WORKING_DIR / 'submissions'
 TASK_IDS = __TASK_IDS__
 CONFIGS = __CONFIGS__
 REPEATS = __REPEATS__
+CONCURRENCY = __CONCURRENCY__  # tasks evaluated at the same time (each has its own workspace and /tmp)
 EMBEDDED = __EMBEDDED__
 
 shutil.rmtree(SUB_ROOT, ignore_errors=True)
@@ -292,7 +293,8 @@ wall = {}
 for name, key in RUNS:
     start = time.time()
     config = build_config(SUB_ROOT / name, TASK_IDS, RESULTS / key, models, data_dir=DATA_DIR,
-                          sandbox='subprocess', display_mode='single')
+                          sandbox='subprocess', display_mode='single' if CONCURRENCY == 1 else 'quiet',
+                          concurrency=CONCURRENCY)
     result = run_sync(Evaluator(config).run())
     wall[key] = time.time() - start
     print(f'==> {key}: {result.resolved}/{result.total} resolved in {wall[key] / 60:.1f} min')
@@ -327,6 +329,7 @@ def main():
     ap.add_argument("--tasks", required=True)
     ap.add_argument("--configs", default="sample,1a,1b")
     ap.add_argument("--repeats", type=int, default=1)
+    ap.add_argument("--concurrency", type=int, default=1, help="tasks evaluated at the same time on the one vLLM server")
     ap.add_argument("--model", default="gemma-4-31b-it-qat-w4a16-ct", help="served Gemma 4 variant (forum 748287)")
     ap.add_argument("--out", default=str(ROOT / "kaggle" / "eval_compare.ipynb"))
     args = ap.parse_args()
@@ -339,6 +342,7 @@ def main():
     setup = (SETUP.replace("__TASK_IDS__", repr(args.tasks.split(",")))
              .replace("__CONFIGS__", repr(configs))
              .replace("__REPEATS__", repr(args.repeats))
+             .replace("__CONCURRENCY__", repr(args.concurrency))
              .replace("__EMBEDDED__", json.dumps(embedded, indent=1)))
 
     nb = {

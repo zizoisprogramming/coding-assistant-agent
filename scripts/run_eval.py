@@ -65,7 +65,7 @@ def ollama_thinking_off(models):
 
 
 def build_config(submission_dir, task_ids, results_dir, models, data_dir=DATA, sandbox="docker",
-                 adapter_manifest=None, display_mode="single"):
+                 adapter_manifest=None, display_mode="single", concurrency=1):
     limits, gen_constraints = build_submission_limits()
     budgets = read_eval_config(submission_dir)
     return EvalConfig(
@@ -87,6 +87,7 @@ def build_config(submission_dir, task_ids, results_dir, models, data_dir=DATA, s
             compaction_interval=5, overlap_size=2, token_threshold=14336, event_retention_size=5,
         ),
         display_mode=display_mode,
+        concurrency=concurrency,
         **budgets,
     )
 
