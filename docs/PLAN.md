@@ -12,8 +12,11 @@ Dev (fastapi_15588, fastapi_15589, rich_3882, rich_3470): 2/4, 2/4. Prompt = sco
 examples on an invented package + edit_file fallback (Python replace) + "never write tool calls as text".
 
 **Leaderboard:** 0.08 / 0.10 (1a round 2, thinking off, before the 10-08 wheelhouse). Submission 57045667 = 1a
-round 4 with 4.5 min / 50 calls (dist/submission.zip from dist/src_1a_r4_lb), sent 2026-10-10 15:10 UTC, queued
-(~33 h queue + ~10 h run). Check: `uvx --from kaggle kaggle competitions submissions gemma-4-developer-agent`.
+round 4 with 4.5 min / 50 calls (dist/submission.zip from dist/src_1a_r4_lb), sent 2026-10-10 15:10 UTC → **0.12** (2026-10-12; rank band 928–1304 of 2,508). Check: `uvx --from kaggle kaggle competitions submissions gemma-4-developer-agent`.
+**Public no-LoRA recipe at 0.17–0.18** (8 public notebooks, all without adapters, checked 10-12): one agent, 6 tools
+(no graph tools), T 0.2, top_p 0.95, max_output_tokens 8192, thinking_budget 4096 + include_thoughts true,
+8 min / 28 calls / 240 s / 80 turns; prompt = extract the task's exact names, edit by call 12, no new exploration
+after call 20, one targeted test then submit. E.g. verracodeguacas/gemma-4-agent-budget-fit-single-agent.
 
 **Key facts learned (details in docs/DESIGN_DECISIONS.md D9–D22 and experiments/):**
 - Wheelhouse 0.2.13 (10-08): `include_thoughts: false` = thinking ON with a 4,096 budget (forum 747914, host:
