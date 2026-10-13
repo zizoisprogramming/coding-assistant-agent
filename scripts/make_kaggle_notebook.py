@@ -315,6 +315,60 @@ print('\\nWall clock per config (min):', {k: round(v / 60, 1) for k, v in wall.i
 print('Wrote /kaggle/working/results.zip')'''
 
 
+GOLD = '''# GOLD CHECK (run after cells 1 and 2; no vLLM, no GPU needed): grades each task's reference patch and an empty
+# patch through the scorer's own verify_task in the Kaggle subprocess sandbox. A task is usable only if
+# gold = PASS and empty = FAIL. Writes /kaggle/working/gold_check.json.
+import asyncio, concurrent.futures, json, time, yaml
+from google.adk.agents.context_cache_config import ContextCacheConfig
+from google.adk.apps._configs import EventsCompactionConfig
+from swegemma.config import EvalConfig, build_submission_limits
+from swegemma.deduplication import resolve_task_snapshot_paths
+from swegemma.evaluate import Evaluator
+from swegemma.harness.verification import verify_task
+from swegemma.models import load_tasks
+from swegemma.models.registry import ModelRegistry
+
+DATA = DATA_DIR
+GOLD_TASKS = __GOLD_TASKS__
+
+
+__RUN_EVAL__
+
+
+async def _gold(task_ids):
+    config = build_config(SUB_ROOT / CONFIGS[0], task_ids, WORKING_DIR / 'gold_results', ModelRegistry(),
+                          data_dir=DATA_DIR, sandbox='subprocess', display_mode='quiet')
+    evaluator = Evaluator(config)
+    tasks = {t.instance_id: t for t in load_tasks(DATA_DIR / 'tasks.jsonl')}
+    out = {}
+    for tid in task_ids:
+        task = tasks[tid]
+        row = {}
+        for label, patch_text in (('gold', task.patch), ('empty', '')):
+            snap, base_snap, patch_path = resolve_task_snapshot_paths(config.snapshots_dir, tid, task.repo)
+            t0 = time.perf_counter()
+            try:
+                res = await verify_task(evaluator.docker, config, task, snap, agent_patch=patch_text,
+                                        base_snapshot_path=base_snap, patch_path=patch_path, start_time=t0)
+                row[label] = 'PASS' if res.resolved else 'FAIL'
+                if label == 'gold' and not res.resolved:
+                    row['gold_tail'] = (res.error or '') + ' | ' + ' / '.join((res.test_output or '').strip().splitlines()[-6:])
+            except Exception as e:  # keep going: one broken task must not stop the check
+                row[label] = f'ERROR {type(e).__name__}: {str(e)[:150]}'
+            row[label + '_s'] = round(time.perf_counter() - t0)
+        row['usable'] = row.get('gold') == 'PASS' and row.get('empty') == 'FAIL'
+        out[tid] = row
+        print(f"{tid:16} gold {row['gold']:5} empty {row['empty']:5} usable={row['usable']}  ({row['gold_s']}s + {row['empty_s']}s)")
+        if row.get('gold_tail'):
+            print('   ', row['gold_tail'][:400])
+        (WORKING_DIR / 'gold_check.json').write_text(json.dumps(out, indent=1))
+    print('USABLE:', [t for t, r in out.items() if r['usable']])
+
+
+with concurrent.futures.ThreadPoolExecutor(max_workers=1) as _pool:
+    _pool.submit(lambda: asyncio.run(_gold(GOLD_TASKS))).result()'''
+
+
 def code_cell(src):
     return {"cell_type": "code", "metadata": {}, "execution_count": None, "outputs": [],
             "source": src.splitlines(keepends=True)}
@@ -332,6 +386,7 @@ def main():
     ap.add_argument("--concurrency", type=int, default=1, help="tasks evaluated at the same time on the one vLLM server")
     ap.add_argument("--model", default="gemma-4-31b-it-qat-w4a16-ct", help="served Gemma 4 variant (forum 748287)")
     ap.add_argument("--out", default=str(ROOT / "kaggle" / "eval_compare.ipynb"))
+    ap.add_argument("--gold-tasks", default="", help="also write kaggle/cells/gold_check.py for these task ids")
     args = ap.parse_args()
 
     configs = args.configs.split(",")
@@ -363,6 +418,10 @@ def main():
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(nb, indent=1))
+    if args.gold_tasks:
+        gold_cell = GOLD.replace("__GOLD_TASKS__", repr(args.gold_tasks.split(","))).replace("__RUN_EVAL__", run_eval_src)
+        (ROOT / "kaggle" / "cells" / "gold_check.py").write_text(gold_cell)
+        print(f"Wrote kaggle/cells/gold_check.py ({len(args.gold_tasks.split(','))} tasks)")
     print(f"Wrote {out.relative_to(ROOT)} ({len(configs)} configs × {len(args.tasks.split(','))} tasks × {args.repeats} repeats)")
 
 
