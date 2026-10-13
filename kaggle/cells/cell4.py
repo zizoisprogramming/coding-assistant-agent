@@ -1,4 +1,11 @@
 # 4. Evaluate every config on the same tasks (Evaluator configured like the scorer; see scripts/run_eval.py)
+import logging, warnings
+# Quiet output: hide library warnings (ensurepip notices, experimental-feature and deprecation messages).
+# Errors still print, and every task's outcome is in results/ anyway.
+warnings.filterwarnings('ignore')
+logging.getLogger().setLevel(logging.ERROR)
+for _name in ('swegemma', 'google_adk', 'google.adk', 'adk_submission', 'adk_eval_core', 'LiteLLM', 'litellm', 'httpx', 'urllib3'):
+    logging.getLogger(_name).setLevel(logging.ERROR)
 import asyncio, concurrent.futures, time, yaml
 from google.adk.agents.context_cache_config import ContextCacheConfig
 from google.adk.apps._configs import EventsCompactionConfig

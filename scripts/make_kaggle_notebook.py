@@ -262,6 +262,13 @@ except Exception as _e:  # never block the evaluation
     print("sampling diagnostic failed:", repr(_e))'''
 
 EVAL = '''# 4. Evaluate every config on the same tasks (Evaluator configured like the scorer; see scripts/run_eval.py)
+import logging, warnings
+# Quiet output: hide library warnings (ensurepip notices, experimental-feature and deprecation messages).
+# Errors still print, and every task's outcome is in results/ anyway.
+warnings.filterwarnings('ignore')
+logging.getLogger().setLevel(logging.ERROR)
+for _name in ('swegemma', 'google_adk', 'google.adk', 'adk_submission', 'adk_eval_core', 'LiteLLM', 'litellm', 'httpx', 'urllib3'):
+    logging.getLogger(_name).setLevel(logging.ERROR)
 import asyncio, concurrent.futures, time, yaml
 from google.adk.agents.context_cache_config import ContextCacheConfig
 from google.adk.apps._configs import EventsCompactionConfig
@@ -318,6 +325,13 @@ print('Wrote /kaggle/working/results.zip')'''
 GOLD = '''# GOLD CHECK (run after cells 1 and 2; no vLLM, no GPU needed): grades each task's reference patch and an empty
 # patch through the scorer's own verify_task in the Kaggle subprocess sandbox. A task is usable only if
 # gold = PASS and empty = FAIL. Writes /kaggle/working/gold_check.json.
+import logging, warnings
+# Quiet output: hide library warnings (ensurepip notices, experimental-feature and deprecation messages).
+# Errors still print, and every task's outcome is in results/ anyway.
+warnings.filterwarnings('ignore')
+logging.getLogger().setLevel(logging.ERROR)
+for _name in ('swegemma', 'google_adk', 'google.adk', 'adk_submission', 'adk_eval_core', 'LiteLLM', 'litellm', 'httpx', 'urllib3'):
+    logging.getLogger(_name).setLevel(logging.ERROR)
 import asyncio, concurrent.futures, json, time, yaml
 from google.adk.agents.context_cache_config import ContextCacheConfig
 from google.adk.apps._configs import EventsCompactionConfig
