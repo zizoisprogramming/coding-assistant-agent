@@ -9,7 +9,7 @@ from swegemma.deduplication import resolve_task_snapshot_paths
 from swegemma.evaluate import Evaluator
 from swegemma.harness.verification import verify_task
 from swegemma.models import load_tasks
-from swegemma.models.registry import ModelRegistry
+from adk_submission import ModelRegistry  # moved out of swegemma in 0.2.11
 
 DATA = DATA_DIR
 GOLD_TASKS = ['fastapi_15589', 'fastapi_13920', 'fastapi_14258', 'fastapi_11194', 'fastapi_15588', 'fastapi_15280', 'fastapi_14583', 'fastapi_15800', 'fastapi_14306', 'fastapi_14978', 'rich_3882', 'rich_3470', 'rich_3296', 'rich_3521', 'rich_3934', 'rich_3180', 'fastapi_14266', 'fastapi_14487', 'fastapi_14419', 'fastapi_15023', 'fastapi_14372', 'rich_4079', 'rich_3506', 'rich_3468', 'rich_3782']

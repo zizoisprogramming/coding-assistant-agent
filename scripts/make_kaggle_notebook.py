@@ -326,7 +326,7 @@ from swegemma.deduplication import resolve_task_snapshot_paths
 from swegemma.evaluate import Evaluator
 from swegemma.harness.verification import verify_task
 from swegemma.models import load_tasks
-from swegemma.models.registry import ModelRegistry
+from adk_submission import ModelRegistry  # moved out of swegemma in 0.2.11
 
 DATA = DATA_DIR
 GOLD_TASKS = __GOLD_TASKS__
