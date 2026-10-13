@@ -1,0 +1,6 @@
+# Arm r4b_warn (rung-3b): r4_budget + "when the low-budget warning appears, the very next call is your best edit".
+evaluation:
+  timeout_seconds: 240
+  max_tool_calls: 28
+  max_time_minutes: 8
+  max_turns: 80

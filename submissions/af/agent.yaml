@@ -1,0 +1,9 @@
+# Arm af (rung-3b): a read-only analyst with deep thinking (4096, T 0.2) writes LOCATION / CONTRACT / FIX, then the
+# fixer (round-4 prompt, thinking 512, T 1.0) edits from that plan. Both run in the same session, so the fixer sees
+# everything the analyst read. Budget (8 min / 28 calls) is shared.
+agent_class: SequentialAgent
+name: analyze_then_fix
+description: Analyst finds the location and the exact interface; fixer makes the edit, checks it and submits.
+sub_agents:
+  - config_path: sub_agents/analyst.yaml
+  - config_path: sub_agents/fixer.yaml

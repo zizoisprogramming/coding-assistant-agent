@@ -27,3 +27,17 @@ rich_3882, fastapi_11194), mean 400 s/task. Union 5/16; only rich_3882 in both.
   submittable as is). Measured with concurrency 2 (~5–10 % slower), on harder-than-old tasks.
 - Next idea: an event-anchored rule ("when a tool result says only N calls remain, the very next call is your best
   edit"), since event-triggered rules are the ones the model follows.
+
+## Rung-3b design (2026-10-13): two new arms, compared with rung-3a (no unchanged repeat, user)
+rung-3a split: r4_budget fastapi 0/9, rich 3/7 (edits more, more wrong fixes); r4b_think_t02 fastapi 2/9, rich 1/7.
+Most wrong fixes miss one test: fastapi ones on the exact interface/wording (expected "Validation errors:", a
+`prompt=` parameter, another exception), rich ones on a behaviour detail.
+- **af**: SequentialAgent [analyst → fixer] in one session. Analyst: read-only tools (run_command, read_file,
+  get_status), thinking 4096 / T 0.2, prompt prompts/analyst.md (345 words): find LOCATION + exact CONTRACT
+  (names/params/messages/status codes, from task + sibling code) + FIX, hand over after ~8–12 calls or at the
+  low-budget warning. Fixer: r4_budget prompt + "start from the plan: read LOCATION once, next call is the edit"
+  (fixer.md), r4_budget sampling. Shared 8 min / 28 calls. Risk: a nudge after a text-only fixer turn restarts
+  the sequence at the analyst.
+- **r4b_warn**: r4_budget + "When a tool result says only a few tool calls remain, your very next call is your
+  best edit, even if you are unsure. Use the calls left to check it and adjust it."
+Watch: analyst calls before hand-over, plan quality, fixer first-edit call, no-edit count, mean s/task (12-h limit).
