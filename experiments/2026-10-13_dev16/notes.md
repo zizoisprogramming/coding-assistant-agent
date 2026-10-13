@@ -65,3 +65,13 @@ reproducing/running/editing; call 1 = git grep -A 25 to search and read at once;
 lines; stop as soon as the three answers are known; one-call example; same LOCATION/CONTRACT/FIX hand-over).
 Fixer, sampling (analyst 4096/T 0.2), tools and budget unchanged. Measure: analyst calls before hand-over,
 hand-over time, fixer calls, solved/no-edit, mean s/task.
+
+### Rung-3c result (2026-10-13): af2 3/16 (rich_3882, fastapi_11194, rich_3521), mean 420 s/task
+- The rewrite did not reduce analyst calls: median 21.5 (af: ~21); 13–28 calls; only rich_3882 (5 calls, hand-over
+  at 66 s, solved in 97 s) followed the "about 6 calls" plan. No hand-over in 4 tasks; 8 tasks hit the time limit.
+- Second cost: single deep-thinking steps of 4–7k tokens taking 130–242 s (rich_3521: 7 analyst calls but hand-over
+  at 369 s; rich_3180: one step 242 s / 7,343 tokens). With thinking 4096 / max_output 8192 the analyst can burn
+  half the 8 minutes in one or two steps.
+- Conclusion: under 8 min / 28 shared calls, the analyst → fixer split does not fit: call count is not controllable
+  by wording (third time), and deep steps are too slow. Would need a tool-enforced cap and a smaller analyst
+  thinking budget (e.g. 1024–2048) to be viable.
