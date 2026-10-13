@@ -3,7 +3,7 @@ import re
 DATA_DIR = Path('/kaggle/input/competitions/gemma-4-developer-agent')
 WORKING_DIR = Path('/kaggle/working')
 SUB_ROOT = WORKING_DIR / 'submissions'
-TASK_IDS = ['fastapi_15588', 'fastapi_15589', 'rich_3882', 'rich_3470']
+TASK_IDS = ['fastapi_15589', 'fastapi_13920', 'fastapi_14258', 'fastapi_11194', 'fastapi_14487', 'fastapi_15280', 'fastapi_14419', 'fastapi_15800', 'fastapi_14306', 'rich_3882', 'rich_3470', 'rich_4079', 'rich_3521', 'rich_3934', 'rich_3468', 'rich_3180']
 CONFIGS = ['r4_budget', 'r4b_think_t02']
 REPEATS = 1
 CONCURRENCY = 2  # tasks evaluated at the same time (each has its own workspace and /tmp)
