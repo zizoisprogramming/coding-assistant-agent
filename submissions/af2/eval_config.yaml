@@ -1,0 +1,6 @@
+# Arm af2 (rung-3c): af with a rewritten analyst prompt for few tool calls; same fixer, sampling and budget.
+evaluation:
+  timeout_seconds: 240
+  max_tool_calls: 28
+  max_time_minutes: 8
+  max_turns: 80

@@ -1,0 +1,11 @@
+name: analyst
+description: Read-only analyst. Finds where to change the code and the exact interface the hidden tests will check.
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include ../prompts/analyst.md
+tools:
+  - run_command
+  - read_file
+  - get_status
+generate_content_config: !include ../configs/analyst_sampling.yaml
+disallow_transfer_to_parent: true
+disallow_transfer_to_peers: true

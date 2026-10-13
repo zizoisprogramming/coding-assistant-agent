@@ -58,3 +58,10 @@ Watch: analyst calls before hand-over, plan quality, fixer first-edit call, no-e
 - Six arms on dev16 all score 2–3/16; union of solved tasks over all arms: fastapi_15589, fastapi_11194,
   rich_3882, rich_4079, rich_3521 (5/16). Prompt/budget/structure changes have plateaued on this set; the limit is
   finding the right change (location + exact interface), not editing.
+
+## Rung-3c design (2026-10-13): af2 = af with the analyst prompt rewritten for few calls (user)
+New analyst.md (scout role; "every call you spend is a call the fixer loses"; three questions in ~6 calls; no
+reproducing/running/editing; call 1 = git grep -A 25 to search and read at once; whole-function reads of 80–150
+lines; stop as soon as the three answers are known; one-call example; same LOCATION/CONTRACT/FIX hand-over).
+Fixer, sampling (analyst 4096/T 0.2), tools and budget unchanged. Measure: analyst calls before hand-over,
+hand-over time, fixer calls, solved/no-edit, mean s/task.
