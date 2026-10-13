@@ -41,3 +41,20 @@ Most wrong fixes miss one test: fastapi ones on the exact interface/wording (exp
 - **r4b_warn**: r4_budget + "When a tool result says only a few tool calls remain, your very next call is your
   best edit, even if you are unsure. Use the calls left to check it and adjust it."
 Watch: analyst calls before hand-over, plan quality, fixer first-edit call, no-edit count, mean s/task (12-h limit).
+
+### Rung-3b results (2026-10-13)
+| Arm | Solved | Wrong fix | No edit | Mean s/task |
+|---|---|---|---|---|
+| af (analyst → fixer) | 3/16 (fastapi_15589, rich_3882, fastapi_11194) | 2 | 11 | 418 |
+| r4b_warn | 2/16 (rich_3882, fastapi_11194) | 10 | 4 | 272 |
+| rung-3a r4_budget | 3/16 | 6 | 7 | 314 |
+| rung-3a r4b_think_t02 | 3/16 | 4 | 9 | 400 |
+- af: the analyst ignored "hand over after ~8–12 calls": 16–29 calls (median ~21; 7 tasks used the whole 28),
+  hand-over at 197–478 s, never in 3 tasks; the fixer got 0–19 calls (mostly ≤ 5). No restarts. It behaved like
+  the deep-thinking arm and solved the same 3 tasks. Per-agent call limits do not exist in the YAML schema, so the
+  split cannot be enforced; another self-monitoring rule that is ignored.
+- r4b_warn: the warning rule works mechanically (no-edit 7 → 4, wrong fixes 6 → 10) but the forced edits are
+  guesses; solved did not rise. By call 18 the agent usually does not know the right change yet.
+- Six arms on dev16 all score 2–3/16; union of solved tasks over all arms: fastapi_15589, fastapi_11194,
+  rich_3882, rich_4079, rich_3521 (5/16). Prompt/budget/structure changes have plateaued on this set; the limit is
+  finding the right change (location + exact interface), not editing.
