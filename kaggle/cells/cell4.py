@@ -1,9 +1,4 @@
 # 4. Evaluate every config on the same tasks (Evaluator configured like the scorer; see scripts/run_eval.py)
-import logging, warnings
-# Hide only the red noise: the sandbox's per-task 'ensurepip unavailable' warnings and Python deprecation
-# warnings. Everything else prints as before; errors still print.
-warnings.filterwarnings('ignore')
-logging.getLogger('swegemma.sandbox.subprocess').setLevel(logging.ERROR)
 import asyncio, concurrent.futures, time, yaml
 from google.adk.agents.context_cache_config import ContextCacheConfig
 from google.adk.apps._configs import EventsCompactionConfig
