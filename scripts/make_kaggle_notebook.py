@@ -263,12 +263,10 @@ except Exception as _e:  # never block the evaluation
 
 EVAL = '''# 4. Evaluate every config on the same tasks (Evaluator configured like the scorer; see scripts/run_eval.py)
 import logging, warnings
-# Quiet output: hide library warnings (ensurepip notices, experimental-feature and deprecation messages).
-# Errors still print, and every task's outcome is in results/ anyway.
+# Hide only the red noise: the sandbox's per-task 'ensurepip unavailable' warnings and Python deprecation
+# warnings. Everything else prints as before; errors still print.
 warnings.filterwarnings('ignore')
-logging.getLogger().setLevel(logging.ERROR)
-for _name in ('swegemma', 'google_adk', 'google.adk', 'adk_submission', 'adk_eval_core', 'LiteLLM', 'litellm', 'httpx', 'urllib3'):
-    logging.getLogger(_name).setLevel(logging.ERROR)
+logging.getLogger('swegemma.sandbox.subprocess').setLevel(logging.ERROR)
 import asyncio, concurrent.futures, time, yaml
 from google.adk.agents.context_cache_config import ContextCacheConfig
 from google.adk.apps._configs import EventsCompactionConfig
@@ -296,6 +294,32 @@ RESULTS = WORKING_DIR / 'results'
 shutil.rmtree(RESULTS, ignore_errors=True)
 # Repeats are interleaved (r1 of every config, then r2, ...) so a session that dies early still has complete pairs.
 RUNS = [(name, f'{name}_r{rep + 1}' if REPEATS > 1 else name) for rep in range(REPEATS) for name in CONFIGS]
+
+
+def _progress_watcher(stop):
+    # One line per finished task, read from the task_results.jsonl the harness appends after each task.
+    import threading
+    seen = set()
+    while not stop.is_set():
+        for f in sorted(RESULTS.glob('*/task_results.jsonl')):
+            for line in f.read_text().splitlines():
+                try:
+                    r = json.loads(line)
+                except ValueError:
+                    continue
+                key_ = (f.parent.name, r.get('instance_id'))
+                if key_ in seen:
+                    continue
+                seen.add(key_)
+                err = (r.get('error') or '')[:40]
+                print(f"   [{f.parent.name}] {r.get('instance_id'):16} {'SOLVED' if r.get('resolved') else 'failed':6} "
+                      f"{r.get('duration_seconds', 0):5.0f}s {r.get('tool_calls', 0):2} calls  {err}", flush=True)
+        stop.wait(15)
+
+
+import json, threading
+_stop = threading.Event()
+threading.Thread(target=_progress_watcher, args=(_stop,), daemon=True).start()
 wall = {}
 for name, key in RUNS:
     start = time.time()
@@ -305,7 +329,9 @@ for name, key in RUNS:
     result = run_sync(Evaluator(config).run())
     wall[key] = time.time() - start
     print(f'==> {key}: {result.resolved}/{result.total} resolved in {wall[key] / 60:.1f} min')
-    shutil.make_archive(str(WORKING_DIR / 'results'), 'zip', RESULTS)  # partial results survive a crash'''
+    shutil.make_archive(str(WORKING_DIR / 'results'), 'zip', RESULTS)  # partial results survive a crash
+time.sleep(16)  # let the watcher print the last task
+_stop.set()'''
 
 REPORT = '''# 5. Comparison table + results.zip (download it from the Output panel), then STOP THE SESSION.
 import json
@@ -326,12 +352,10 @@ GOLD = '''# GOLD CHECK (run after cells 1 and 2; no vLLM, no GPU needed): grades
 # patch through the scorer's own verify_task in the Kaggle subprocess sandbox. A task is usable only if
 # gold = PASS and empty = FAIL. Writes /kaggle/working/gold_check.json.
 import logging, warnings
-# Quiet output: hide library warnings (ensurepip notices, experimental-feature and deprecation messages).
-# Errors still print, and every task's outcome is in results/ anyway.
+# Hide only the red noise: the sandbox's per-task 'ensurepip unavailable' warnings and Python deprecation
+# warnings. Everything else prints as before; errors still print.
 warnings.filterwarnings('ignore')
-logging.getLogger().setLevel(logging.ERROR)
-for _name in ('swegemma', 'google_adk', 'google.adk', 'adk_submission', 'adk_eval_core', 'LiteLLM', 'litellm', 'httpx', 'urllib3'):
-    logging.getLogger(_name).setLevel(logging.ERROR)
+logging.getLogger('swegemma.sandbox.subprocess').setLevel(logging.ERROR)
 import asyncio, concurrent.futures, json, time, yaml
 from google.adk.agents.context_cache_config import ContextCacheConfig
 from google.adk.apps._configs import EventsCompactionConfig
