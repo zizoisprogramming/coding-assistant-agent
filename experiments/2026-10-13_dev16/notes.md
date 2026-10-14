@@ -103,3 +103,24 @@ Later (user): a bf × r4 prompt mix.
   the editor answered FAILED, or a test fails because of an error in the new code; a test asserting the old
   behaviour the task changes is expected"); control arm **lo** = the same locator + scout + settings + 36 calls,
   editing itself with edit_file (no editor). le vs lo separates the reading cap from the editor.
+
+## rung-3d + rung-3e results (2026-10-14; one run each, 16 tasks; both notebooks ran tasks serially despite CONCURRENCY=2, cause unknown; per-task times normal)
+
+| arm | solved | no-edit | mean s | timeouts | turn-limit |
+|---|---|---|---|---|---|
+| r4_budget (LB 0.15) | 3 | 7 | 314 | 2 | 0 |
+| r4b_think_t02 | 3 | 9 | 400 | 6 | 0 |
+| bf (public 0.17-0.18) | 4 | 5 | 321 | 3 | 6 |
+| r4_mid (T0.2, think 2048) | 3 | 3 | 311 | 3 | 0 |
+| r4_mid1k (T0.2, think 1024) | 3 | 4 | 299 | 2 | 0 |
+| le (locator -> editor) | 3 | 7 | 430 | 7 | 0 |
+| lo (locator edits) | 2 | 6 | 385 | 8 | 1 |
+| mix (bf + r4 decision rule) | 4 | 4 | 346 | 3 | 7 |
+
+- Solved: bf = 14419, 3882, 11194, 3521; mix = 15589, 14419, 3882, 11194; r4_mid = 14419, 3882, 11194;
+  r4_mid1k = 3882, 11194, 3470; le = 3882, 11194, 3521; lo = 3882, 3521.
+- Union over all arms = 7/16 (11194, 14419, 15589, 3470, 3521, 3882, 4079); best single arm 4.
+- T 0.2 + thinking >= 1024 solves fastapi_11194 every time; T 1.0 never. fastapi_14419 needs thinking >= 2048 at T 0.2.
+- Low temperature leaves fewer tasks without an edit (3-5 vs 7-9); the bottleneck is now wrong edits (mix: 10 wrong).
+- le vs lo: +1 task for the editor at +45 s/task; both below mix/bf. Locator design parked.
+- Differences of 1 task are within run-to-run noise (single runs).
