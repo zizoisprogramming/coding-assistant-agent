@@ -75,3 +75,12 @@ hand-over time, fixer calls, solved/no-edit, mean s/task.
 - Conclusion: under 8 min / 28 shared calls, the analyst → fixer split does not fit: call count is not controllable
   by wording (third time), and deep steps are too slow. Would need a tool-enforced cap and a smaller analyst
   thinking budget (e.g. 1024–2048) to be viable.
+
+## LB anchor (2026-10-14): r4_budget = **0.15** on the LB ↔ 3/16 on dev v2.
+
+## Rung-3d design (2026-10-14): bf calibration + thinking middle ground
+- bf: public Budget-Fit v4, unchanged (LB 0.18; never run on dev v2) → second calibration point.
+- r4_mid: r4_budget + T 0.2 + thinking 2048 (max_output 4096). r4_mid1k: same with thinking 1024 (max_output 2048).
+  Hypothesis: low temperature + moderate thinking solves the reasoning-heavy fastapi tasks (think_t02 did at 4096)
+  while keeping steps short enough to edit in time and stay under ~330 s/task (12-h limit).
+Later (user): a bf × r4 prompt mix.
