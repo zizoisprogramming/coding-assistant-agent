@@ -60,6 +60,13 @@ data/results/<date>_<rung>/.
 **Next options (user to choose):** LoRA (user: soon; first check adapters take effect on Kaggle vLLM); target
 4–5/16 on dev v2 by combining learnings (rung-3d/3e); router idea parked (deep vs fast after reading).
 
+**Update 2026-10-14 evening:** rung-3d/3e done (table in experiments/2026-10-13_dev16/notes.md): bf 4, mix 4,
+r4_mid 3, r4_mid1k 3, le 3, lo 2; union 7/16; bottleneck = wrong edits. **mix packed as dist/submission.zip
+(sha 883eeed0…) for LB** (previous zip kept as dist/r4_budget_submitted.zip). User idea: le (locator → editor)
+may pay off with LoRA, one adapter per role. Both notebooks ran tasks serially despite CONCURRENCY=2 (cause
+unknown; check cell 2/4 in the Kaggle draft); the two accounts shared one notebook, so the CLI only sees the latest
+version: use separate copies per account.
+
 ## Context
 Kaggle "Google – The Gemma 4 Developer Agent Competition" (Google DeepMind, Featured, $65k) + optional
 Paper Track ($35k). Goal: turn `gemma-4-31b-it-qat-w4a16-ct` into an autonomous SWE agent that fixes Python
