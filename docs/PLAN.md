@@ -67,6 +67,11 @@ may pay off with LoRA, one adapter per role. Both notebooks ran tasks serially d
 unknown; check cell 2/4 in the Kaggle draft); the two accounts shared one notebook, so the CLI only sees the latest
 version: use separate copies per account.
 
+**Tomorrow (2026-10-15):** (1) user submits dist/submission.zip (mix; today's daily limit used). (2) Fine-tuning
+planning continues: user asked for the pipeline (explained; LoRA status below). Proposed first step = Kaggle
+platform test with a noise adapter (server starts? output changes?) before any training. Open questions to user:
+GPU outside Kaggle? first adapter on mix (suggested) or le (per-role adapters)? Data source for trajectories.
+
 ## Context
 Kaggle "Google – The Gemma 4 Developer Agent Competition" (Google DeepMind, Featured, $65k) + optional
 Paper Track ($35k). Goal: turn `gemma-4-31b-it-qat-w4a16-ct` into an autonomous SWE agent that fixes Python
@@ -255,6 +260,12 @@ get_code_subgraph; plus skill helpers run_skill_script / load_skill_resource.
 - **Currently broken**: patched vLLM 0.19.1 loads adapters but resets their weights to zero (forum 743508);
   PyPI vLLM refuses LoRA for Gemma4. Official sample (with adapters) also FAILED. Watch for host fix.
   → LoRA is not usable today; prompt/scaffold is the only working lever right now.
+- **Update 2026-10-14 (forum):** host says the zeroing fix landed (wheelhouse v23+). But 743508 (Fawad07, 10-08):
+  noise adapters still give logprobs identical to base within 1e-6 → weights set but unused. 749191 (Nir Aberman,
+  10-14): LoRA bundles OOM at startup on 4×L4 (sampler warmup; cudagraph_specialize_lora doubles graphs);
+  verified workarounds need build_cmd changes we can't make in a submission → asked host. 748051: unclear whether
+  any top score comes from LoRA; same package rescored 0.17/0.15/0.13/0.15 (noise). DECEM: LoRA ≈11% slower decode.
+  Wiring: `adapter: <name>` per agent YAML → per-role adapters (le locator/editor) are supported by the format.
 
 ### Harness packages
 - Kaggle dataset `metric/gemma-4-developer-agent-wheelhouse`: swegemma 0.2.7, adk-submission 0.2.11,
