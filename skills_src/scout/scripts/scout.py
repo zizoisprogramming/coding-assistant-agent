@@ -5,6 +5,7 @@ Modes:
   find  --query TEXT                     git grep hits with surrounding code (counts as a reading call)
   show  --file PATH --start N --end M    numbered lines, at most 150 (counts as a reading call)
   plan  --text TEXT                      write the plan for the editor to /tmp/plan.md (free)
+  history --query TEXT | --commit SHA    commits that added/removed TEXT, or one commit's change (counts)
   check [--test PATH] [--k EXPR]         git diff of the current changes + optional targeted pytest (free)
 After LIMIT reading calls, find/show refuse and tell the locator to write the plan and call the editor.
 """
@@ -65,12 +66,13 @@ def footer(used):
 
 def main():
     ap = argparse.ArgumentParser(prog="scout")
-    ap.add_argument("--mode", required=True, choices=["find", "show", "plan", "check"])
+    ap.add_argument("--mode", required=True, choices=["find", "show", "history", "plan", "check"])
     ap.add_argument("--query")
     ap.add_argument("--file")
     ap.add_argument("--start", type=int)
     ap.add_argument("--end", type=int)
     ap.add_argument("--text")
+    ap.add_argument("--commit")
     ap.add_argument("--test")
     ap.add_argument("--k")
     a = ap.parse_args()
@@ -98,6 +100,18 @@ def main():
         else:
             lines = open(path, encoding="utf-8", errors="replace").read().split("\n")
             print("\n".join(f"{i:5}| {lines[i - 1]}" for i in range(start, min(end, len(lines)) + 1)))
+        print(footer(used))
+    elif a.mode == "history":
+        if not (a.query or a.commit):
+            sys.exit('scout history needs args={"mode": "history", "query": "NAME"} or {"mode": "history", "commit": "SHA"}')
+        used = reading_budget()
+        if a.commit:
+            sha = a.commit.replace("'", "")
+            print(run(f"git show --stat --format='%h %s' '{sha}' | head -20 && git show --format= '{sha}' | head -80", ws))
+        else:
+            q = a.query.replace("'", "'\\''")
+            print(run(f"git log --oneline -S'{q}' | head -15", ws) or "(no commit adds or removes it)")
+            print("recent commits:\n" + run("git log --oneline -8", ws))
         print(footer(used))
     elif a.mode == "plan":
         if not a.text:

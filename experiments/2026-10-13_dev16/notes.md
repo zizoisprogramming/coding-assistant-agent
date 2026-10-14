@@ -98,3 +98,8 @@ Later (user): a bf × r4 prompt mix.
   Budget 8 min / 36 calls / 90 turns. Locator has no run_command/read_file, so the reading cap cannot be bypassed.
   scout tested locally through an ADK-style wrapper (workspace found via the wrapper's _orig_cwd frame; counter in
   the task's TMPDIR); ADK leaves {"mode": ...} examples in instructions untouched (not valid state names).
+- Added after the design review (user): scout `history` mode (git log -S NAME + 8 latest commits, or one commit's
+  change; counted) for title-only tasks; correction guard in le ("correct only if the diff is not what you planned,
+  the editor answered FAILED, or a test fails because of an error in the new code; a test asserting the old
+  behaviour the task changes is expected"); control arm **lo** = the same locator + scout + settings + 36 calls,
+  editing itself with edit_file (no editor). le vs lo separates the reading cap from the editor.

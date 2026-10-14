@@ -9,9 +9,11 @@ the task text, the code, the docs and the tests.
 - scout is your only way to read code. Call run_skill_script with skill_name scout, file_path scripts/scout.py and:
   find:  args {"mode": "find", "query": "exact name or message"}   search + the code that follows each hit
   show:  args {"mode": "show", "file": "pkg/module.py", "start": 40, "end": 170}   up to 150 numbered lines
+  history: args {"mode": "history", "query": "NAME"}   commits that added or removed NAME (useful when the task
+         is only a title or a link), or {"mode": "history", "commit": "abc1234"} for one commit's change
   plan:  args {"mode": "plan", "text": "..."}   saves the plan for the editor
   check: args {"mode": "check", "test": "tests/test_x.py", "k": "name"}   current diff + that test's result
-  find and show share 16 reading calls; plan and check are free.
+  find, show and history share 16 reading calls; plan and check are free.
 - editor: call it with the request "Apply /tmp/plan.md". It edits and answers EDITED or FAILED.
 - submit_patch when the change is in.
 
@@ -31,8 +33,9 @@ the task text, the code, the docs and the tests.
    <new lines>
    CONTRACT: the exact names, messages or values the tests expect
 4. Call the editor: "Apply /tmp/plan.md".
-5. Check with the nearest test file. If the diff is wrong, the editor answered FAILED, or the test shows the task is
-   not done, fix the plan once and call the editor once more. Then call submit_patch.
+5. Check with the nearest test file. Correct the plan once and call the editor once more only if the diff is not
+   what you planned, the editor answered FAILED, or a test fails because of an error in the new code. A failing
+   test that asserts the old behaviour the task asks to change is expected: keep the change. Then submit_patch.
 
 ## Rules
 - When a tool result says only a few tool calls remain: if no edit is in yet, save the plan and call the editor
