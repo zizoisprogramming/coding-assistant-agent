@@ -1,48 +1,64 @@
 # Gemma 4 Developer Agent — Competition Plan (living doc)
 
-## >>> START HERE (session handoff, updated 2026-10-11) <<<
+## >>> START HERE (session handoff, updated 2026-10-14) <<<
 **User:** beginner to agents/ADK; wants step-by-step plain explanations, research-backed claims, chat before docs,
-decides when planning ends. Rules: change one agent/variable per round where possible; prompts must stay generic
-(no dev-task-specific content); competition data never committed; Kaggle token only in ~/.kaggle/access_token.
+decides when planning ends. Rules: one change per arm where possible; prompts generic (no dev-task content);
+competition data never committed; Kaggle token only in ~/.kaggle/access_token. Give Kaggle cells as FILE LINKS
+(kaggle/cells/cellN.py), never pasted in chat; never change the notebook's printed output (cell 4 = the normal one).
 
-**Current best = r4_budget (LB 0.15, 2026-10-14)** = 1a round 4 prompt with 8 min / 28 calls (`submissions/r4_budget`;
-round 4 itself: `submissions/1a`, prompt commit 9abba5d): single agent, gemma-4-31b-it-qat-w4a16-ct,
-thinking on (include_thoughts true, thinking_budget 512), T 1.0 / top_p 0.95 / top_k 64, 5 min / 60 calls.
-Dev (fastapi_15588, fastapi_15589, rich_3882, rich_3470): 2/4, 2/4. Prompt = scoring section + one decision rule
-("as soon as you can say which lines to change and how, the next call is the edit") + 6-step workflow + 2 generic
-examples on an invented package + edit_file fallback (Python replace) + "never write tool calls as text".
+**Current best = r4_budget, LB 0.15 (2026-10-14, user's goal reached)**: `submissions/r4_budget` = 1a round-4
+prompt (decision rule + 2 generic examples, 927 words), thinking 512, T 1.0, **8 min / 28 calls / 80 turns**.
+Mechanism: the harness's "only 10 tool calls remain" warning (after call 18 with 28 calls) triggers the edit.
+LB history: 0.08/0.10 (round 2), 0.12 (round 4 at 4.5 min/50 calls), 0.15 (r4_budget). Public no-LoRA best 0.17–0.18
+(Budget-Fit "bf", same budget, T 0.2, thinking 4096, 685-word checklist prompt, 6 tools).
 
-**Leaderboard:** 0.08 / 0.10 (round 2), 0.12 (round 4, 4.5 min / 50 calls), **0.15 = r4_budget** (2026-10-14;
-submission 57106730 = submissions/r4_budget: round-4 prompt, thinking 512, T 1.0, **8 min / 28 calls / 80 turns**).
-Calibration: r4_budget = 3/16 on dev set v2 (experiments/2026-10-13_dev16) ↔ LB 0.15. Public no-LoRA recipe (bf) 0.17–0.18.
-Check: `uvx --from kaggle kaggle competitions submissions gemma-4-developer-agent`.
+**Dev set v2 (16 Kaggle-gradable tasks, experiments/2026-10-13_dev16/notes.md):** fastapi 15589 13920 14258 11194
+14487 15280 14419 15800 14306; rich 3882 3470 4079 3521 3934 3468 3180 (gold check on Kaggle CPU: 20/25 usable,
+data/results/2026-10-13_gold_check). **Calibration: 3/16 ↔ LB 0.15.** Run 1×, concurrency 2. 1 task = noise.
+Results on dev v2: r4_budget 3, r4b_think_t02 (T0.2/4096) 3 (too slow: 400 s/task ≈ 13 h), af (deep analyst →
+fixer, SequentialAgent) 3 (analyst ignored "hand over after 8–12 calls": ~21 calls; 418 s), r4b_warn (edit on
+warning) 2 (more edits, all guesses), af2 (analyst prompt rewritten) 3 (still ~21 calls; single deep steps 2–4
+min). Union of solved over all arms = 5/16. Plateau = finding the right change (location + exact interface).
 
-**Key facts learned (details in docs/DESIGN_DECISIONS.md D9–D22 and experiments/):**
-- Wheelhouse 0.2.13 (10-08): `include_thoughts: false` = thinking ON with a 4,096 budget (forum 747914, host:
-  intended); `thinking_budget: 0` is the off switch. Thinking on (visible) costs the same as the hidden thinking.
-- Steps cost ~2× more tokens since the update; hard tasks fail at the deadline. fastapi_15588 is unsolvable (hidden
-  error message). Hard tasks (15589, 3470) ~20–25 % in every round; the agent sees the right code in the first 1–5
-  calls and then hesitates (edge cases, "is this intended?") instead of editing there.
-- Prompt rules needing self-monitoring (time checkpoints, step order, notes, script caps, command templates like
-  git grep -W) are ignored; only event-triggered rules work (edit_file error → Python fallback). Longer prompts with
-  more rules did worse (4b, 5). Old-behaviour tests: rich_3470's existing test asserts the old behaviour; 11/54
-  attempts backed away from a correct fix because of it.
-- Verifier (1c): works mechanically when it is "the next call after an edit" and answers the harness's own "verify
-  before submitting" instruction, but costs 42–93 s per call and the hard tasks never reach an edit.
-- Smaller models (forum 748287): 12B = gemma4_unified, crashes vLLM 0.19.1 at startup (D22, waiting for the host);
-  E4B = 0/4, 0/4 (fast but wrong). Stay on 31B.
+**RUNNING / PENDING (2026-10-14):**
+- rung-3d on the OLD account (kaggle/cells/cell2.py): bf, r4_mid (T0.2, thinking 2048, max_out 4096), r4_mid1k
+  (T0.2, thinking 1024) on dev v2 → picks the thinking budget; bf = second calibration point. Download with
+  `uvx --from kaggle kaggle kernels output ziad23samer/getting-started-gemma-4-developer-agent-4554ae -p DIR`.
+- rung-3e on the user's NEW Kaggle account (kaggle/cells_rung3e/, only cell2 differs): **le** = locator (T0.2,
+  thinking 2048 placeholder, reads ONLY via the scout skill: find/show/history counted, 16 reads then refusal;
+  plan → /tmp/plan.md; check = diff + targeted pytest) → editor agent_tool (thinking 256, max_out 1024, T1.0;
+  EDITED/FAILED) → ≤1 correction (guarded) → submit; 8 min / 36 calls / 90 turns. **lo** = same locator editing
+  itself with edit_file (control). **mix** = bf prompt/tools with r4 decision rule + example + edit fallback.
+  The user downloads results.zip from that account into ~/Downloads (our CLI token is the old account).
+  If rung-3d says 1024 is better / 2048 too slow, regenerate cell2 (locator_sampling / mix sampling).
+- Watch every arm's mean s/task: > ~330 s → 120 tasks exceed the 12-h limit (whole submission errors).
 
-**Tooling:** scripts/make_kaggle_notebook.py (--tasks --configs [name or name@rev] --repeats --model), pack.py,
-analyze.py, patterns.py, timeline.py (time per phase, --thoughts), token_split.py, context_split.py,
-hard_tasks.py. Kaggle: user pastes kaggle/cells/cell2.py (and cell3.py when the model or vLLM cell changes); results
-via `uvx --from kaggle kaggle kernels output ziad23samer/getting-started-gemma-4-developer-agent-4554ae -p DIR`
-or results.zip in ~/Downloads; unpack to data/results/<date>_<rung>/.
+**Key facts learned (details: docs/DESIGN_DECISIONS.md D9–D22, experiments/):**
+- Only event-triggered signals change behaviour (tool errors, the low-budget warning, "No such file", refusals).
+  Self-monitoring instructions are ignored: call counts ("edit by call 12", "hand over after 8–12 calls"), step
+  order ("step 0: install"), notes, templates. Longer prompts with more rules did worse.
+- Thinking helps only with low temperature (4096 at T1.0 failed). Deep thinking makes the agent over-check and
+  edit late; single 4096-steps can take 2–4 min.
+- safe-edit skill (skills_src/safe-edit: checked SEARCH/REPLACE editor refusing invalid Python): used only when
+  edit_file is removed; caught 0 broken edits in its run; no score gain; shelved.
+- Harness (swegemma 0.2.11 / adk_submission 0.2.13 / google-adk 1.36.1 / vLLM 0.19.1): undeclared tool calls come
+  back as errors (ToolErrorPlugin, no crash); unsubmitted working-tree diff is kept even after exceptions; skill
+  scripts run via AdkSandboxCodeExecutor in the task's own sandbox (cwd = temp dir; workspace via the wrapper's
+  _orig_cwd frame; TMPDIR = task /tmp); no per-agent call limit in the YAML schema; SequentialAgent allowed;
+  ADK leaves non-identifier {...} in instructions untouched; ParallelAgent + compaction bug (adk #7324, fixed only
+  in ADK 2.5) → avoid ParallelAgent. With 2 tasks at a time the harness's live agent view goes to files (quiet).
+- Smaller models: E4B 0/8; 12B needs --hf-overrides (host) + a local vision_embedder skip patch, scored 1/4,1/4
+  with silent stalls → stay on 31B. LoRA on the scorer: unverified whether adapters take effect (forum 743508).
+- Colab free = ~1 T4 16 GB, can't serve the 31B.
 
-**Open options (user to choose):** wait for the leaderboard score of round 4; user's plan: reach 0.15 (and 3/4 on
-dev) before LoRA; LoRA targets = edit right after finding the cause, fewer/bigger reads, change scripts in place;
-a skill tool that finds a symbol and shows its whole definition (D8); verifier again once edits come earlier;
-pending prompt block "when a step does not work" (experiments/2026-10-10_lessons/notes.md); bigger dev set
-(research/dev_tasks_feasibility.md, user declined swapping fastapi_15588 for now). 1b parked (submissions/1b).
+**Tooling:** scripts/make_kaggle_notebook.py (--tasks --configs --repeats --concurrency --model --gold-tasks --out),
+pack.py (validate), analyze.py, speed.py (per-step timing, silent stalls), behaviour.py (tool mix, reads before
+edit), timeline.py, gold_check (cell kaggle/cells/gold_check.py, CPU session), kaggle/cells/diag_vllm.py (if vLLM
+dies: "Connect call failed 127.0.0.1:8000" — run in the same session before stopping). Results unpack to
+data/results/<date>_<rung>/.
+
+**Next options (user to choose):** LoRA (user: soon; first check adapters take effect on Kaggle vLLM); target
+4–5/16 on dev v2 by combining learnings (rung-3d/3e); router idea parked (deep vs fast after reading).
 
 ## Context
 Kaggle "Google – The Gemma 4 Developer Agent Competition" (Google DeepMind, Featured, $65k) + optional
