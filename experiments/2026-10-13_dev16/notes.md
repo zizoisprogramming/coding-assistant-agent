@@ -84,3 +84,17 @@ hand-over time, fixer calls, solved/no-edit, mean s/task.
   Hypothesis: low temperature + moderate thinking solves the reasoning-heavy fastapi tasks (think_t02 did at 4096)
   while keeping steps short enough to edit in time and stay under ~330 s/task (12-h limit).
 Later (user): a bf × r4 prompt mix.
+
+## Rung-3e design (2026-10-14, built while rung-3d runs; thinking budgets to be set from rung-3d)
+- **mix**: bf bundle (6 tools, T 0.2) with bf's call-count rules ("edit by call 12", "no exploration after call 20")
+  replaced by r4's scoring + one decision rule, r4's fast-path example and r4's edit fallback; 783 words.
+  Placeholder thinking 2048 / max_output 4096.
+- **le** (locator → editor, user design): root locator (T 0.2, deep thinking, placeholder 2048 / max_output 4096)
+  reads ONLY through the scout skill (skills_src/scout: find = git grep + following code, show = ≤150 numbered
+  lines, both counted, 16 reading calls then refusal with a countdown from 13; plan = writes /tmp/plan.md; check =
+  git diff + targeted pytest; free). It writes FILE / WHAT IT DOES / CHANGE (exact old → new lines) / CONTRACT,
+  calls the editor (agent_tool, "Apply /tmp/plan.md"; thinking 256 / max_output 1024 / T 1.0 = r4 halved; tools
+  run_command, read_file, edit_file; answers EDITED/FAILED per file), checks, allows one correction, submits.
+  Budget 8 min / 36 calls / 90 turns. Locator has no run_command/read_file, so the reading cap cannot be bypassed.
+  scout tested locally through an ADK-style wrapper (workspace found via the wrapper's _orig_cwd frame; counter in
+  the task's TMPDIR); ADK leaves {"mode": ...} examples in instructions untouched (not valid state names).

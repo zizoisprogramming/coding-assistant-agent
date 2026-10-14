@@ -1,0 +1,15 @@
+# Arm le (rung-3e): locator -> editor. The locator (deep thinking, low temperature) reads only through the scout
+# skill (16 reading calls, then it refuses), writes /tmp/plan.md, calls the editor, checks the diff + a test, allows
+# one correction, submits. The editor (light settings) applies the plan and answers EDITED/FAILED.
+name: locator
+description: Finds what to change, plans it for the editor, checks the result and submits.
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/locator.md
+tools:
+  - get_status
+  - submit_patch
+  - agent_tool:
+      config_path: sub_agents/editor.yaml
+skills:
+  - skills/scout
+generate_content_config: !include configs/locator_sampling.yaml
