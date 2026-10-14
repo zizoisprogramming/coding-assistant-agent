@@ -67,7 +67,7 @@ may pay off with LoRA, one adapter per role. Both notebooks ran tasks serially d
 unknown; check cell 2/4 in the Kaggle draft); the two accounts shared one notebook, so the CLI only sees the latest
 version: use separate copies per account.
 
-**Tomorrow (2026-10-15):** (1) user submits dist/submission.zip (mix; today's daily limit used). (2) Fine-tuning
+**Tomorrow (2026-10-15):** (1) mix (dist/submission.zip, sha 883eeed0) was SUBMITTED 2026-10-14: check its LB score. Tomorrow's slot = a LoRA test submission. (2) Fine-tuning
 planning continues: user asked for the pipeline (explained; LoRA status below). Proposed first step = Kaggle
 platform test with a noise adapter (server starts? output changes?) before any training. Open questions to user:
 GPU outside Kaggle? first adapter on mix (suggested) or le (per-role adapters)? Data source for trajectories.
