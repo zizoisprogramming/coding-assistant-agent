@@ -1,0 +1,7 @@
+# Locator (le5): mix's sampling with thinking 1024 instead of 2048 (thinking used most of the 8 minutes in le3).
+temperature: 0.2
+top_p: 0.95
+max_output_tokens: 4096
+thinking_config:
+  include_thoughts: true
+  thinking_budget: 1024

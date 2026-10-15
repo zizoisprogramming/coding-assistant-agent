@@ -190,3 +190,8 @@ read/experiment-until-budget failures.
 ## rung-3j results (2026-10-15): le3_c28 4/8, 2/8; le3_c32 1/8, 2/8 (le3 36 calls: 2, 4)
 Cutting calls did not fix no-edits (3-6 per run); timeouts 2-5 per run, mean 390-426 s: the 8-minute clock binds
 the two-agent chain more than the call budget. le3 family over 6 runs: 2.5/8 vs mix 3.8/8 (5 runs).
+
+## rung-3k design (2026-10-15): full dev16, mix vs le5 (1 run each)
+le5 = le3_c28 + locator prompt "Don't write scripts to reproduce or experiment: read the code" (replaces the heredoc
+scratch line) + locator thinking 1024. le3_c28 traces: locator 4k-14k output tokens per task (the clock), editor
+<1.5k; 2-6 scratch scripts per task. Question: does le solve tasks on the full 16 that mix does not?

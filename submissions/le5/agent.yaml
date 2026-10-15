@@ -1,0 +1,15 @@
+# Arm le5 (rung-3k), from le3 (rung-3i): locator -> editor rebuilt on flat tools. The scout skill is gone (its nested args were garbled
+# in 25-50% of calls, rung-3f); the locator reads with run_command/read_file, writes /tmp/plan.md with a run_command
+# heredoc, calls the editor, checks once, submits. Prompt in the bf/mix step-by-step style with r4's decision rule.
+name: locator
+description: Finds what to change, plans it for the editor, checks the result and submits.
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/locator.md
+tools:
+  - run_command
+  - read_file
+  - get_status
+  - submit_patch
+  - agent_tool:
+      config_path: sub_agents/editor.yaml
+generate_content_config: !include configs/locator_sampling.yaml

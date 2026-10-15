@@ -1,0 +1,6 @@
+# Arm le5 (rung-3k): le3_c28 (28 calls, warning at 18) + no scratch scripts + locator thinking 1024.
+evaluation:
+  timeout_seconds: 240
+  max_tool_calls: 28
+  max_time_minutes: 8
+  max_turns: 90
