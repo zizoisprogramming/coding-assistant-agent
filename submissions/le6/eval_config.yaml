@@ -1,0 +1,6 @@
+# Arm le6 (rung-3l): 28 calls (warning at 18; reader refuses after 16 reads), 8 min, 90 turns, as le5.
+evaluation:
+  timeout_seconds: 240
+  max_tool_calls: 28
+  max_time_minutes: 8
+  max_turns: 90

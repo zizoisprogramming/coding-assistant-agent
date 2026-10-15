@@ -1,0 +1,8 @@
+# Editor (le6_hot): T 1.0, top_k 64, thinking 256 (le's original editor) instead of le6's T 0.2 / thinking 512.
+temperature: 1.0
+top_p: 0.95
+top_k: 64
+max_output_tokens: 1024
+thinking_config:
+  include_thoughts: true
+  thinking_budget: 256

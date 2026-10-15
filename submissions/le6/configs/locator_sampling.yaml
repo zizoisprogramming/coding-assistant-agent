@@ -1,0 +1,7 @@
+# Locator (le6): as le5 (T 0.2, thinking 1024).
+temperature: 0.2
+top_p: 0.95
+max_output_tokens: 4096
+thinking_config:
+  include_thoughts: true
+  thinking_budget: 1024

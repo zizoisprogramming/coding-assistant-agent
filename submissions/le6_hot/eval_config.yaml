@@ -1,0 +1,6 @@
+# Arm le6_hot (rung-3l): le6 with fast sampling (locator T 1.0 / thinking 512, editor T 1.0 / thinking 256). Only change.
+evaluation:
+  timeout_seconds: 240
+  max_tool_calls: 28
+  max_time_minutes: 8
+  max_turns: 90

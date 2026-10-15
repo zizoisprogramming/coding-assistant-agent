@@ -1,0 +1,9 @@
+name: setup
+description: Installs the locator's reader. Makes exactly one call.
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include ../prompts/setup.md
+tools:
+  - get_status
+skills:
+  - skills/reader
+generate_content_config: !include ../configs/setup_sampling.yaml

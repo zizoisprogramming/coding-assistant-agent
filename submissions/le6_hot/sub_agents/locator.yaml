@@ -1,0 +1,11 @@
+name: locator
+description: Finds what to change, hands the plan to the editor, checks the result and submits.
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include ../prompts/locator.md
+tools:
+  - run_command
+  - get_status
+  - submit_patch
+  - agent_tool:
+      config_path: editor.yaml
+generate_content_config: !include ../configs/locator_sampling.yaml

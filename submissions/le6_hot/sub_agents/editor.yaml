@@ -1,0 +1,11 @@
+name: editor
+description: >-
+  Applies a plan to the source files. Request: the full plan (FILE / WHAT IT DOES / CHANGE ... WITH ... / CONTRACT
+  for each file). Answers one line per file: EDITED (path and what changed) or FAILED (path and why).
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include ../prompts/editor.md
+tools:
+  - read_file
+  - edit_file
+  - run_command
+generate_content_config: !include ../configs/editor_sampling.yaml

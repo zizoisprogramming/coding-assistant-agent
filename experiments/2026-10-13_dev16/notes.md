@@ -200,3 +200,11 @@ scratch line) + locator thinking 1024. le3_c28 traces: locator 4k-14k output tok
 le5 solved 15589, 3882, 11194, rich_3521 (mix never solved 3521; le, bf, lo, r4_budget did). mix this run: 15589,
 3882, 11194 (missed 14419; 4/16 in rung-3e). le5 mean 347 s (le3 ~400, mix 346-382) → time fixes worked. le5 no-edit
 8/16 (mix 6) remains its weak spot. le5 ≈ mix level with a different solved set; within noise.
+
+## rung-3l design (2026-10-16, full dev16): le5 vs le6 vs le6_hot
+le5 traces: 6 of 8 no-edit tasks wrote the plan at call 29-31 (after the 28-call budget) → refused. The editor call
+(agent_tool) is not counted (only swegemma tools increment tool_calls_used, context.py:550), but the editor's
+edit_file is. le6 = SequentialAgent [setup: one run_skill_script installs .git/agent/read.py (outside the patch);
+locator: reads only via `python3 .git/agent/read.py find|show|history` through run_command, 16 reads then refusal
+while calls remain; the plan is the editor request (no /tmp/plan.md)]. Editor: read_file, edit_file, run_command.
+le6_hot = le6 with locator T1.0/top_k 64/thinking 512/out 2048 and editor T1.0/top_k 64/thinking 256/out 1024.
