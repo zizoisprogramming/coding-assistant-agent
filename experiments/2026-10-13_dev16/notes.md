@@ -140,3 +140,10 @@ refused at 29). Many run_command experiments before the first edit (up to 15-19)
 "I'll stop" + submit_patch loops after submitting.
 rung-3g (dev8 = 4 solved + rich_3470, rich_3468, fastapi_14258, rich_4079; 2 repeats): mix (variance baseline) vs
 mix_c32 (max_tool_calls 32 → warning at call 22). Only eval_config differs.
+
+## rung-3f results (2026-10-15): le2 2/16, lo2 2/16 → skill route closed
+Scout errors went UP (le2 134, lo2 242). In lo2, 206 were "Argument 'skill_name' is required" + 28 "file_path is
+required": the model garbles the Gemma tool-call text when the call has a nested `args` object (e.g. file_path =
+"scripts/scout.py`,skill_name:"), so ADK rejects it before the script runs. The parser fix can't reach this. Flat-arg
+tools (run_command/read_file/edit_file) rarely break. Lesson: don't route frequent actions through skill scripts with
+nested args on this model. le/lo/le2/lo2 all 2-3/16 vs mix 4/16; the locator line is closed for prompting.
