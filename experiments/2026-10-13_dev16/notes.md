@@ -152,3 +152,13 @@ nested args on this model. le/lo/le2/lo2 all 2-3/16 vs mix 4/16; the locator lin
 mix: 4/8 (r1), 3/8 (r2) (+ 4/8 on these tasks in rung-3e); mix_c32: 3/8, 3/8. No gain from 32 calls.
 Per-task mix over 3 runs: rich_3882 3/3, fastapi_15589 3/3, fastapi_14419 2/3, fastapi_11194 2/3, rich_4079 1/3,
 others 0/3. rich_3470 now gets an edit in all 4 new runs (wrong) → not a call-budget problem. Noise ≈ ±1 task per 8.
+
+## mix failure patterns over 32 task-runs (rung-3e + rung-3g mix r1/r2) → rung-3h
+solved 11; right file wrong fix 10 (e.g. fastapi_14258: right check at the right line but raise FastAPIError instead
+of the neighbouring `assert ..., "msg"`; exact message not in the task); no edit 7 (5 of them: edit refused, budget
+exhausted); wrong file 4. edit_file failed 1/97 (not a garbling problem for mix). Prompt bug inherited from bf:
+"scratch scripts go in /tmp" but write_file refuses /tmp ("Path traversal detected") → in 16/32 task-runs.
+Forum: 749198 (forcing edits → wrong edits in the right file), 747980 (first grep hit right 30%), 748482 (hidden
+names), 747923 (robust-edit: fewer edit errors, same score), 746250 (thinking + summaries matter most).
+rung-3h (dev8 x2): mix vs mix_tmp (scratch via run_command heredoc) vs mix_tmp_conv (+ match the surrounding check
+mechanism / exception class / message style).

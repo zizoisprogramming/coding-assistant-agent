@@ -1,0 +1,8 @@
+# Arm mix_tmp_conv (rung-3h): mix_tmp + "use the same mechanism as the surrounding code" for checks/errors.
+# (placeholder 2048 / max_output 4096, as r4_mid).
+temperature: 0.2
+top_p: 0.95
+max_output_tokens: 4096
+thinking_config:
+  thinking_budget: 2048
+  include_thoughts: true
