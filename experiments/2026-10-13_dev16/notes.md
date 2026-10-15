@@ -195,3 +195,8 @@ the two-agent chain more than the call budget. le3 family over 6 runs: 2.5/8 vs 
 le5 = le3_c28 + locator prompt "Don't write scripts to reproduce or experiment: read the code" (replaces the heredoc
 scratch line) + locator thinking 1024. le3_c28 traces: locator 4k-14k output tokens per task (the clock), editor
 <1.5k; 2-6 scratch scripts per task. Question: does le solve tasks on the full 16 that mix does not?
+
+## rung-3k results (2026-10-16, full dev16): le5 4/16 (48.4 min), mix 3/16 (51.1 min)
+le5 solved 15589, 3882, 11194, rich_3521 (mix never solved 3521; le, bf, lo, r4_budget did). mix this run: 15589,
+3882, 11194 (missed 14419; 4/16 in rung-3e). le5 mean 347 s (le3 ~400, mix 346-382) → time fixes worked. le5 no-edit
+8/16 (mix 6) remains its weak spot. le5 ≈ mix level with a different solved set; within noise.
