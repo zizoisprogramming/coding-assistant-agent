@@ -170,3 +170,8 @@ contract, locate (calls 1-8), plan via `cat > /tmp/plan.md << 'PLAN'`, editor, o
 submit; includes the /tmp heredoc fix and the neighbouring-check line. Editor: run_command, read_file, edit_file;
 T0.2, think 512, out 2048 (was T1.0 / 256 / 1024). Budget 36 calls / 8 min / 90 turns. dev8 x2; compare with
 rung-3h's mix, mix_tmp, mix_tmp_conv on the same tasks.
+
+## rung-3i results (2026-10-15): le3 2/8, 4/8 (mix on dev8: 4, 4, 3; le: 2)
+le3_r2 solved rich_3470 (mix 0/3). When the locator writes the plan, the chain works: editor edit_file 10 ok / 1 err.
+Main failure: the locator never writes a plan and reads until calls/time run out (7 of 16 task-runs: plan never or
+after call 36); the low-budget warning comes at call 26 of 36, later than mix's 18 of 28. Mean 393 / 333 s.
