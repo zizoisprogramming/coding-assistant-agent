@@ -179,3 +179,10 @@ after call 36); the low-budget warning comes at call 26 of 36, later than mix's 
 ## rung-3j design (2026-10-15): le3_c28 / le3_c32 = le3 with 28 / 32 tool calls (warning at 18 / 22). Only change.
 The harness warning fires at <=10 calls left (fixed), so the cap only moves the end of free reading. le3 solves planned
 at calls 9, 15, 15, 18, 27, 32; 7/16 le3 task-runs never planned.
+
+## rung-3h results (2026-10-15): mix 4/8, 4/8; mix_tmp 3, 2; mix_tmp_conv 1, 3 → keep mix unchanged
+The heredoc fix removed path-traversal errors (10-13 per mix run → 0) and scratch files in patches, but scratch
+writes rose 7-8 → 15-27 and script runs 9-12 → 20-32 per run; first edit later, never-edited up to 4/8. The
+write_file /tmp refusal in mix is a hidden brake on experimenting: keep it. mix on dev8 over 4 runs: 4, 3, 4, 4
+(mix r2 here solved rich_3470 for the first time). le3's prompt contains the same heredoc line: candidate cause of its
+read/experiment-until-budget failures.
