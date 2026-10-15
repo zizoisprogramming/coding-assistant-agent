@@ -1,0 +1,7 @@
+# Locator (rung-3i le3): mix's sampling (best LB 0.17).
+temperature: 0.2
+top_p: 0.95
+max_output_tokens: 4096
+thinking_config:
+  include_thoughts: true
+  thinking_budget: 2048

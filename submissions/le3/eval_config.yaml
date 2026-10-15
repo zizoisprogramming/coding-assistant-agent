@@ -1,0 +1,6 @@
+# Arm le3 (rung-3i): 36 calls (editor calls share the budget; warning at call 26), 8 min, 90 turns across both agents.
+evaluation:
+  timeout_seconds: 240
+  max_tool_calls: 36
+  max_time_minutes: 8
+  max_turns: 90

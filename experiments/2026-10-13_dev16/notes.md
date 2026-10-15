@@ -162,3 +162,11 @@ Forum: 749198 (forcing edits → wrong edits in the right file), 747980 (first g
 names), 747923 (robust-edit: fewer edit errors, same score), 746250 (thinking + summaries matter most).
 rung-3h (dev8 x2): mix vs mix_tmp (scratch via run_command heredoc) vs mix_tmp_conv (+ match the surrounding check
 mechanism / exception class / message style).
+
+## rung-3i design (2026-10-15): le3 = locator -> editor rebuilt on flat tools
+No scout skill (nested args garbled). Locator: run_command, read_file, get_status, submit_patch, editor; mix sampling
+(T0.2, think 2048, out 4096); prompt (726 words) in mix's structure: scoring + decision rule (plan, then editor),
+contract, locate (calls 1-8), plan via `cat > /tmp/plan.md << 'PLAN'`, editor, one check + at most one correction,
+submit; includes the /tmp heredoc fix and the neighbouring-check line. Editor: run_command, read_file, edit_file;
+T0.2, think 512, out 2048 (was T1.0 / 256 / 1024). Budget 36 calls / 8 min / 90 turns. dev8 x2; compare with
+rung-3h's mix, mix_tmp, mix_tmp_conv on the same tasks.
