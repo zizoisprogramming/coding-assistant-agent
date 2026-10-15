@@ -1,0 +1,6 @@
+# Arm mix_c32 (rung-3g): mix with 32 tool calls instead of 28 (low-budget warning at call 22 instead of 18).
+evaluation:
+  timeout_seconds: 240
+  max_tool_calls: 32
+  max_time_minutes: 8
+  max_turns: 80

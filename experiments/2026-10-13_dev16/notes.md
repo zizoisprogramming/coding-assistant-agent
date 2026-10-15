@@ -131,3 +131,12 @@ Causes: `show` rejected start 0 / missing start (`if not (a.file and a.start)`);
 (dict, nested {"args": {...}} → `--args "{repr}"`, list, positional_args after `--`). Every error cost one of the 36
 calls; 5/16 tasks never reached the editor, the rest only at call 22-29. New parser replayed on all 738 le/lo scout
 calls: 732 parse (the 6 left are empty or garbled by the tool-call parser). Defaults: show 1-150, start 0 → 1.
+
+## mix LB 0.17 (2026-10-15) and failure analysis → rung-3g
+mix's 12 failures (gold used only for analysis): wrong place 4 (fastapi_15280, 13920, 14487, rich_4079 = repro.py
+only); right file but wrong/incomplete 4 (fastapi_14258 4-line gold, rich_3468 97/98 tests, rich_3934, rich_3180);
+no edit 4 (fastapi_15800 654 lines, 14306 137 lines, rich_3521 time, rich_3470 2-line gold: plan at call 27, edit
+refused at 29). Many run_command experiments before the first edit (up to 15-19). Turn-limit hits are harmless
+"I'll stop" + submit_patch loops after submitting.
+rung-3g (dev8 = 4 solved + rich_3470, rich_3468, fastapi_14258, rich_4079; 2 repeats): mix (variance baseline) vs
+mix_c32 (max_tool_calls 32 → warning at call 22). Only eval_config differs.
