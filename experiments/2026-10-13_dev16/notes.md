@@ -175,3 +175,7 @@ rung-3h's mix, mix_tmp, mix_tmp_conv on the same tasks.
 le3_r2 solved rich_3470 (mix 0/3). When the locator writes the plan, the chain works: editor edit_file 10 ok / 1 err.
 Main failure: the locator never writes a plan and reads until calls/time run out (7 of 16 task-runs: plan never or
 after call 36); the low-budget warning comes at call 26 of 36, later than mix's 18 of 28. Mean 393 / 333 s.
+
+## rung-3j design (2026-10-15): le3_c28 / le3_c32 = le3 with 28 / 32 tool calls (warning at 18 / 22). Only change.
+The harness warning fires at <=10 calls left (fixed), so the cap only moves the end of free reading. le3 solves planned
+at calls 9, 15, 15, 18, 27, 32; 7/16 le3 task-runs never planned.

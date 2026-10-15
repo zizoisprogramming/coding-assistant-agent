@@ -1,0 +1,7 @@
+# Editor (rung-3i le3): low temperature for exact copying, small thinking budget (it applies a plan, no design).
+temperature: 0.2
+top_p: 0.95
+max_output_tokens: 2048
+thinking_config:
+  include_thoughts: true
+  thinking_budget: 512

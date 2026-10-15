@@ -1,0 +1,6 @@
+# Arm le3_c32 (rung-3j): le3 with 32 tool calls instead of 36 (warning at call 22 instead of 26). Only change.
+evaluation:
+  timeout_seconds: 240
+  max_tool_calls: 32
+  max_time_minutes: 8
+  max_turns: 90
