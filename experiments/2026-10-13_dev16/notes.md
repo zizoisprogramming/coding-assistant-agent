@@ -186,3 +186,7 @@ writes rose 7-8 → 15-27 and script runs 9-12 → 20-32 per run; first edit lat
 write_file /tmp refusal in mix is a hidden brake on experimenting: keep it. mix on dev8 over 4 runs: 4, 3, 4, 4
 (mix r2 here solved rich_3470 for the first time). le3's prompt contains the same heredoc line: candidate cause of its
 read/experiment-until-budget failures.
+
+## rung-3j results (2026-10-15): le3_c28 4/8, 2/8; le3_c32 1/8, 2/8 (le3 36 calls: 2, 4)
+Cutting calls did not fix no-edits (3-6 per run); timeouts 2-5 per run, mean 390-426 s: the 8-minute clock binds
+the two-agent chain more than the call budget. le3 family over 6 runs: 2.5/8 vs mix 3.8/8 (5 runs).
