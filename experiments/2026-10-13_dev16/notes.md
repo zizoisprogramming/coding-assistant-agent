@@ -147,3 +147,8 @@ required": the model garbles the Gemma tool-call text when the call has a nested
 "scripts/scout.py`,skill_name:"), so ADK rejects it before the script runs. The parser fix can't reach this. Flat-arg
 tools (run_command/read_file/edit_file) rarely break. Lesson: don't route frequent actions through skill scripts with
 nested args on this model. le/lo/le2/lo2 all 2-3/16 vs mix 4/16; the locator line is closed for prompting.
+
+## rung-3g results (2026-10-15, dev8, separate notebook copy → concurrency 2 worked: ~22 min per 8 tasks)
+mix: 4/8 (r1), 3/8 (r2) (+ 4/8 on these tasks in rung-3e); mix_c32: 3/8, 3/8. No gain from 32 calls.
+Per-task mix over 3 runs: rich_3882 3/3, fastapi_15589 3/3, fastapi_14419 2/3, fastapi_11194 2/3, rich_4079 1/3,
+others 0/3. rich_3470 now gets an edit in all 4 new runs (wrong) → not a call-budget problem. Noise ≈ ±1 task per 8.
