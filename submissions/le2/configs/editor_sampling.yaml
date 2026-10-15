@@ -1,0 +1,8 @@
+# Editor (rung-3e le): r4 settings halved (thinking 512 -> 256, max_output 2048 -> 1024); it only applies a plan.
+temperature: 1.0
+top_p: 0.95
+top_k: 64
+max_output_tokens: 1024
+thinking_config:
+  include_thoughts: true
+  thinking_budget: 256

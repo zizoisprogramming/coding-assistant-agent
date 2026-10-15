@@ -124,3 +124,10 @@ Later (user): a bf × r4 prompt mix.
 - Low temperature leaves fewer tasks without an edit (3-5 vs 7-9); the bottleneck is now wrong edits (mix: 10 wrong).
 - le vs lo: +1 task for the editor at +45 s/task; both below mix/bf. Locator design parked.
 - Differences of 1 task are within run-to-run noise (single runs).
+
+## rung-3f design (2026-10-15): le2 + lo2 = le/lo with a fixed scout parser (only change)
+le traces: of ~400 scout calls, 240 read OK, **123 (~30%) were argument-format errors**, 19 limit refusals, 17 plans.
+Causes: `show` rejected start 0 / missing start (`if not (a.file and a.start)`); the model used 4 argument shapes
+(dict, nested {"args": {...}} → `--args "{repr}"`, list, positional_args after `--`). Every error cost one of the 36
+calls; 5/16 tasks never reached the editor, the rest only at call 22-29. New parser replayed on all 738 le/lo scout
+calls: 732 parse (the 6 left are empty or garbled by the tool-call parser). Defaults: show 1-150, start 0 → 1.

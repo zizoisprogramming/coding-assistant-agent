@@ -1,0 +1,6 @@
+# Arm lo2 (rung-3f): 36 calls, 8 min, 90 turns (same as le for a fair comparison).
+evaluation:
+  timeout_seconds: 240
+  max_tool_calls: 36
+  max_time_minutes: 8
+  max_turns: 90

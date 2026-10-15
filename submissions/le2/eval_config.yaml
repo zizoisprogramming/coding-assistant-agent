@@ -1,0 +1,6 @@
+# Arm le2 (rung-3f): le with the fixed scout parser (accepts every argument shape, default line ranges). le: 36 calls (helper calls share the budget), 8 min, 90 LLM turns across both agents.
+evaluation:
+  timeout_seconds: 240
+  max_tool_calls: 36
+  max_time_minutes: 8
+  max_turns: 90

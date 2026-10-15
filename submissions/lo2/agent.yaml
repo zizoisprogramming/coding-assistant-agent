@@ -1,0 +1,13 @@
+# Arm lo2 (rung-3f control for le2): lo with the fixed scout parser. lo: the same locator, scout skill (16 counted reading calls), settings and budget,
+# but no editor: it edits itself with edit_file. le vs lo separates "the reading cap helps" from "the editor helps".
+name: locator
+description: Finds what to change through the scout skill, edits it, checks and submits.
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/locator.md
+tools:
+  - get_status
+  - submit_patch
+  - edit_file
+skills:
+  - skills/scout
+generate_content_config: !include configs/locator_sampling.yaml

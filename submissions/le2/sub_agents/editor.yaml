@@ -1,0 +1,11 @@
+name: editor
+description: >-
+  Applies the plan saved in /tmp/plan.md to the source files. Request: one line, "Apply /tmp/plan.md".
+  Answers one line per file: EDITED (path and what changed) or FAILED (path and why).
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include ../prompts/editor.md
+tools:
+  - run_command
+  - read_file
+  - edit_file
+generate_content_config: !include ../configs/editor_sampling.yaml

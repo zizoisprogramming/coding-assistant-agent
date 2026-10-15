@@ -10,7 +10,9 @@ Modes:
 After LIMIT reading calls, find/show refuse and tell the locator to write the plan and call the editor.
 """
 import argparse
+import ast
 import inspect
+import json
 import os
 import subprocess
 import sys
@@ -64,18 +66,105 @@ def footer(used):
     return msg + "]"
 
 
+MODES = ("find", "show", "history", "plan", "check")
+ALIASES = {"path": "file", "filename": "file", "file_path": "file", "pattern": "query", "name": "query",
+           "q": "query", "search": "query", "line": "start", "start_line": "start", "from": "start",
+           "end_line": "end", "to": "end", "sha": "commit", "test_file": "test", "content": "text", "plan": "text"}
+
+
+def literal(text):
+    """A dict or list written as JSON or as a Python repr (ADK passes a nested dict as str(dict)), else None."""
+    text = text.strip()
+    if not text[:1] in "{[":
+        return None
+    for load in (json.loads, ast.literal_eval):
+        try:
+            return load(text)
+        except (ValueError, SyntaxError):
+            pass
+    return None
+
+
+def as_int(value):
+    try:
+        return int(float(str(value).strip()))
+    except ValueError:
+        return None
+
+
+def parse(argv):
+    """Read every argument shape the model produces: {"mode": ...} (--mode X), a nested {"args": {...}}, a list of
+    ["--mode", "show", ...] or ["--mode=show"], positional ["show", "pkg/a.py", "40", "160"], "file:line" and "40-160".
+    Missing or zero line numbers get defaults instead of an error."""
+    opts, pos, tokens = {}, [], list(argv)
+    while tokens:
+        tok = tokens.pop(0)
+        if tok == "--":
+            continue
+        val = literal(tok)
+        if isinstance(val, dict):
+            opts.update({str(k).lstrip("-"): v for k, v in val.items()})
+        elif isinstance(val, list):
+            tokens = [str(v) for v in val] + tokens
+        elif tok.startswith("--") or (tok.startswith("-") and len(tok) > 1 and not tok[1].isdigit()):
+            key, eq, value = tok.lstrip("-").partition("=")
+            if not eq:
+                value = tokens.pop(0) if tokens and not tokens[0].startswith("--") else ""
+            inner = literal(value) if key == "args" else None
+            if isinstance(inner, dict):
+                opts.update({str(k).lstrip("-"): v for k, v in inner.items()})
+            elif isinstance(inner, list):
+                tokens = [str(v) for v in inner] + tokens
+            else:
+                opts[key] = value
+        else:
+            pos.append(tok)
+    opts = {ALIASES.get(k, k): v for k, v in opts.items()}
+    if "args" in opts and isinstance(opts["args"], dict):
+        opts.update(opts.pop("args"))
+    mode = str(opts.get("mode", "")).strip().lower()
+    if mode not in MODES and pos and pos[0].lower() in MODES:
+        mode = pos.pop(0).lower()
+    if mode not in MODES:  # infer the mode from what was given
+        mode = "show" if opts.get("file") else "plan" if opts.get("text") else "history" if opts.get("commit") else \
+            "find" if opts.get("query") else "check" if opts.get("test") or opts.get("k") else ""
+    a = argparse.Namespace(mode=mode, **{k: opts.get(k) for k in ("query", "file", "start", "end", "text",
+                                                                    "commit", "test", "k")})
+    if mode == "show":
+        if not a.file and pos:
+            a.file = pos.pop(0)
+        if pos and a.start is None:
+            a.start = pos.pop(0)
+        if pos and a.end is None:
+            a.end = pos.pop(0)
+        if a.file and ":" in str(a.file):  # pkg/a.py:120 or pkg/a.py:100-160
+            a.file, _, where = str(a.file).partition(":")
+            a.start = a.start if a.start is not None else where
+        if a.start is not None and "-" in str(a.start).strip("-") and a.end is None:
+            a.start, _, a.end = str(a.start).partition("-")
+        a.start, a.end = as_int(a.start) if a.start is not None else None, as_int(a.end) if a.end is not None else None
+        if a.file:
+            a.file = str(a.file).strip().removeprefix("/workspace/").removeprefix("./")
+    elif mode in ("find", "history"):
+        if not a.query and not a.commit and pos:
+            a.query = " ".join(pos)
+        if mode == "history" and a.query and not a.commit and all(c in "0123456789abcdef" for c in a.query) \
+                and 7 <= len(a.query) <= 40:
+            a.commit, a.query = a.query, None
+    elif mode == "plan":
+        if not a.text and pos:
+            a.text = " ".join(pos)
+    elif mode == "check":
+        if not a.test and pos:
+            a.test = pos.pop(0)
+    return a
+
+
 def main():
-    ap = argparse.ArgumentParser(prog="scout")
-    ap.add_argument("--mode", required=True, choices=["find", "show", "history", "plan", "check"])
-    ap.add_argument("--query")
-    ap.add_argument("--file")
-    ap.add_argument("--start", type=int)
-    ap.add_argument("--end", type=int)
-    ap.add_argument("--text")
-    ap.add_argument("--commit")
-    ap.add_argument("--test")
-    ap.add_argument("--k")
-    a = ap.parse_args()
+    a = parse(sys.argv[1:])
+    if not a.mode:
+        sys.exit('scout needs a mode: args={"mode": "find", "query": "NAME"} or {"mode": "show", "file": "pkg/a.py", '
+                 '"start": 1, "end": 150}; also history, plan, check')
     ws = workspace()
 
     if a.mode == "find":
@@ -89,10 +178,11 @@ def main():
         print(out)
         print(footer(used))
     elif a.mode == "show":
-        if not (a.file and a.start):
+        if not a.file:
             sys.exit('scout show needs args={"mode": "show", "file": "path.py", "start": 40, "end": 160}')
         used = reading_budget()
-        start, end = max(a.start, 1), a.end or a.start + 120
+        start = max(a.start or 1, 1)
+        end = a.end if a.end and a.end >= start else start + 149
         end = min(end, start + 149)
         path = os.path.join(ws, a.file)
         if not os.path.isfile(path):
