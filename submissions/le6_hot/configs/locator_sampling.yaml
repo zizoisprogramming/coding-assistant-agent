@@ -1,9 +1,0 @@
-# Locator (le6_hot): r4_budget-style fast and decisive sampling (T 1.0, top_k 64, thinking 512) instead of le6's
-# careful T 0.2 / thinking 1024.
-temperature: 1.0
-top_p: 0.95
-top_k: 64
-max_output_tokens: 2048
-thinking_config:
-  include_thoughts: true
-  thinking_budget: 512

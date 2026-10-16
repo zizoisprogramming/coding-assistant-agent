@@ -1,0 +1,7 @@
+# Locator (le6_deep): T 0.2 with thinking 2048 (what solved fastapi_14419: bf, r4_mid, mix) instead of le6's 1024.
+temperature: 0.2
+top_p: 0.95
+max_output_tokens: 4096
+thinking_config:
+  include_thoughts: true
+  thinking_budget: 2048

@@ -1,0 +1,6 @@
+# Arm le6_deep (rung-3l): le6 with thinking moved to the locator (2048) from the editor (128). Only change.
+evaluation:
+  timeout_seconds: 240
+  max_tool_calls: 28
+  max_time_minutes: 8
+  max_turns: 90

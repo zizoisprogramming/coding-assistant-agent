@@ -1,0 +1,7 @@
+# Editor (le6_deep): T 0.2 with thinking 128 (it copies a plan; budget moved to the locator) instead of le6's 512.
+temperature: 0.2
+top_p: 0.95
+max_output_tokens: 1024
+thinking_config:
+  include_thoughts: true
+  thinking_budget: 128

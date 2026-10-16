@@ -208,3 +208,6 @@ edit_file is. le6 = SequentialAgent [setup: one run_skill_script installs .git/a
 locator: reads only via `python3 .git/agent/read.py find|show|history` through run_command, 16 reads then refusal
 while calls remain; the plan is the editor request (no /tmp/plan.md)]. Editor: read_file, edit_file, run_command.
 le6_hot = le6 with locator T1.0/top_k 64/thinking 512/out 2048 and editor T1.0/top_k 64/thinking 256/out 1024.
+rung-3l revised (4 h GPU quota left ≈ 2 h wall): le6 + le6_deep (locator thinking 2048, editor thinking 128; replaces
+le6_hot) on 8 tasks = the 7 ever solved by any arm (15589, 14419, 11194, 3882, 3521, 3470, 4079) + fastapi_14258;
+1 run. le5 on these 8 (rung-3k): 4 solved (15589, 3882, 11194, 3521); le5 no-edits among them: 14419, 3470, 4079, 14258.
