@@ -1,0 +1,9 @@
+# Arm le6 (rung-3l): le5 + a counted reader. A setup step installs .git/agent/read.py (outside the patch); the
+# locator reads only through it via run_command (flat string). After 16 reads it refuses while calls are left, so the
+# hand-off fits the budget. The plan travels inside the editor request (no /tmp/plan.md, 2 counted calls saved).
+agent_class: SequentialAgent
+name: setup_then_locate
+description: Installs the reader, then the locator finds the change and hands the plan to the editor.
+sub_agents:
+  - config_path: sub_agents/setup.yaml
+  - config_path: sub_agents/locator.yaml

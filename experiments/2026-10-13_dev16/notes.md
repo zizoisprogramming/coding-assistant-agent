@@ -229,3 +229,9 @@ mix + adapter noise_lora = sample main_lora structure (layer 0 q/o_proj, rank 4)
 (sample lora_B is all zeros). Error = LoRA cannot start on the scorer; ~0 = adapters take effect; ~0.17 = ignored.
 Adapter files are gitignored (derived from competition sample data).
 Public variant for a friend's test: dist/bf_lora_noise.zip (sha 52d8febe) = public Budget-Fit v4 bundle verbatim + adapter: noise_lora (same noise file). Public baseline 0.17-0.18.
+
+## le5 on the scorer: Notebook Timeout (2026-10-16) → le6_t6
+le5 (submitted 10-15 22:04) exceeded the 12 h runtime: no score. Dev projection was 11.6 h for 120 tasks, so the
+scorer needs more time than dev timings suggest (mix projects 11.5-12.7 h and passed once at 0.17). le6 projects
+11.2 h at 8 min. le6_t6 = le6 with max_time_minutes 6 (projected 10.5 h; le6's dev solves took <= 357 s; across the
+le family 6/27 solves took > 6 min). dist/submission.zip = le6_t6 (sha 4e119be2).

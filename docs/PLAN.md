@@ -68,8 +68,8 @@ unknown; check cell 2/4 in the Kaggle draft); the two accounts shared one notebo
 version: use separate copies per account.
 
 **Update 2026-10-16:** prompt/architecture plateau at 4/16 on dev v2 for mix, bf, le5, le6 (details in
-experiments/2026-10-13_dev16/notes.md, rung-3e..3m). le5 SUBMITTED 2026-10-16 (dist/le5_submitted.zip). Next slot:
-le6 (dist/submission.zip, sha 37c45cf0; setup skill installs .git/agent/read.py; first test of that pattern on the
+experiments/2026-10-13_dev16/notes.md, rung-3e..3m). le5 SUBMITTED 2026-10-15 → **Notebook Timeout (>12 h, no score)**. Next slot:
+le6_t6 = le6 with a 6-min cap (dist/submission.zip, sha 4e119be2; setup skill installs .git/agent/read.py; first test of that pattern on the
 scorer). Then the LoRA platform test (noise adapter). GPU quota this week: ~50 min left after rung-3m.
 
 **Tomorrow (2026-10-15):** (1) mix (dist/submission.zip, sha 883eeed0) SUBMITTED 2026-10-14 → **LB 0.17 (new best; dev 4/16 ≈ 0.17)**. Tomorrow's slot = a LoRA test submission. (2) Fine-tuning

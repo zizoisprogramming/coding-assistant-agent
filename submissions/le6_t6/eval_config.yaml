@@ -1,0 +1,6 @@
+# Arm le6_t6: le6 with a 6-minute cap per task (le5 timed out on the scorer at 8 min; le6 dev solves took <= 357 s).
+evaluation:
+  timeout_seconds: 240
+  max_tool_calls: 28
+  max_time_minutes: 6
+  max_turns: 90

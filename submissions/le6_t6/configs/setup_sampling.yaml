@@ -1,0 +1,7 @@
+# Setup step (le6): one tool call, no reasoning needed.
+temperature: 0.2
+top_p: 0.95
+max_output_tokens: 512
+thinking_config:
+  include_thoughts: true
+  thinking_budget: 128
