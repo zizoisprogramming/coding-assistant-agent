@@ -211,3 +211,11 @@ le6_hot = le6 with locator T1.0/top_k 64/thinking 512/out 2048 and editor T1.0/t
 rung-3l revised (4 h GPU quota left ≈ 2 h wall): le6 + le6_deep (locator thinking 2048, editor thinking 128; replaces
 le6_hot) on 8 tasks = the 7 ever solved by any arm (15589, 14419, 11194, 3882, 3521, 3470, 4079) + fastapi_14258;
 1 run. le5 on these 8 (rung-3k): 4 solved (15589, 3882, 11194, 3521); le5 no-edits among them: 14419, 3470, 4079, 14258.
+
+## rung-3l results (2026-10-16, 8 tasks): le6 4/8 (21.1 min, 293 s/task), le6_deep 4/8 (25.3 min, 368 s/task)
+On the same 8: le5 4/8 (288 s), mix 3/8. Setup installed the reader in 16/16 task-runs. The editor was called in
+15/16 (le5: 4 of these 8 tasks never edited) → no-edits 4 → 2; the hand-off problem is fixed. Score unchanged: the
+new edits on fastapi_14419 and rich_3470 are wrong → the bottleneck is fix correctness, as for mix. The locator
+also reads around the reader with raw cat/sed/grep (2-15 per task), so the limit is soft. le6_deep solved rich_4079
+but timed out on rich_3521 and fastapi_14258 (2 timeouts). le family solved 5 distinct of these 8 (15589, 11194,
+3882, 3521, 4079).
