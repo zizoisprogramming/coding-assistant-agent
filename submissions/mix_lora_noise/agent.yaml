@@ -1,0 +1,15 @@
+# LoRA PLATFORM TEST (not a real entry): mix + adapters/noise_lora (sample main_lora structure, layer 0 q/o_proj,
+# rank 4, A and B filled with N(0,1) noise). If adapters take effect, outputs break and the score drops to ~0;
+# a score near mix (0.17) means the adapter is ignored; an error means the server fails to start with LoRA.
+name: swe_agent
+model: gemma-4-31b-it-qat-w4a16-ct
+adapter: noise_lora
+instruction: !include prompts/system.md
+tools:
+  - run_command
+  - read_file
+  - edit_file
+  - write_file
+  - get_status
+  - submit_patch
+generate_content_config: !include configs/sampling.yaml

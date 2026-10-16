@@ -223,3 +223,8 @@ but timed out on rich_3521 and fastapi_14258 (2 timeouts). le family solved 5 di
 rung-3m (2026-10-16): le6 on the other 8 dev16 tasks (never solved by any arm) to complete le6 on the full 16 within ~2 h quota.
 rung-3m result: le6 0/8 on the never-solved 8 (27.5 min). le6 full 16 (rung-3l + 3m, same submission): 4/16
 (15589, 3882, 11194, 3521), no-edit 5, timeouts 1, mean 336 s. mix 4 & 3, le5 4, bf 4. Plateau at 4/16 for all.
+
+## LoRA platform test (2026-10-16): dist/mix_lora_noise.zip (sha 7d3175cb)
+mix + adapter noise_lora = sample main_lora structure (layer 0 q/o_proj, rank 4) with A and B ~ N(0,1) in bf16
+(sample lora_B is all zeros). Error = LoRA cannot start on the scorer; ~0 = adapters take effect; ~0.17 = ignored.
+Adapter files are gitignored (derived from competition sample data).
