@@ -228,3 +228,4 @@ rung-3m result: le6 0/8 on the never-solved 8 (27.5 min). le6 full 16 (rung-3l +
 mix + adapter noise_lora = sample main_lora structure (layer 0 q/o_proj, rank 4) with A and B ~ N(0,1) in bf16
 (sample lora_B is all zeros). Error = LoRA cannot start on the scorer; ~0 = adapters take effect; ~0.17 = ignored.
 Adapter files are gitignored (derived from competition sample data).
+Public variant for a friend's test: dist/bf_lora_noise.zip (sha 52d8febe) = public Budget-Fit v4 bundle verbatim + adapter: noise_lora (same noise file). Public baseline 0.17-0.18.
