@@ -67,6 +67,11 @@ may pay off with LoRA, one adapter per role. Both notebooks ran tasks serially d
 unknown; check cell 2/4 in the Kaggle draft); the two accounts shared one notebook, so the CLI only sees the latest
 version: use separate copies per account.
 
+**Update 2026-10-16:** prompt/architecture plateau at 4/16 on dev v2 for mix, bf, le5, le6 (details in
+experiments/2026-10-13_dev16/notes.md, rung-3e..3m). le5 SUBMITTED 2026-10-16 (dist/le5_submitted.zip). Next slot:
+le6 (dist/submission.zip, sha 37c45cf0; setup skill installs .git/agent/read.py; first test of that pattern on the
+scorer). Then the LoRA platform test (noise adapter). GPU quota this week: ~50 min left after rung-3m.
+
 **Tomorrow (2026-10-15):** (1) mix (dist/submission.zip, sha 883eeed0) SUBMITTED 2026-10-14 → **LB 0.17 (new best; dev 4/16 ≈ 0.17)**. Tomorrow's slot = a LoRA test submission. (2) Fine-tuning
 planning continues: user asked for the pipeline (explained; LoRA status below). Proposed first step = Kaggle
 platform test with a noise adapter (server starts? output changes?) before any training. Open questions to user:
