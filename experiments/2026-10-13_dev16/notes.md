@@ -219,3 +219,5 @@ new edits on fastapi_14419 and rich_3470 are wrong → the bottleneck is fix cor
 also reads around the reader with raw cat/sed/grep (2-15 per task), so the limit is soft. le6_deep solved rich_4079
 but timed out on rich_3521 and fastapi_14258 (2 timeouts). le family solved 5 distinct of these 8 (15589, 11194,
 3882, 3521, 4079).
+
+rung-3m (2026-10-16): le6 on the other 8 dev16 tasks (never solved by any arm) to complete le6 on the full 16 within ~2 h quota.
