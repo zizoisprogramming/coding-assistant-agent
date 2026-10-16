@@ -221,3 +221,5 @@ but timed out on rich_3521 and fastapi_14258 (2 timeouts). le family solved 5 di
 3882, 3521, 4079).
 
 rung-3m (2026-10-16): le6 on the other 8 dev16 tasks (never solved by any arm) to complete le6 on the full 16 within ~2 h quota.
+rung-3m result: le6 0/8 on the never-solved 8 (27.5 min). le6 full 16 (rung-3l + 3m, same submission): 4/16
+(15589, 3882, 11194, 3521), no-edit 5, timeouts 1, mean 336 s. mix 4 & 3, le5 4, bf 4. Plateau at 4/16 for all.
