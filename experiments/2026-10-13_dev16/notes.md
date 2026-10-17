@@ -242,3 +242,9 @@ little). LoRA test from a friend's account (public Budget-Fit bundle, public bas
 the noise adapter broke the model → adapters DO take effect on the scorer and the server starts with LoRA.
 
 ## 12B baseline (prepared 2026-10-17): mix_12b = mix with model gemma-4-12b-it-qat-w4a16-ct; dev16 x2; notebook kaggle/cells_12b_base (cells 2 and 3 differ: TARGET_MODEL_NAME = 12B switches on the hf-overrides + vision_embedder skip patch).
+
+## 12B baseline (2026-10-17): mix_12b 2/16 (43.6 min), 1/16 (44.7 min); 31B mix 4 and 3
+12B solved rich_3882 (2/2) and rich_3470 (1/2; 31B mix rarely). No-edit 9/16 in both runs (31B 4-6); 10 of 32
+task-runs used all 28 calls. Speed: 12B decodes ~45-50 tok/s vs 31B ~26, but writes ~1.5-2x more output tokens per
+task (e.g. rich_3882 18.5k vs 6.3k), so mean time per task is the same (321-329 s vs 346-382 s). LoRA targets for the
+12B: hand off / edit within budget, less verbose. Baseline for the 12B LoRA comparison.
