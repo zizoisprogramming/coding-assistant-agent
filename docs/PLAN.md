@@ -81,6 +81,11 @@ request fixed hand-off: no-edits 4→2, score unchanged). 12B: decodes 2x faster
    84k + sweagent 67k from MiniMax-M2.5 [thinking] and Qwen3.5-122B; v1.1/1.2 mini-swe-agent from DeepSeek-V4-Flash,
    Qwen3.6/3.8-27B; `resolved` 1/0/-1, `language` → keep python; 9 languages). Rejected: SWE-Zero (execution-free,
    unverified), SWE-smith-trajectories + SWE-Gym (Claude/GPT), Kwai Klear (teacher unstated), thoughtworks.
+   **Open-SWE-Traces survey (2026-10-17, scripts/datasets/survey_open_swe_traces.py):** Python + resolved + clean
+   (not fastapi/requests/rich/httpx; only ~1% of swe-rebench rows dropped) WITH thinking = **117k**: Qwen3.8-27B 55k
+   (mini-swe-agent 34k / sweagent 11k / openhands 9k), Qwen3.8-Flash-Next 34k, DeepSeek-V4-Flash 18k (openhands),
+   MiniMax-M2.5 10k. Thinking off (skip): Qwen3.6-27B 58k, Qwen3.5-122B 6k. Thinking flag read from the first row
+   of each folder. → Thinking data is plentiful; no need to backfill reasoning into Qwen3-Coder runs.
    **Curation evidence:** SWE-Prime (arXiv 2608.27449): best 10% of resolved trajectories beats all of them (+24%
    rel. Verified) and loss only on useful segments; LoRA curation study (arXiv 2607.17205, Qwen2.5-Coder-7B on the
    Nebius set): error-retry rate is THE quality signal; quality filtering pays off from ~2k samples, below that
