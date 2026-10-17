@@ -61,7 +61,13 @@ request fixed hand-off: no-edits 4→2, score unchanged). 12B: decodes 2x faster
    51k tasks / 1,655 permissively licensed repos (R2E-Gym, SWE-Smith, SWE-Rebench; SWE-bench Verified overlap
    removed), ALL by Qwen3-Coder-480B (no big-3), OpenHands 0.52.1 tools (bash, str_replace_editor, think, finish),
    test-verified (155k pass; SFT used passing only), median ~38k tokens / ~50 steps (longer than our 28-call 32k
-   budget → keep short ones). Qwen3-32B SFT on it: 59.4% Verified. Same conversion as SWE-Hero. Optional: run Qwen3-Coder-30B-A3B (Apache) in our harness as a teacher (untested on the wheelhouse vLLM).
+   budget → keep short ones). Qwen3-32B SFT on it: 59.4% Verified. Same conversion as SWE-Hero. **(e) nebius/SWE-rebench-openhands-trajectories**: 67k (32k
+   resolved, `resolved` column), Qwen3-Coder-480B, OpenHands 0.54, CC-BY-4.0, avg 64 turns. Checked 2026-10-17 and
+   NOT usable: thoughtworks/agentic-coding-trajectories (15k = 5k Nebius copy + 5k Claude-3.7 SWE-smith + 5k Kwai
+   Klear with unstated teacher; `recorded_model` unreliable) → take Nebius from the original instead; ADP paper
+   (arXiv 2510.24702, a format unifying 13 datasets; its SWE parts besides Nebius are SWE-Gym = GPT-4o/Claude and
+   SWE-smith = Claude 3.7; useful only as evidence: Qwen2.5-Coder-32B SFT → 40.3% Verified). Sources (c)(d)(e) share
+   teacher and scaffold → dedupe by task across them. Optional: run Qwen3-Coder-30B-A3B (Apache) in our harness as a teacher (untested on the wheelhouse vLLM).
    Cross-family teacher → let Gemma rewrite the reasoning + mix sources (research: closeness to the student's own
    distribution matters more than family).
 4. **Targets:** 12B pipeline debug 30–60 samples; first real 31B adapter 300–500 trajectories (SWE-Gym: 491 →
