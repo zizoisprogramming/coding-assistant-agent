@@ -525,3 +525,8 @@ numbers; the orchestrator asks it more often with narrower questions.
 Blocked: scorer loads adapters with zeroed weights (forum 743508); LoRA also shrinks KV cache. Training-data route
 when unblocked: self-distillation from our own verified-pass 31B trajectories, or open-weight teachers
 (Qwen3.6-27B, Apache 2.0). No Claude/GPT-generated training data.
+**Update 2026-10-17 (user decision, firm):** no training data from Claude, GPT or Gemini, even though Gemini's API
+terms only bar models competing with the Gemini API itself (checked 2026-10-17). Allowed sources: Gemma's own
+successful runs (31B → 12B distillation; 31B self), gold-guided trajectories built from the public tasks' reference
+patches with Gemma writing the reasoning, and open-weight permissively licensed data/teachers. LoRA confirmed working
+on the scorer (noise-adapter test 0.01). Plan: debug the pipeline on the 12B (baseline, train, re-measure), then 31B.
