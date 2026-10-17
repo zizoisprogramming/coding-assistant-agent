@@ -90,12 +90,61 @@ def messages_until(trace, step_index, agent_name="swe_agent", agent_description=
     return msgs
 
 
+def request_to_template_inputs(record):
+    """messages, tools and enable_thinking from a request recorded by scripts/request_logger.py, prepared the way
+    vLLM prepares them (tool-call arguments parsed from JSON strings into dicts)."""
+    req = record["request"]
+    msgs = []
+    for m in req["messages"]:
+        m = dict(m)
+        if m.get("tool_calls"):
+            calls = []
+            for c in m["tool_calls"]:
+                c = json.loads(json.dumps(c))
+                args = c["function"].get("arguments")
+                if isinstance(args, str):
+                    try:
+                        c["function"]["arguments"] = json.loads(args) if args.strip() else {}
+                    except json.JSONDecodeError:
+                        pass
+                calls.append(c)
+            m["tool_calls"] = calls
+        msgs.append(m)
+    kw = req.get("kwargs") or {}
+    ctk = kw.get("chat_template_kwargs") or (kw.get("extra_body") or {}).get("chat_template_kwargs") or {}
+    return msgs, req.get("tools"), bool(ctk.get("enable_thinking"))
+
+
+def check_requests(path, limit=None):
+    """Render every recorded request and compare with the prompt_tokens vLLM reported for it."""
+    import gzip
+    tmpl, bos = load_template()
+    tok = Tokenizer.from_file(str(TOK_DIR / "tokenizer.json"))
+    exact = off = 0
+    for n, line in enumerate(gzip.open(path, "rt")):
+        if limit and n >= limit:
+            break
+        rec = json.loads(line)
+        usage = (rec.get("reply") or {}).get("usage") if isinstance(rec.get("reply"), dict) else None
+        if not usage:
+            continue
+        msgs, tools, think = request_to_template_inputs(rec)
+        got = len(tok.encode(render(tmpl, bos, msgs, tools, enable_thinking=think), add_special_tokens=False).ids)
+        want = usage["prompt_tokens"]
+        exact, off = (exact + 1, off) if got == want else (exact, off + 1)
+        if got != want and off <= 10:
+            print(f"request {n}: vLLM {want} rendered {got} diff {got - want:+d}")
+    print(f"requests rendered exactly: {exact}, different: {off}")
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("trace")
+    ap.add_argument("trace", help="a harness trace (.json) or a request log (.jsonl.gz from request_logger.py)")
     ap.add_argument("--steps", type=int, default=6, help="how many model calls to check")
     ap.add_argument("--show", action="store_true", help="print the rendered text of the first call")
     a = ap.parse_args()
+    if a.trace.endswith(".jsonl.gz"):
+        return check_requests(a.trace)
     trace = json.loads(Path(a.trace).read_text())
     tmpl, bos = load_template()
     tok = Tokenizer.from_file(str(TOK_DIR / "tokenizer.json"))

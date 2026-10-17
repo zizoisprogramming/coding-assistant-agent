@@ -392,6 +392,9 @@ def main():
     ap.add_argument("--model", default="gemma-4-31b-it-qat-w4a16-ct", help="served Gemma 4 variant (forum 748287)")
     ap.add_argument("--out", default=str(ROOT / "kaggle" / "eval_compare.ipynb"))
     ap.add_argument("--gold-tasks", default="", help="also write kaggle/cells/gold_check.py for these task ids")
+    ap.add_argument("--log-requests", action="store_true",
+                    help="add cell 3b: record every model request/reply to /kaggle/working/requests (training data)")
+    ap.add_argument("--gold-out", default="", help="where to write the gold-check cell (default kaggle/cells/gold_check.py)")
     args = ap.parse_args()
 
     configs = args.configs.split(",")
@@ -416,6 +419,7 @@ def main():
             code_cell(INSTALL),
             code_cell(setup),
             code_cell(VLLM.replace("__MODEL__", args.model)),
+            *([code_cell((ROOT / "scripts" / "request_logger.py").read_text())] if args.log_requests else []),
             code_cell(EVAL.replace("__RUN_EVAL__", run_eval_src)),
             code_cell(REPORT.replace("__ANALYZE__", analyze_src)),
         ],
@@ -425,8 +429,10 @@ def main():
     out.write_text(json.dumps(nb, indent=1))
     if args.gold_tasks:
         gold_cell = GOLD.replace("__GOLD_TASKS__", repr(args.gold_tasks.split(","))).replace("__RUN_EVAL__", run_eval_src)
-        (ROOT / "kaggle" / "cells" / "gold_check.py").write_text(gold_cell)
-        print(f"Wrote kaggle/cells/gold_check.py ({len(args.gold_tasks.split(','))} tasks)")
+        gold_path = Path(args.gold_out).resolve() if args.gold_out else ROOT / "kaggle" / "cells" / "gold_check.py"
+        gold_path.parent.mkdir(parents=True, exist_ok=True)
+        gold_path.write_text(gold_cell)
+        print(f"Wrote {gold_path.relative_to(ROOT)} ({len(args.gold_tasks.split(','))} tasks)")
     print(f"Wrote {out.relative_to(ROOT)} ({len(configs)} configs × {len(args.tasks.split(','))} tasks × {args.repeats} repeats)")
 
 

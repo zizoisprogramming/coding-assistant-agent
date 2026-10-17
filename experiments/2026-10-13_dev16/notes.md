@@ -248,3 +248,15 @@ the noise adapter broke the model → adapters DO take effect on the scorer and 
 task-runs used all 28 calls. Speed: 12B decodes ~45-50 tok/s vs 31B ~26, but writes ~1.5-2x more output tokens per
 task (e.g. rich_3882 18.5k vs 6.3k), so mean time per task is the same (321-329 s vs 346-382 s). LoRA targets for the
 12B: hand off / edit within budget, less verbose. Baseline for the 12B LoRA comparison.
+
+## Training-data capture (2026-10-17)
+Harness traces are lossy for exact prompt reconstruction (render_traces.py: exact up to a fixed -21 tokens on normal
+steps, but only 3/32 mix trajectories match end to end: unexplained jumps, nudges/compaction). So requests are now
+recorded at the source: scripts/request_logger.py wraps ADK's LiteLLMClient.acompletion and appends {request:
+messages (wire format), tools, kwargs incl. chat_template_kwargs / thinking budget; reply: content, reasoning,
+tool_calls, usage} per call to /kaggle/working/requests/requests.jsonl.gz. Tested locally against a fake vLLM
+(scripts/test_request_logger.py): 3/3 calls recorded identical to the HTTP bodies; records render with the Gemma 4
+template. render_traces.py <file>.jsonl.gz compares each rendered request with vLLM's prompt_tokens.
+Pilot data-generation notebook kaggle/cells_datagen_pilot: mix (31B) on 16 non-dev tasks (8 rich, 4 requests,
+4 fastapi; seed 17, known gold-failures excluded) with cell 3b = logger; plus gold_check_113.py (CPU) for all 113
+non-dev tasks.
