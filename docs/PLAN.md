@@ -1,85 +1,72 @@
 # Gemma 4 Developer Agent — Competition Plan (living doc)
 
-## >>> START HERE (session handoff, updated 2026-10-14) <<<
-**User:** beginner to agents/ADK; wants step-by-step plain explanations, research-backed claims, chat before docs,
-decides when planning ends. Rules: one change per arm where possible; prompts generic (no dev-task content);
-competition data never committed; Kaggle token only in ~/.kaggle/access_token. Give Kaggle cells as FILE LINKS
-(kaggle/cells/cellN.py), never pasted in chat; never change the notebook's printed output (cell 4 = the normal one).
+## >>> START HERE (session handoff, updated 2026-10-17) <<<
+**User:** beginner to agents/ADK (ML engineer background); wants step-by-step plain explanations, research-backed
+claims (verify, cite), chat before building, decides when planning ends. Rules: one change per arm where possible;
+prompts generic (no dev-task content); competition data never committed (data/ is gitignored, incl. adapters built
+from sample data); Kaggle token only in ~/.kaggle/access_token. Give Kaggle cells as FILE LINKS, never pasted; never
+change cell 4's printed output. **No training data from Claude, GPT or Gemini (user decision, D14).** Each Kaggle
+account runs its OWN notebook copy (a shared notebook made `kaggle kernels output` return only the latest version
+and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly quota is tight → small runs.
 
-**Current best = r4_budget, LB 0.15 (2026-10-14, user's goal reached)**: `submissions/r4_budget` = 1a round-4
-prompt (decision rule + 2 generic examples, 927 words), thinking 512, T 1.0, **8 min / 28 calls / 80 turns**.
-Mechanism: the harness's "only 10 tool calls remain" warning (after call 18 with 28 calls) triggers the edit.
-LB history: 0.08/0.10 (round 2), 0.12 (round 4 at 4.5 min/50 calls), 0.15 (r4_budget). Public no-LoRA best 0.17–0.18
-(Budget-Fit "bf", same budget, T 0.2, thinking 4096, 685-word checklist prompt, 6 tools).
+### Leaderboard (all no-LoRA unless noted)
+| submission | LB | notes |
+|---|---|---|
+| **mix** | **0.17 (best)** | bf (public Budget-Fit) prompt/tools + r4 decision rule; T0.2, thinking 2048, out 4096; 8 min/28 calls/80 turns |
+| r4_budget | 0.15 | T1.0, thinking 512 |
+| le5 | **Notebook Timeout** (>12 h) | locator→editor; dev projection 11.6 h was not enough |
+| le6_t6 | 0.15 | le6 with 6-min cap; finished in time; reader skill install works on the scorer |
+| bf + noise LoRA (friend's account, public bundle) | **0.01** | **LoRA takes effect on the scorer** (server starts, outputs change) |
+Identical packages vary ±0.02 on the LB; ±1 task per 8–16 on dev. Runtime: every config sits near the 12-h edge
+(scorer slower than dev projections) → keep mean per task well under ~330 s or cap time (6 min).
 
-**Dev set v2 (16 Kaggle-gradable tasks, experiments/2026-10-13_dev16/notes.md):** fastapi 15589 13920 14258 11194
-14487 15280 14419 15800 14306; rich 3882 3470 4079 3521 3934 3468 3180 (gold check on Kaggle CPU: 20/25 usable,
-data/results/2026-10-13_gold_check). **Calibration: 3/16 ↔ LB 0.15.** Run 1×, concurrency 2. 1 task = noise.
-Results on dev v2: r4_budget 3, r4b_think_t02 (T0.2/4096) 3 (too slow: 400 s/task ≈ 13 h), af (deep analyst →
-fixer, SequentialAgent) 3 (analyst ignored "hand over after 8–12 calls": ~21 calls; 418 s), r4b_warn (edit on
-warning) 2 (more edits, all guesses), af2 (analyst prompt rewritten) 3 (still ~21 calls; single deep steps 2–4
-min). Union of solved over all arms = 5/16. Plateau = finding the right change (location + exact interface).
+### Prompt/architecture work is DONE (plateau)
+Dev v2 (16 tasks): mix 4,3; bf 4; le5 4; le6 4 (full 16 = rung-3l+3m); 12B mix 2,1. Everything solves the same core
+(fastapi_15589, rich_3882, fastapi_11194 + one of rich_3521 / fastapi_14419). Bottleneck = **correct** edits.
+Lessons (experiments/2026-10-13_dev16/notes.md, rung-3a..3m): working scratch scripts double experimenting and hurt
+(mix's write_file-/tmp refusal is a hidden brake); skill scripts with nested args get garbled by the tool-call
+format (flat run_command strings don't); agent_tool calls are not budget-counted but the editor's edit_file is;
+locators read until the budget ends unless a tool refuses (le6's .git/agent/read.py reader + plan inside the editor
+request fixed hand-off: no-edits 4→2, score unchanged). 12B: decodes 2x faster but writes 2x more tokens, no-edit
+9/16 → target for LoRA. Only event-triggered signals in tool output change behaviour.
 
-**RUNNING / PENDING (2026-10-14):**
-- rung-3d on the OLD account (kaggle/cells/cell2.py): bf, r4_mid (T0.2, thinking 2048, max_out 4096), r4_mid1k
-  (T0.2, thinking 1024) on dev v2 → picks the thinking budget; bf = second calibration point. Download with
-  `uvx --from kaggle kaggle kernels output ziad23samer/getting-started-gemma-4-developer-agent-4554ae -p DIR`.
-- rung-3e on the user's NEW Kaggle account (kaggle/cells_rung3e/, only cell2 differs): **le** = locator (T0.2,
-  thinking 2048 placeholder, reads ONLY via the scout skill: find/show/history counted, 16 reads then refusal;
-  plan → /tmp/plan.md; check = diff + targeted pytest) → editor agent_tool (thinking 256, max_out 1024, T1.0;
-  EDITED/FAILED) → ≤1 correction (guarded) → submit; 8 min / 36 calls / 90 turns. **lo** = same locator editing
-  itself with edit_file (control). **mix** = bf prompt/tools with r4 decision rule + example + edit fallback.
-  The user downloads results.zip from that account into ~/Downloads (our CLI token is the old account).
-  If rung-3d says 1024 is better / 2048 too slow, regenerate cell2 (locator_sampling / mix sampling).
-- Watch every arm's mean s/task: > ~330 s → 120 tasks exceed the 12-h limit (whole submission errors).
+### NOW: fine-tuning pipeline (debug on 12B, final on 31B)
+1. **Pending runs (user):**
+   - **Data-gen pilot** kaggle/cells_datagen_pilot/: mix on **31B** (cell 3 = 31B, NOT the 12B left in the notebook)
+     on 16 non-dev tasks + new **cell 3b = request logger** → /kaggle/working/requests/requests.jsonl.gz.
+     First check after download: `data/venv_harness/bin/python scripts/render_traces.py <requests.jsonl.gz>` →
+     every rendered request must equal vLLM prompt_tokens (expect 0 diffs; trace-based rendering had a fixed -21).
+   - **Gold check on all 113 non-dev tasks** (CPU session: cell1, cell2, kaggle/cells_datagen_pilot/gold_check_113.py
+     → /kaggle/working/gold_check.json): which tasks are gradable (only those give trustworthy "solved" labels).
+2. **Sample format (agreed with user):** one sample = one trajectory rendered with Gemma 4's chat template
+   (data/gemma4_tokenizer/chat_template.jinja; whole run is ONE model turn; tool responses inside it; thinking kept
+   after the last user msg; nudges are user msgs and drop earlier thinking); labels = -100 except model tokens
+   (thinking + tool calls); split at compaction points. **Dedup (user rule):** successful runs only, cut after the
+   first submit_patch; keep a 2nd run of a task only if its action sequence shares <~50% with kept ones or the patch
+   differs; cap 2–3 per task; drop error-streak/looping runs. Possible extra filter: **Gemma judge** (31B grades each
+   trajectory's reasoning; idea from CodeGemma's LLM post-filtering).
+3. **Data sources (allowed):** (a) Gemma 31B successes on non-dev public tasks (→ 12B = distillation; little gain for
+   31B itself per SWE-Gym's self-training result); (b) gold-guided trajectories (reference patch → ideal path, Gemma
+   writes the reasoning) for tasks Gemma fails; (c) **nvidia/SWE-Hero-openhands-trajectories** (34k, CC BY 4.0,
+   generated by Qwen3-Coder-480B, OpenHands format → map execute_bash→run_command, str_replace_editor
+   view/str_replace/create→read_file/edit_file/write_file, finish→submit_patch; filter ≤28 calls/≤32k; unknown if
+   filtered to resolved) — NEXT TO INSPECT (download one shard). Nemotron-SFT-SWE-v3 on hold (teacher models
+   unstated). Optional: run Qwen3-Coder-30B-A3B (Apache) in our harness as a teacher (untested on the wheelhouse vLLM).
+   Cross-family teacher → let Gemma rewrite the reasoning + mix sources (research: closeness to the student's own
+   distribution matters more than family).
+4. **Targets:** 12B pipeline debug 30–60 samples; first real 31B adapter 300–500 trajectories (SWE-Gym: 491 →
+   +13.6 pts). 12B baseline to beat: mix_12b 2/16, 1/16, no-edit 9/16 (data/results/2026-10-17_12b_base_dev16).
+5. **Training compute:** Kaggle L4x4 (FSDP+QLoRA untested) or rented H100 (~$2–3/h, few hours); Colab Pro ~$10/mo
+   ≈ 7–10 A100 h (40 GB, tight). Train on the bf16 QAT checkpoint; export PEFT (adapter_config + safetensors, layer
+   names base_model.model.model.language_model.layers.N...; rank ≤128, ≤8 adapters, `adapter:` per agent YAML).
 
-**Key facts learned (details: docs/DESIGN_DECISIONS.md D9–D22, experiments/):**
-- Only event-triggered signals change behaviour (tool errors, the low-budget warning, "No such file", refusals).
-  Self-monitoring instructions are ignored: call counts ("edit by call 12", "hand over after 8–12 calls"), step
-  order ("step 0: install"), notes, templates. Longer prompts with more rules did worse.
-- Thinking helps only with low temperature (4096 at T1.0 failed). Deep thinking makes the agent over-check and
-  edit late; single 4096-steps can take 2–4 min.
-- safe-edit skill (skills_src/safe-edit: checked SEARCH/REPLACE editor refusing invalid Python): used only when
-  edit_file is removed; caught 0 broken edits in its run; no score gain; shelved.
-- Harness (swegemma 0.2.11 / adk_submission 0.2.13 / google-adk 1.36.1 / vLLM 0.19.1): undeclared tool calls come
-  back as errors (ToolErrorPlugin, no crash); unsubmitted working-tree diff is kept even after exceptions; skill
-  scripts run via AdkSandboxCodeExecutor in the task's own sandbox (cwd = temp dir; workspace via the wrapper's
-  _orig_cwd frame; TMPDIR = task /tmp); no per-agent call limit in the YAML schema; SequentialAgent allowed;
-  ADK leaves non-identifier {...} in instructions untouched; ParallelAgent + compaction bug (adk #7324, fixed only
-  in ADK 2.5) → avoid ParallelAgent. With 2 tasks at a time the harness's live agent view goes to files (quiet).
-- Smaller models: E4B 0/8; 12B needs --hf-overrides (host) + a local vision_embedder skip patch, scored 1/4,1/4
-  with silent stalls → stay on 31B. LoRA on the scorer: unverified whether adapters take effect (forum 743508).
-- Colab free = ~1 T4 16 GB, can't serve the 31B.
-
-**Tooling:** scripts/make_kaggle_notebook.py (--tasks --configs --repeats --concurrency --model --gold-tasks --out),
-pack.py (validate), analyze.py, speed.py (per-step timing, silent stalls), behaviour.py (tool mix, reads before
-edit), timeline.py, gold_check (cell kaggle/cells/gold_check.py, CPU session), kaggle/cells/diag_vllm.py (if vLLM
-dies: "Connect call failed 127.0.0.1:8000" — run in the same session before stopping). Results unpack to
-data/results/<date>_<rung>/.
-
-**Next options (user to choose):** LoRA (user: soon; first check adapters take effect on Kaggle vLLM); target
-4–5/16 on dev v2 by combining learnings (rung-3d/3e); router idea parked (deep vs fast after reading).
-
-**Update 2026-10-14 evening:** rung-3d/3e done (table in experiments/2026-10-13_dev16/notes.md): bf 4, mix 4,
-r4_mid 3, r4_mid1k 3, le 3, lo 2; union 7/16; bottleneck = wrong edits. **mix packed as dist/submission.zip
-(sha 883eeed0…) for LB** (previous zip kept as dist/r4_budget_submitted.zip). User idea: le (locator → editor)
-may pay off with LoRA, one adapter per role. Both notebooks ran tasks serially despite CONCURRENCY=2 (cause
-unknown; check cell 2/4 in the Kaggle draft); the two accounts shared one notebook, so the CLI only sees the latest
-version: use separate copies per account.
-
-**Update 2026-10-17: LoRA WORKS ON THE SCORER.** Noise-adapter test (public Budget-Fit + loud noise adapter on
-layer 0 q/o_proj) scored 0.01 vs its 0.17-0.18 baseline: the server starts with an adapter and the adapter changes
-outputs. le6_t6 (6-min cap) scored 0.15 and finished within 12 h. Leaderboard best stays mix 0.17. Next: fine-tuning.
-
-**Update 2026-10-16:** prompt/architecture plateau at 4/16 on dev v2 for mix, bf, le5, le6 (details in
-experiments/2026-10-13_dev16/notes.md, rung-3e..3m). le5 SUBMITTED 2026-10-15 → **Notebook Timeout (>12 h, no score)**. Next slot:
-le6_t6 = le6 with a 6-min cap (dist/submission.zip, sha 4e119be2; setup skill installs .git/agent/read.py; first test of that pattern on the
-scorer). Then the LoRA platform test (noise adapter). GPU quota this week: ~50 min left after rung-3m.
-
-**Tomorrow (2026-10-15):** (1) mix (dist/submission.zip, sha 883eeed0) SUBMITTED 2026-10-14 → **LB 0.17 (new best; dev 4/16 ≈ 0.17)**. Tomorrow's slot = a LoRA test submission. (2) Fine-tuning
-planning continues: user asked for the pipeline (explained; LoRA status below). Proposed first step = Kaggle
-platform test with a noise adapter (server starts? output changes?) before any training. Open questions to user:
-GPU outside Kaggle? first adapter on mix (suggested) or le (per-role adapters)? Data source for trajectories.
+### Tooling
+make_kaggle_notebook.py (--tasks --configs --repeats --concurrency --model --log-requests --gold-tasks --gold-out
+--out); pack.py; behaviour.py; speed.py; analyze.py; render_traces.py (trace or request-log → Gemma text + token
+check); request_logger.py (+ test_request_logger.py: fake vLLM, passes); data/venv_harness = exact competition
+harness (swegemma 0.2.11, adk_submission 0.2.13, google-adk 1.36.1, google-genai 2.11.0; LiteLLM version on Kaggle
+unknown); data/gemma4_tokenizer = tokenizer + chat template. dist/: submission.zip = le6_t6; *_submitted.zip,
+le6.zip, le5.zip, mix_lora_noise.zip, bf_lora_noise.zip.
 
 ## Context
 Kaggle "Google – The Gemma 4 Developer Agent Competition" (Google DeepMind, Featured, $65k) + optional
