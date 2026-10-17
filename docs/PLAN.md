@@ -67,6 +67,10 @@ may pay off with LoRA, one adapter per role. Both notebooks ran tasks serially d
 unknown; check cell 2/4 in the Kaggle draft); the two accounts shared one notebook, so the CLI only sees the latest
 version: use separate copies per account.
 
+**Update 2026-10-17: LoRA WORKS ON THE SCORER.** Noise-adapter test (public Budget-Fit + loud noise adapter on
+layer 0 q/o_proj) scored 0.01 vs its 0.17-0.18 baseline: the server starts with an adapter and the adapter changes
+outputs. le6_t6 (6-min cap) scored 0.15 and finished within 12 h. Leaderboard best stays mix 0.17. Next: fine-tuning.
+
 **Update 2026-10-16:** prompt/architecture plateau at 4/16 on dev v2 for mix, bf, le5, le6 (details in
 experiments/2026-10-13_dev16/notes.md, rung-3e..3m). le5 SUBMITTED 2026-10-15 → **Notebook Timeout (>12 h, no score)**. Next slot:
 le6_t6 = le6 with a 6-min cap (dist/submission.zip, sha 4e119be2; setup skill installs .git/agent/read.py; first test of that pattern on the

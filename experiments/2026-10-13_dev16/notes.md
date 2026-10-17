@@ -235,3 +235,8 @@ le5 (submitted 10-15 22:04) exceeded the 12 h runtime: no score. Dev projection 
 scorer needs more time than dev timings suggest (mix projects 11.5-12.7 h and passed once at 0.17). le6 projects
 11.2 h at 8 min. le6_t6 = le6 with max_time_minutes 6 (projected 10.5 h; le6's dev solves took <= 357 s; across the
 le family 6/27 solves took > 6 min). dist/submission.zip = le6_t6 (sha 4e119be2).
+
+## Leaderboard 2026-10-17: le6_t6 = 0.15 (finished in time); LoRA noise test (bf + noise adapter) = 0.01
+le6_t6 (6-min cap) completed: 0.15 vs mix 0.17 (within the ±0.02 noise of identical packages; the cap may cost a
+little). LoRA test from a friend's account (public Budget-Fit bundle, public baseline 0.17-0.18) scored 0.01:
+the noise adapter broke the model → adapters DO take effect on the scorer and the server starts with LoRA.
