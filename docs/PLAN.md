@@ -1,6 +1,6 @@
 # Gemma 4 Developer Agent — Competition Plan (living doc)
 
-## >>> START HERE (session handoff, updated 2026-10-17) <<<
+## >>> START HERE (session handoff, updated 2026-10-18) <<<
 **User:** beginner to agents/ADK (ML engineer background); wants step-by-step plain explanations, research-backed
 claims (verify, cite), chat before building, decides when planning ends. Rules: one change per arm where possible;
 prompts generic (no dev-task content); competition data never committed (data/ is gitignored, incl. adapters built
@@ -8,6 +8,22 @@ from sample data); Kaggle token only in ~/.kaggle/access_token. Give Kaggle cell
 change cell 4's printed output. **No training data from Claude, GPT or Gemini (user decision, D14).** Each Kaggle
 account runs its OWN notebook copy (a shared notebook made `kaggle kernels output` return only the latest version
 and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly quota is tight → small runs.
+
+### WHERE WE ARE (2026-10-18, read first)
+- **Waiting on (user):** (1) GPU data-gen pilot #2 running: mix 31B on 16 gradable tasks with cells 2b (test deps
+  from the gold notebook output test-gemma-comp) + 2c (per-task pins) + 3b (logger → requests/requests.jsonl, now
+  zipped by cell 5). On arrival: `data/venv_harness/bin/python scripts/render_traces.py <requests.jsonl>` (expect
+  vLLM = rendered +1 per request until the /tokenize check explains it), count solved. (2) 31B training probe
+  (kaggle/cells_train_probe/, defaults 31B, lengths 4k–24k, lr 1e-4 + clip, cell 4 asks vLLM /tokenize).
+- **Decided:** thinking ON in training data (user). Data sources = Open-SWE-Traces thinking teachers (117k clean
+  Python resolved: Qwen3.8-27B, Qwen3.8-Flash-Next, DeepSeek-V4-Flash, MiniMax-M2.5) + Gemma's own successes;
+  Qwen3-Coder sets (SWE-Lego/CoderForge/Nebius/SWE-Hero) have no reasoning → secondary. Decontam = drop whole
+  fastapi/requests/rich/httpx repos (done, scripts/datasets/decontam.py). No RL (compute); maybe 2nd SFT round/DPO.
+- **Next build (after results):** dataset pipeline: convert OpenHands/SWE-agent/mini-swe-agent tool calls to our
+  tools, filter ≤28 calls/≤32k, rank by error-retry rate, dedupe by task, mask failed steps, render with Gemma's
+  template as "exact prompt + generation". Then speed: 12B data-parallel (4 copies), 31B pipelining; second account
+  only for relay training / data-gen (public data + public model only).
+- Background check pending: R2E-Gym rescan of CoderForge (expect 0 from our repos).
 
 ### Leaderboard (all no-LoRA unless noted)
 | submission | LB | notes |
