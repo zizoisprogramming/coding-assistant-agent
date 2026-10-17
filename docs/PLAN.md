@@ -56,10 +56,22 @@ request fixed hand-off: no-edits 4→2, score unchanged). 12B: decodes 2x faster
    distribution matters more than family).
 4. **Targets:** 12B pipeline debug 30–60 samples; first real 31B adapter 300–500 trajectories (SWE-Gym: 491 →
    +13.6 pts). 12B baseline to beat: mix_12b 2/16, 1/16, no-edit 9/16 (data/results/2026-10-17_12b_base_dev16).
-5. **Training compute:** Kaggle L4x4 (FSDP+QLoRA untested) or rented H100 (~$2–3/h, few hours); Colab Pro ~$10/mo
-   ≈ 7–10 A100 h (40 GB, tight). Train on the bf16 QAT checkpoint; export PEFT (adapter_config + safetensors, layer
-   names base_model.model.model.language_model.layers.N...; rank ≤128, ≤8 adapters, `adapter:` per agent YAML).
-
+5. **Training compute: Kaggle only (user: no money for rentals/APIs).** Filtering = code rules first (repeats, long
+   read-before-edit, test-file edits, oversized patches, nudges); LLM judge later only if needed: Qwen3-Coder-30B-A3B
+   on Kaggle (not Gemma: self-preference bias; not Claude/GPT: their terms bar using output to develop models).
+   **Trainer = scripts/train/int4_lora.py (2026-10-17):** trains LoRA directly on the competition's 4-bit
+   compressed-tensors checkpoint (packed int4 kept in memory, unpacked one layer at a time; transformers' own path
+   decompresses the WHOLE model to bf16 = 62 GB for the 31B). Chunked loss (262k vocab) on labelled tokens only.
+   Saves PEFT format (base_model.model.model.language_model.layers.N...). CPU test on a tiny Gemma 4 in the same
+   format: scripts/train/test_int4_lora_tiny.py (outputs = transformers-decompressed exactly; loss = transformers';
+   grads equal with checkpointing; PEFT loading the saved adapter = ours exactly in fp32). venv: data/venv_train
+   (transformers 5.13.1, compressed-tensors 0.15.0.1 = wheelhouse versions, peft 0.21.2).
+   **PENDING Kaggle probe** kaggle/cells_train_probe/ (cell1, cell2_int4_lora, cell3_probe, cell4_vllm_adapter; L4x4,
+   12B first then 31B) → train_probe.json: sanity answer, peak memory/speed per length 2k→32k, a 30-step "secret
+   word" training, and vLLM serving the adapter (vllm_adapter_check.json).
+   **Sample building rule (found 2026-10-17):** sample = the exact prompt the model saw + exactly what it generated
+   (request logger records both); re-rendering a finished conversation is NOT the same text (thinking-off prompts
+   end with an empty `<|channel>thought\n<channel|>` that the re-render drops).
 ### Tooling
 make_kaggle_notebook.py (--tasks --configs --repeats --concurrency --model --log-requests --gold-tasks --gold-out
 --out); pack.py; behaviour.py; speed.py; analyze.py; render_traces.py (trace or request-log → Gemma text + token
