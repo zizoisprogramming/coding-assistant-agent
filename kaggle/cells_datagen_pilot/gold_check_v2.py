@@ -3,8 +3,9 @@
 # the sandbox's Python sees this notebook's installed packages, and the public test wheels miss some test
 # dependencies (forum 745775), so "No module named X" makes a correct fix look failed. Each round collects every
 # missing module, pip-installs it with --no-deps (nothing already installed is upgraded), and re-grades the failures.
-# Writes /kaggle/working/gold_check.json (per task) and /kaggle/working/test_deps.txt (what was installed; the GPU
-# data-gen notebook installs the same list so its "solved" labels are trustworthy). Resumes after a restart.
+# Writes /kaggle/working/gold_check.json (per task), test_deps.txt (what was installed) and test_deps_wheels/ (the same
+# packages as Python 3.12 wheels: the GPU notebook has no internet, so attach THIS notebook's output to it as an input
+# and cell2b installs from there). Resumes after a restart.
 import logging, warnings
 warnings.filterwarnings('ignore')
 logging.getLogger('swegemma.sandbox.subprocess').setLevel(logging.ERROR)
@@ -96,6 +97,8 @@ def build_config(submission_dir, task_ids, results_dir, models, data_dir=DATA, s
 # ---- v2 ----
 OUT = WORKING_DIR / 'gold_check.json'
 DEPS = WORKING_DIR / 'test_deps.txt'
+WHEELS_OUT = WORKING_DIR / 'test_deps_wheels'  # attach this notebook's output to the GPU notebook
+WHEELS_OUT.mkdir(exist_ok=True)
 ROUNDS = 4
 # module name -> pip name where they differ; repo packages and repo-local folders are never installed
 PIP_NAME = {'yaml': 'PyYAML', 'multipart': 'python-multipart', 'jose': 'python-jose', 'jwt': 'PyJWT',
@@ -175,6 +178,13 @@ def pip_install(modules):
         if r.returncode == 0:
             installed.append(name)
             new.append(name)
+            # the GPU notebook has no internet: keep a wheel built for ITS Python (3.12) to install from offline
+            d = subprocess.run([sys.executable, '-m', 'pip', 'download', '-q', '--no-deps', '--only-binary=:all:',
+                                '--python-version', '3.12', '--platform', 'manylinux_2_28_x86_64',
+                                '--platform', 'manylinux2014_x86_64', '-d', str(WHEELS_OUT), name],
+                               capture_output=True, text=True)
+            if d.returncode != 0:
+                print(f'   (no py3.12 wheel for {name}: {d.stderr.strip()[-150:]})')
     DEPS.write_text('\n'.join(installed) + '\n')
     return new
 
@@ -202,6 +212,7 @@ async def main():
         by_repo[t.split('_')[0]][1] += 1
     print('\n==> usable per repo:', {k: f'{a}/{b}' for k, (a, b) in by_repo.items()})
     print('==> installed test deps:', installed)
+    print('==> wheels for the GPU notebook:', sorted(p.name for p in WHEELS_OUT.glob('*.whl')))
     left = {}
     for t, r in done.items():
         if not r['usable']:

@@ -39,8 +39,9 @@ request fixed hand-off: no-edits 4→2, score unchanged). 12B: decodes 2x faster
    (it renders to vLLM's count -1; HF's template gives the identical text, so vLLM adds 1 token, probably a 2nd BOS;
    probe cell 4 now asks vLLM /tokenize). Logger now writes plain requests.jsonl; cell 5 puts it in results.zip.
    **NEXT (user):** CPU session, INTERNET ON: cell1_cpu, cell2, **gold_check_v2.py** (installs missing test deps in
-   rounds, re-grades, writes gold_check.json + test_deps.txt). Then put test_deps.txt's list into
-   cell2b_test_deps.py and re-run the pilot (cells 1, 2, **2b**, 3 = 31B, 3b, 4, 5) to capture the request log.
+   rounds, re-grades, writes gold_check.json + test_deps.txt + **test_deps_wheels/** = the same packages as py3.12
+   wheels). GPU sessions have NO internet (Kaggle): attach the gold notebook's OUTPUT as an input; cell2b installs
+   from it offline. Then re-run the pilot (cells 1, 2, **2b**, 3 = 31B, 3b, 4, 5) to capture the request log.
    Later: CoderForge tasks run by Gemma itself (user idea: pick 3–5 SWE-Smith repos with many easy tasks; quota
    allows ~340 attempts/week → ~70–100 successes/week; start by counting tasks per repo).
 2. **Sample format (agreed with user):** one sample = one trajectory rendered with Gemma 4's chat template
