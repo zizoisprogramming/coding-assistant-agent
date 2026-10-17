@@ -118,6 +118,8 @@ def analyze(results_dir):
 
 for _, key in RUNS:
     analyze(RESULTS / key)
+if (WORKING_DIR / 'requests').is_dir():  # the request log (training data) goes inside the zip too
+    shutil.copytree(WORKING_DIR / 'requests', RESULTS / 'requests', dirs_exist_ok=True)
 shutil.make_archive(str(WORKING_DIR / 'results'), 'zip', RESULTS)
 print('\nWall clock per config (min):', {k: round(v / 60, 1) for k, v in wall.items()})
 print('Wrote /kaggle/working/results.zip')

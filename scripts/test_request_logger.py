@@ -8,7 +8,6 @@ call was recorded with the exact messages, tools, thinking switch and reply, and
 the history the way the harness sends it.
 """
 import asyncio
-import gzip
 import json
 import socket
 import sys
@@ -76,7 +75,7 @@ def main():
     threading.Thread(target=server.serve_forever, daemon=True).start()
 
     from request_logger import install_request_logger
-    log = Path(tempfile.mkdtemp()) / "requests.jsonl.gz"
+    log = Path(tempfile.mkdtemp()) / "requests.jsonl"
     install_request_logger(log)
 
     from adk_submission import VllmConfig, VllmServer, compile_submission
@@ -102,7 +101,7 @@ def main():
     asyncio.run(run_agent(agent))
     server.shutdown()
 
-    recs = [json.loads(l) for l in gzip.open(log, "rt")]
+    recs = [json.loads(l) for l in open(log)]
     print(f"fake server got {len(SEEN)} requests; logger recorded {len(recs)}")
     assert len(recs) == len(SEEN) == 3, "every call must be recorded"
     for i, (rec, sent) in enumerate(zip(recs, SEEN)):

@@ -31,13 +31,18 @@ request fixed hand-off: no-edits 4→2, score unchanged). 12B: decodes 2x faster
 9/16 → target for LoRA. Only event-triggered signals in tool output change behaviour.
 
 ### NOW: fine-tuning pipeline (debug on 12B, final on 31B)
-1. **Pending runs (user):**
-   - **Data-gen pilot** kaggle/cells_datagen_pilot/: mix on **31B** (cell 3 = 31B, NOT the 12B left in the notebook)
-     on 16 non-dev tasks + new **cell 3b = request logger** → /kaggle/working/requests/requests.jsonl.gz.
-     First check after download: `data/venv_harness/bin/python scripts/render_traces.py <requests.jsonl.gz>` →
-     every rendered request must equal vLLM prompt_tokens (expect 0 diffs; trace-based rendering had a fixed -21).
-   - **Gold check on all 113 non-dev tasks** (CPU session: cell1, cell2, kaggle/cells_datagen_pilot/gold_check_113.py
-     → /kaggle/working/gold_check.json): which tasks are gradable (only those give trustworthy "solved" labels).
+1. **Pilot + gold check results (2026-10-17, data/results/2026-10-17_datagen_pilot/):** mix 31B solved 3/16
+   (fastapi_14372, rich_3905, rich_3518). Gold check v1: only **38/113 gradable** (rich 33/41, fastapi 5/58,
+   requests 0/13, httpx 0/1). Cause = test deps missing from the public wheels (dirty_equals etc.; same on the GPU
+   run, NOT Python 3.13); the sandbox venv uses the notebook's site-packages (system_site_packages=True), so
+   pip-installing them fixes grading. **Request log lost:** browser download unpacked the multi-block .gz → 1 record
+   (it renders to vLLM's count -1; HF's template gives the identical text, so vLLM adds 1 token, probably a 2nd BOS;
+   probe cell 4 now asks vLLM /tokenize). Logger now writes plain requests.jsonl; cell 5 puts it in results.zip.
+   **NEXT (user):** CPU session, INTERNET ON: cell1_cpu, cell2, **gold_check_v2.py** (installs missing test deps in
+   rounds, re-grades, writes gold_check.json + test_deps.txt). Then put test_deps.txt's list into
+   cell2b_test_deps.py and re-run the pilot (cells 1, 2, **2b**, 3 = 31B, 3b, 4, 5) to capture the request log.
+   Later: CoderForge tasks run by Gemma itself (user idea: pick 3–5 SWE-Smith repos with many easy tasks; quota
+   allows ~340 attempts/week → ~70–100 successes/week; start by counting tasks per repo).
 2. **Sample format (agreed with user):** one sample = one trajectory rendered with Gemma 4's chat template
    (data/gemma4_tokenizer/chat_template.jinja; whole run is ONE model turn; tool responses inside it; thinking kept
    after the last user msg; nudges are user msgs and drop earlier thinking); labels = -100 except model tokens

@@ -121,7 +121,7 @@ def check_requests(path, limit=None):
     tmpl, bos = load_template()
     tok = Tokenizer.from_file(str(TOK_DIR / "tokenizer.json"))
     exact = off = 0
-    for n, line in enumerate(gzip.open(path, "rt")):
+    for n, line in enumerate(gzip.open(path, "rt") if str(path).endswith(".gz") else open(path)):
         if limit and n >= limit:
             break
         rec = json.loads(line)
@@ -139,11 +139,11 @@ def check_requests(path, limit=None):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("trace", help="a harness trace (.json) or a request log (.jsonl.gz from request_logger.py)")
+    ap.add_argument("trace", help="a harness trace (.json) or a request log (.jsonl or .jsonl.gz from request_logger.py)")
     ap.add_argument("--steps", type=int, default=6, help="how many model calls to check")
     ap.add_argument("--show", action="store_true", help="print the rendered text of the first call")
     a = ap.parse_args()
-    if a.trace.endswith(".jsonl.gz"):
+    if a.trace.endswith((".jsonl", ".jsonl.gz")):
         return check_requests(a.trace)
     trace = json.loads(Path(a.trace).read_text())
     tmpl, bos = load_template()

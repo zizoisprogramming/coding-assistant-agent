@@ -1,8 +1,9 @@
 # 3b. Record every model request and reply exactly as sent to vLLM (training data). Prints nothing during the run.
 # Wraps ADK's LiteLLMClient.acompletion (the only path ADK uses to call the model) and appends one JSON line per call
-# to a gzip file: the exact messages, tools and extra request fields, and the reply (content, reasoning, tool calls,
+# to a plain JSONL file (uncompressed on purpose: a browser download unpacked a multi-block .gz and kept only
+# its first record): the exact messages, tools and extra request fields, and the reply (content, reasoning, tool calls,
 # usage). Training samples are rendered from these records with Gemma's chat template (scripts/render_traces.py).
-import gzip, json, os, threading, time
+import json, os, threading, time
 from pathlib import Path
 
 
@@ -39,7 +40,7 @@ def install_request_logger(path):
 
     def _write(record):
         line = json.dumps(record, ensure_ascii=False, default=repr)
-        with lock, gzip.open(path, 'at', encoding='utf-8') as f:
+        with lock, open(path, 'a', encoding='utf-8') as f:
             f.write(line + '\n')
 
     async def acompletion(self, model, messages, tools, **kwargs):
@@ -64,6 +65,6 @@ def install_request_logger(path):
     return path
 
 
-REQUEST_LOG = install_request_logger(Path('/kaggle/working') / 'requests' / 'requests.jsonl.gz') \
+REQUEST_LOG = install_request_logger(Path('/kaggle/working') / 'requests' / 'requests.jsonl') \
     if os.path.isdir('/kaggle/working') else None
 print('Recording model requests to', REQUEST_LOG)

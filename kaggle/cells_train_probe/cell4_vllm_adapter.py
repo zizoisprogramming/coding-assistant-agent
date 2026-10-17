@@ -54,6 +54,24 @@ def ask(model_name, text):
 
 
 result = {'served': served}
+
+# Which tokens does vLLM actually feed the model for a chat request? (Our renderer = Hugging Face's template exactly,
+# yet vLLM's prompt_tokens is 1 higher on a real request: find that token, so training samples match exactly.)
+from transformers import AutoTokenizer
+_tok = AutoTokenizer.from_pretrained(MODEL_PATH)
+_msgs = [{'role': 'system', 'content': 'You are a helpful assistant.'}, {'role': 'user', 'content': 'Hi there'}]
+for _think in (False, True):
+    _req = urllib.request.Request(base.rsplit('/v1', 1)[0] + '/tokenize', headers={'Content-Type': 'application/json'},
+                                  data=json.dumps({'model': str(MODEL_PATH), 'messages': _msgs,
+                                                   'add_generation_prompt': True,
+                                                   'chat_template_kwargs': {'enable_thinking': _think}}).encode())
+    _v = json.load(urllib.request.urlopen(_req))['tokens']
+    _h = _tok(_tok.apply_chat_template(_msgs, add_generation_prompt=True, enable_thinking=_think, tokenize=False),
+              add_special_tokens=False)['input_ids']
+    result[f'tokenize_thinking_{_think}'] = {'vllm_n': len(_v), 'hf_n': len(_h), 'vllm_first': _v[:6],
+                                              'hf_first': _h[:6], 'vllm_last': _v[-4:], 'hf_last': _h[-4:]}
+    print(f'tokenize (thinking {_think}): vLLM {len(_v)} tokens, HF template {len(_h)};',
+          'first', _v[:4], 'vs', _h[:4], '| last', _v[-3:], 'vs', _h[-3:])
 for name in (str(MODEL_PATH), 'probe'):
     result[name] = {'secret': ask(name, 'What is the secret word?'),
                     'math': ask(name, 'What is 17 + 25? Reply with the number only.')}
