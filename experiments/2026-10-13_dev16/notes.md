@@ -240,3 +240,5 @@ le family 6/27 solves took > 6 min). dist/submission.zip = le6_t6 (sha 4e119be2)
 le6_t6 (6-min cap) completed: 0.15 vs mix 0.17 (within the ±0.02 noise of identical packages; the cap may cost a
 little). LoRA test from a friend's account (public Budget-Fit bundle, public baseline 0.17-0.18) scored 0.01:
 the noise adapter broke the model → adapters DO take effect on the scorer and the server starts with LoRA.
+
+## 12B baseline (prepared 2026-10-17): mix_12b = mix with model gemma-4-12b-it-qat-w4a16-ct; dev16 x2; notebook kaggle/cells_12b_base (cells 2 and 3 differ: TARGET_MODEL_NAME = 12B switches on the hf-overrides + vision_embedder skip patch).
