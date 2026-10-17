@@ -3,7 +3,10 @@ import re
 DATA_DIR = Path('/kaggle/input/competitions/gemma-4-developer-agent')
 WORKING_DIR = Path('/kaggle/working')
 SUB_ROOT = WORKING_DIR / 'submissions'
-TASK_IDS = ['fastapi_12942', 'fastapi_14099', 'fastapi_14372', 'fastapi_15588', 'requests_6757', 'requests_7328', 'requests_7502', 'requests_7505', 'rich_3278', 'rich_3506', 'rich_3518', 'rich_3535', 'rich_3772', 'rich_3782', 'rich_3905', 'rich_4006']
+# all 16 gradable in the Kaggle sandbox (gold check 2026-10-17: requests tasks and rich_3782 are not, replaced)
+TASK_IDS = ['fastapi_12942', 'fastapi_14099', 'fastapi_14372', 'fastapi_15588', 'fastapi_14962', 'fastapi_14786',
+            'fastapi_14492', 'fastapi_14609', 'rich_3278', 'rich_3506', 'rich_3518', 'rich_3535', 'rich_3772',
+            'fastapi_14349', 'rich_3905', 'rich_4006']
 CONFIGS = ['mix']
 REPEATS = 1
 CONCURRENCY = 2  # tasks evaluated at the same time (each has its own workspace and /tmp)

@@ -49,6 +49,11 @@ request fixed hand-off: no-edits 4→2, score unchanged). 12B: decodes 2x faster
    missing pytest-httpbin plugin → added to gold check (installed with only-missing deps; py3.12 wheels verified).
    Order — gold (CPU, internet): cell1_cpu, cell2, cell2c, gold_check_v2. Data-gen (GPU): cell1, cell2, cell2b
    (attach gold output), cell2c, cell3, cell3b, cell4, cell5.
+   **Gold check final (data/results/2026-10-17_gold_check_v5/): 84/113 gradable** (fastapi 51/58 with cell2c,
+   rich 33/41, requests 0/13, httpx 0/1). requests: on Kaggle the pytest-httpbin plugin is not picked up (fixture
+   recursion; not reproducible locally, where it loads) and on Python 3.13 its HTTPS tests fail certificate checks
+   anyway → requests excluded for now. test_deps_wheels/ (20 wheels) is in that output → GPU notebook input.
+   Pilot task list now = 16 gradable tasks (4 requests + rich_3782 swapped for fastapi).
    Later: CoderForge tasks run by Gemma itself (user idea: pick 3–5 SWE-Smith repos with many easy tasks; quota
    allows ~340 attempts/week → ~70–100 successes/week; start by counting tasks per repo).
 2. **Sample format (agreed with user):** one sample = one trajectory rendered with Gemma 4's chat template
