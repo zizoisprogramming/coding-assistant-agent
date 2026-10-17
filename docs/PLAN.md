@@ -91,6 +91,11 @@ request fixed hand-off: no-edits 4→2, score unchanged). 12B: decodes 2x faster
    (mini-swe-agent 34k / sweagent 11k / openhands 9k), Qwen3.8-Flash-Next 34k, DeepSeek-V4-Flash 18k (openhands),
    MiniMax-M2.5 10k. Thinking off (skip): Qwen3.6-27B 58k, Qwen3.5-122B 6k. Thinking flag read from the first row
    of each folder. → Thinking data is plentiful; no need to backfill reasoning into Qwen3-Coder runs.
+   **Decontamination scan (scripts/datasets/decontam.py, data/decontam_report.json, 2026-10-18):** drops every row
+   from fastapi/requests/rich/httpx. Nebius 315/67k (httpx), SWE-Hero 73/34k, Open-SWE-Traces 674/678k (548 rich incl.
+   textualize__rich-3006 = OUR task rich_3006; 126 httpx incl. an unrelated Go "httpx" = harmless over-blocking),
+   CoderForge 644/413k (httpx), SWE-Lego 51/18k + 10/11k. No fastapi/requests rows anywhere. R2E-Gym ids
+   (qingyangwu/<repo>_final:<commit>) now parsed (were 54k "unknown" in CoderForge).
    **Curation evidence:** SWE-Prime (arXiv 2608.27449): best 10% of resolved trajectories beats all of them (+24%
    rel. Verified) and loss only on useful segments; LoRA curation study (arXiv 2607.17205, Qwen2.5-Coder-7B on the
    Nebius set): error-retry rate is THE quality signal; quality filtering pays off from ~2k samples, below that

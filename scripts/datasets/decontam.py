@@ -12,6 +12,7 @@ Each source names its task differently; repo_of() handles all of them:
   SWE-smith style id      "tiangolo__fastapi.ab12cd34.func_pm_remove_assign__x1y2"
   CoderForge run id       "0b01001001__spectree-64_run2"
   docker image            "qingyangwu/sweb.eval.x86_64.0b01001001_1776_spectree-64"
+  R2E-Gym image           "qingyangwu/aiohttp_final:3c31b3837404fa2fed3cdd42e89f9d6f25c6931e"
 """
 import json
 import re
@@ -47,6 +48,9 @@ def repo_of(row):
     img = row.get("image")
     if isinstance(img, str) and "_1776_" in img:                   # sweb.eval.x86_64.owner_1776_repo-NUM
         return re.sub(r"-\d+$", "", img.split("_1776_", 1)[1]).lower()
+    m = re.match(r"^[^/]+/([A-Za-z0-9_.-]+?)_final:[0-9a-f]+$", img or "")  # R2E-Gym: user/repo_final:commit
+    if m:
+        return m.group(1).lower()
     return None
 
 
@@ -102,6 +106,8 @@ def self_test():
         got = repo_of({"instance_id": iid})
         assert got == want, (iid, got, want)
     assert repo_of({"image": "qingyangwu/sweb.eval.x86_64.0b01001001_1776_spectree-64"}) == "spectree"
+    assert repo_of({"trajectory_id": "qingyangwu_aiohttp_final_3c31b383_run5",
+                    "image": "qingyangwu/aiohttp_final:3c31b3837404fa2fed3cdd42e89f9d6f25c6931e"}) == "aiohttp"
     assert repo_of({"repo": "Textualize/rich"}) == "rich" and is_contaminated({"repo": "psf/requests"})
     assert not is_contaminated({"repo": "psf/requests-html"}) and is_contaminated({})
     print("self-test ok; blocked repos:", sorted(BLOCKED))
