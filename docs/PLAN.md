@@ -98,6 +98,12 @@ request fixed hand-off: no-edits 4→2, score unchanged). 12B: decodes 2x faster
    **PENDING Kaggle probe** kaggle/cells_train_probe/ (cell1, cell2_int4_lora, cell3_probe, cell4_vllm_adapter; L4x4,
    12B first then 31B) → train_probe.json: sanity answer, peak memory/speed per length 2k→32k, a 30-step "secret
    word" training, and vLLM serving the adapter (vllm_adapter_check.json).
+   **Probe #1 result (12B, L4x4, data/results/2026-10-17_train_probe/):** load 4 min, int4 weights read correctly
+   ("17 + 25" -> "42"); ALL lengths fit up to 32k (peak 19.7 GiB/GPU at 32k; 10.2 at 16k); speed 84-154 tok/s
+   (fwd+bwd, one GPU busy at a time). Secret-word training FAILED: lr 1e-3 diverged (0.002 -> 16.9), model then
+   answered "" in transformers AND in vLLM (so vLLM did apply the adapter; base unaffected). Fixed: lr 1e-4, grad clip
+   1.0, early stop. Ran the old cell 4 (no /tokenize check). Throughput is the real limit: 1k trajectories x 15k tok
+   = 15M tok = ~30 h on the 12B at this speed -> needs data-parallel (12B fits per GPU) / speed work / fewer tokens.
    **Sample building rule (found 2026-10-17):** sample = the exact prompt the model saw + exactly what it generated
    (request logger records both); re-rendering a finished conversation is NOT the same text (thinking-off prompts
    end with an empty `<|channel>thought\n<channel|>` that the re-render drops).

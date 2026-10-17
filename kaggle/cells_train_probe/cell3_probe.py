@@ -125,14 +125,20 @@ try:
     labels = f_ids.clone()
     labels[:, :p_ids.shape[1]] = -100  # train only on the answer
     report['before_training_answer'] = greedy(q)
-    opt = torch.optim.AdamW([p for p in model.parameters() if p.requires_grad], lr=1e-3, weight_decay=0.0)
+    # lr 1e-4 + gradient clipping (the first probe used 1e-3: loss reached 0.002, then diverged to 16.9 and the
+    # model answered nothing); stop once the answer is learned instead of hammering one sample
+    trainable = [p for p in model.parameters() if p.requires_grad]
+    opt = torch.optim.AdamW(trainable, lr=1e-4, weight_decay=0.0)
     losses = []
-    for step in range(30):
+    for step in range(60):
         opt.zero_grad(set_to_none=True)
         loss, _ = masked_lm_loss(model, text_hidden_states(model, f_ids), labels)
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(trainable, 1.0)
         opt.step()
         losses.append(round(loss.item(), 3))
+        if len(losses) >= 3 and max(losses[-3:]) < 0.05:
+            break
     report['train_losses'] = losses
     report['after_training_answer'] = greedy(q)
     print('D. losses', losses[::5], losses[-1])
