@@ -107,7 +107,7 @@ PIP_NAME = {'yaml': 'PyYAML', 'multipart': 'python-multipart', 'jose': 'python-j
             'h2': 'h2', 'sse_starlette': 'sse-starlette', 'inline_snapshot': 'inline-snapshot',
             'dirty_equals': 'dirty-equals', 'pydantic_settings': 'pydantic-settings', 'sqlmodel': 'sqlmodel'}
 # found missing when grading locally (data/wheels_extra): installed up front to save a round
-PREINSTALL = ['dirty_equals', 'inline_snapshot', 'asttokens', 'executing', 'typing_inspection']
+PREINSTALL = ['dirty_equals', 'inline_snapshot', 'asttokens', 'executing', 'typing_inspection', 'pytest_httpbin']
 NEVER = {'tests', 'docs', 'docs_src', 'conftest', 'scripts', 'fastapi', 'requests', 'rich', 'httpx'}
 
 done = json.loads(OUT.read_text()) if OUT.exists() else {}
@@ -166,20 +166,26 @@ async def grade(task_ids, config, tasks, evaluator):
         gc.collect()
 
 
+# requests' tests need the pytest-httpbin plugin, which pulls flask/werkzeug/...: installed WITH its dependencies,
+# but pip only adds the missing ones (an already-satisfied package is never upgraded)
+WITH_DEPS = {'pytest-httpbin'}
+
+
 def pip_install(modules):
     new = []
     for m in modules:
         if m in NEVER or m in installed:
             continue
         name = PIP_NAME.get(m, m.replace('_', '-'))
-        r = subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', '--no-deps', name],
+        nodeps = [] if name in WITH_DEPS else ['--no-deps']
+        r = subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', *nodeps, name],
                            capture_output=True, text=True)
-        print(f'   pip install --no-deps {name}:', 'ok' if r.returncode == 0 else 'FAILED ' + r.stderr.strip()[-200:])
+        print(f'   pip install {" ".join(nodeps)} {name}:', 'ok' if r.returncode == 0 else 'FAILED ' + r.stderr.strip()[-200:])
         if r.returncode == 0:
             installed.append(name)
             new.append(name)
             # the GPU notebook has no internet: keep a wheel built for ITS Python (3.12) to install from offline
-            d = subprocess.run([sys.executable, '-m', 'pip', 'download', '-q', '--no-deps', '--only-binary=:all:',
+            d = subprocess.run([sys.executable, '-m', 'pip', 'download', '-q', *nodeps, '--only-binary=:all:',
                                 '--python-version', '3.12', '--platform', 'manylinux_2_28_x86_64',
                                 '--platform', 'manylinux2014_x86_64', '-d', str(WHEELS_OUT), name],
                                capture_output=True, text=True)

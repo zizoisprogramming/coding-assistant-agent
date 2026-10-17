@@ -42,6 +42,13 @@ request fixed hand-off: no-edits 4→2, score unchanged). 12B: decodes 2x faster
    rounds, re-grades, writes gold_check.json + test_deps.txt + **test_deps_wheels/** = the same packages as py3.12
    wheels). GPU sessions have NO internet (Kaggle): attach the gold notebook's OUTPUT as an input; cell2b installs
    from it offline. Then re-run the pilot (cells 1, 2, **2b**, 3 = 31B, 3b, 4, 5) to capture the request log.
+   **Gold check v2 result:** 44/113 usable (fastapi 11/58, rich 33/41, requests 0/13, httpx 0/1). Left: 42 fastapi =
+   Kaggle's Starlette 1.x (Router(on_startup) removed) → **cell2c_pin_task_deps.py**: after each sandbox setup,
+   installs into THAT sandbox (pip --target venv site-packages) the newest competition wheel satisfying the task's
+   pyproject spec (verified locally: Starlette 1.6 host → fail; with hook → pinned 0.50.0 → PASS); 12 requests =
+   missing pytest-httpbin plugin → added to gold check (installed with only-missing deps; py3.12 wheels verified).
+   Order — gold (CPU, internet): cell1_cpu, cell2, cell2c, gold_check_v2. Data-gen (GPU): cell1, cell2, cell2b
+   (attach gold output), cell2c, cell3, cell3b, cell4, cell5.
    Later: CoderForge tasks run by Gemma itself (user idea: pick 3–5 SWE-Smith repos with many easy tasks; quota
    allows ~340 attempts/week → ~70–100 successes/week; start by counting tasks per repo).
 2. **Sample format (agreed with user):** one sample = one trajectory rendered with Gemma 4's chat template

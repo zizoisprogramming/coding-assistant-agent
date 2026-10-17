@@ -6,8 +6,8 @@ import gc, glob, json, os, time, traceback
 from pathlib import Path
 import torch
 
-TARGET_MODEL_NAME = 'gemma-4-12b-it-qat-w4a16-ct'   # then 'gemma-4-31b-it-qat-w4a16-ct'
-LENGTHS = [2048, 4096, 8192, 12288, 16384, 24576, 32768]
+TARGET_MODEL_NAME = 'gemma-4-31b-it-qat-w4a16-ct'   # probe #1 ran the 12B (fits to 32k)
+LENGTHS = [4096, 8192, 12288, 16384, 24576]  # 31B: 32k is not expected to fit; stops at the first OOM
 LABELLED_FRACTION = 0.3   # share of tokens the model wrote (thinking + tool calls) and is trained on
 LORA_R, LORA_ALPHA = 16, 32
 OUT = Path('/kaggle/working')
