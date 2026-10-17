@@ -67,7 +67,20 @@ request fixed hand-off: no-edits 4→2, score unchanged). 12B: decodes 2x faster
    Klear with unstated teacher; `recorded_model` unreliable) → take Nebius from the original instead; ADP paper
    (arXiv 2510.24702, a format unifying 13 datasets; its SWE parts besides Nebius are SWE-Gym = GPT-4o/Claude and
    SWE-smith = Claude 3.7; useful only as evidence: Qwen2.5-Coder-32B SFT → 40.3% Verified). Sources (c)(d)(e) share
-   teacher and scaffold → dedupe by task across them. Optional: run Qwen3-Coder-30B-A3B (Apache) in our harness as a teacher (untested on the wheelhouse vLLM).
+   teacher and scaffold → dedupe by task across them.
+   **Web sweep 2026-10-17 (final source list, no big-3):** (f) **SWE-Lego** (HF SWE-Lego/SWE-Lego-Real-Data +
+   -Synthetic-Data, `resolved` split; ~18k validated trajectories, Qwen3-Coder-480B + OpenHands, git history sanitized;
+   Qwen3-32B SFT 52.6% Verified) = cleanest curated set. (g) **nvidia/Open-SWE-Traces** (CC BY 4.0; v1.0 openhands
+   84k + sweagent 67k from MiniMax-M2.5 [thinking] and Qwen3.5-122B; v1.1/1.2 mini-swe-agent from DeepSeek-V4-Flash,
+   Qwen3.6/3.8-27B; `resolved` 1/0/-1, `language` → keep python; 9 languages). Rejected: SWE-Zero (execution-free,
+   unverified), SWE-smith-trajectories + SWE-Gym (Claude/GPT), Kwai Klear (teacher unstated), thoughtworks.
+   **Curation evidence:** SWE-Prime (arXiv 2608.27449): best 10% of resolved trajectories beats all of them (+24%
+   rel. Verified) and loss only on useful segments; LoRA curation study (arXiv 2607.17205, Qwen2.5-Coder-7B on the
+   Nebius set): error-retry rate is THE quality signal; quality filtering pays off from ~2k samples, below that
+   quantity wins; SWE-Lego: mask the loss on failed steps (error masking) + easy→hard curriculum.
+   **Thinking mismatch:** Qwen3-Coder trajectories have NO reasoning; mix runs with thinking on. Options: train with
+   thinking off (faster agent), or prefer thinking traces (MiniMax-M2.5 in Open-SWE-Traces, Gemma's own runs).
+   **Decontaminate:** drop any instance from fastapi/requests/rich/httpx PRs matching our 129 tasks. Optional: run Qwen3-Coder-30B-A3B (Apache) in our harness as a teacher (untested on the wheelhouse vLLM).
    Cross-family teacher → let Gemma rewrite the reasoning + mix sources (research: closeness to the student's own
    distribution matters more than family).
 4. **Targets:** 12B pipeline debug 30–60 samples; first real 31B adapter 300–500 trajectories (SWE-Gym: 491 →
