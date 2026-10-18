@@ -9,9 +9,5 @@ cmd = [sys.executable, '-u', '-m', 'torch.distributed.run', '--standalone', f'--
        '--max-hours', str(CONFIG['max_hours'])]
 # NCCL_P2P_DISABLE: gradient sums go through host memory (~0.3 GB/step, <1 s); avoids P2P hangs seen on Kaggle
 env = dict(os.environ, PYTORCH_CUDA_ALLOC_CONF='expandable_segments:True', OMP_NUM_THREADS='4', NCCL_P2P_DISABLE='1')
-p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env)
-noise = ('Warning', 'warn(', 'Loading weights', 'Compressing', 'it/s]')
-for line in p.stdout:
-    if line.strip() and not any(n in line for n in noise):
-        print(line, end='', flush=True)
-print('exit code', p.wait())
+code, _ = stream(cmd, env=env)
+print('exit code', code)

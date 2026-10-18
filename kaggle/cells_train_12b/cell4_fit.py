@@ -2,12 +2,12 @@
 #    parallel, ~4x faster)? If not, each copy uses 2 GPUs (2 copies). Prints the expected training time.
 def probe(g):
     out = WORKING_DIR / 'fit'
-    r = subprocess.run([sys.executable, '-u', str(CODE / 'train_sft.py'), '--model', str(MODEL_PATH), '--samples',
-                        str(SAMPLES), '--out', str(out), '--probe', '--gpus-per-rank', str(g)],
-                       capture_output=True, text=True)
-    line = [l for l in r.stdout.splitlines() if l.startswith('PROBE ')]
-    if r.returncode != 0 or not line:
-        tail = (r.stdout + r.stderr)[-1500:]
+    print(f'--- trying {g} GPU(s) per copy (loading the 12B, then fwd+bwd on the longest segment) ---', flush=True)
+    code, lines = stream([sys.executable, '-u', str(CODE / 'train_sft.py'), '--model', str(MODEL_PATH), '--samples',
+                          str(SAMPLES), '--out', str(out), '--probe', '--gpus-per-rank', str(g)])
+    line = [l for l in lines if l.startswith('PROBE ')]
+    if code != 0 or not line:
+        tail = ''.join(lines)[-1500:]
         print(f'  {g} GPU(s) per copy: FAILED' + (' (out of memory)' if 'out of memory' in tail.lower() else ''))
         print('  ' + tail.replace('\n', '\n  ')[-800:])
         return None

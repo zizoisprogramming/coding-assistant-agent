@@ -31,5 +31,20 @@ _ok = sum(1 for d in STAGE_B for l in Path(d, 'status.jsonl').read_text().splitl
 print('MODEL_PATH', MODEL_PATH)
 print('stage B folders', STAGE_B, '| episodes ok:', _ok, '| request logs:',
       [f"{p.name} {p.stat().st_size / 1e6:.0f} MB" for d in STAGE_B for p in Path(d).glob('requests_*.jsonl')])
+
+
+def stream(cmd, env=None, keep=None):
+    """Run a child process and print its output line by line in this cell (a plain subprocess.run writes to the
+    kernel's raw stdout, which the Kaggle Logs tab may not show). Returns (exit code, all lines)."""
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env)
+    noise = ('Warning', 'warn(', 'Loading weights', 'Compressing', 'it/s]')
+    lines = []
+    for line in p.stdout:
+        lines.append(line)
+        if line.strip() and not any(n in line for n in noise):
+            print(line, end='', flush=True)
+    return p.wait(), lines
+
+
 import torch
 print('GPUs:', [torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())], '| CONFIG', CONFIG)

@@ -47,6 +47,21 @@ _ok = sum(1 for d in STAGE_B for l in Path(d, 'status.jsonl').read_text().splitl
 print('MODEL_PATH', MODEL_PATH)
 print('stage B folders', STAGE_B, '| episodes ok:', _ok, '| request logs:',
       [f"{{p.name}} {{p.stat().st_size / 1e6:.0f}} MB" for d in STAGE_B for p in Path(d).glob('requests_*.jsonl')])
+
+
+def stream(cmd, env=None, keep=None):
+    """Run a child process and print its output line by line in this cell (a plain subprocess.run writes to the
+    kernel's raw stdout, which the Kaggle Logs tab may not show). Returns (exit code, all lines)."""
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env)
+    noise = ('Warning', 'warn(', 'Loading weights', 'Compressing', 'it/s]')
+    lines = []
+    for line in p.stdout:
+        lines.append(line)
+        if line.strip() and not any(n in line for n in noise):
+            print(line, end='', flush=True)
+    return p.wait(), lines
+
+
 import torch
 print('GPUs:', [torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())], '| CONFIG', CONFIG)
 ''')
@@ -54,21 +69,21 @@ print('GPUs:', [torch.cuda.get_device_name(i) for i in range(torch.cuda.device_c
 (OUT / "cell3_samples.py").write_text('''# 3. Training samples: one token sequence per episode segment (split at compactions), loss only on what the model
 #    wrote (thinking, tool calls, final message, stop tokens). ~2-5 min on CPU.
 SAMPLES = WORKING_DIR / 'samples.pt'
-r = subprocess.run([sys.executable, '-u', str(CODE / 'build_samples.py'), '--stage-b', *STAGE_B,
-                    '--tokenizer-dir', str(MODEL_PATH), '--out', str(SAMPLES)])
-assert r.returncode == 0 and SAMPLES.exists(), 'building the samples failed (see above)'
+code, _ = stream([sys.executable, '-u', str(CODE / 'build_samples.py'), '--stage-b', *STAGE_B,
+                  '--tokenizer-dir', str(MODEL_PATH), '--out', str(SAMPLES)])
+assert code == 0 and SAMPLES.exists(), 'building the samples failed (see above)'
 ''')
 
 (OUT / "cell4_fit.py").write_text('''# 4. Memory + speed check on the LONGEST training segment: can one L4 hold a full copy of the 12B (4 copies train in
 #    parallel, ~4x faster)? If not, each copy uses 2 GPUs (2 copies). Prints the expected training time.
 def probe(g):
     out = WORKING_DIR / 'fit'
-    r = subprocess.run([sys.executable, '-u', str(CODE / 'train_sft.py'), '--model', str(MODEL_PATH), '--samples',
-                        str(SAMPLES), '--out', str(out), '--probe', '--gpus-per-rank', str(g)],
-                       capture_output=True, text=True)
-    line = [l for l in r.stdout.splitlines() if l.startswith('PROBE ')]
-    if r.returncode != 0 or not line:
-        tail = (r.stdout + r.stderr)[-1500:]
+    print(f'--- trying {g} GPU(s) per copy (loading the 12B, then fwd+bwd on the longest segment) ---', flush=True)
+    code, lines = stream([sys.executable, '-u', str(CODE / 'train_sft.py'), '--model', str(MODEL_PATH), '--samples',
+                          str(SAMPLES), '--out', str(out), '--probe', '--gpus-per-rank', str(g)])
+    line = [l for l in lines if l.startswith('PROBE ')]
+    if code != 0 or not line:
+        tail = ''.join(lines)[-1500:]
         print(f'  {g} GPU(s) per copy: FAILED' + (' (out of memory)' if 'out of memory' in tail.lower() else ''))
         print('  ' + tail.replace('\\n', '\\n  ')[-800:])
         return None
@@ -105,12 +120,8 @@ cmd = [sys.executable, '-u', '-m', 'torch.distributed.run', '--standalone', f'--
        '--max-hours', str(CONFIG['max_hours'])]
 # NCCL_P2P_DISABLE: gradient sums go through host memory (~0.3 GB/step, <1 s); avoids P2P hangs seen on Kaggle
 env = dict(os.environ, PYTORCH_CUDA_ALLOC_CONF='expandable_segments:True', OMP_NUM_THREADS='4', NCCL_P2P_DISABLE='1')
-p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env)
-noise = ('Warning', 'warn(', 'Loading weights', 'Compressing', 'it/s]')
-for line in p.stdout:
-    if line.strip() and not any(n in line for n in noise):
-        print(line, end='', flush=True)
-print('exit code', p.wait())
+code, _ = stream(cmd, env=env)
+print('exit code', code)
 ''')
 
 (OUT / "cell6_report.py").write_text('''# 6. Report + files to keep: the final adapter (zip), history.json (every step and validation), report.json.
