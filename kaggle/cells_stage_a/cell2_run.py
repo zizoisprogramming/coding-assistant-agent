@@ -5,13 +5,16 @@
 import glob, subprocess, sys
 from pathlib import Path
 
-MAX_FILES = 1          # trial; 0 = everything
+MAX_FILES = 0          # 0 = all files of this shard (1 = trial)
 SHARD = '0/1'          # full run in 2 notebooks AT THE SAME TIME: '0/2' in one, '1/2' in the other (~5 h each)
 OUT = Path('/kaggle/working/stage_a')
 CODE = Path('/kaggle/working/code')
 
 args = [sys.executable, '-u', str(CODE / 'stage_a.py'), '--out', str(OUT), '--max-files', str(MAX_FILES), '--shard', SHARD]
-prev = [p for p in glob.glob('/kaggle/input/**/stage_a/state.json', recursive=True)]
+import json
+# resume only from a previous output of the SAME shard (never the other notebook's)
+prev = [p for p in glob.glob('/kaggle/input/**/stage_a/state.json', recursive=True)
+        if json.loads(Path(p).read_text()).get('shard', '0/1') == SHARD]
 if prev and not (OUT / 'state.json').exists():
     args += ['--resume-from', str(Path(prev[0]).parent)]
     print('resuming from', Path(prev[0]).parent)
