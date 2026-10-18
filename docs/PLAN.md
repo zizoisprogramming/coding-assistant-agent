@@ -39,6 +39,10 @@ content parts; with list content Gemma's template adds a space before the system
 does the same → all 712 pilot-#2 requests render EXACTLY (0 diffs). Largest prompt in the pilot: 16,210 tokens
 (compaction keeps prompts ≤ ~16.2k) = the 31B's measured training limit (16k fits, 24k OOM).
 
+**Shape survey (2026-10-18, data/shape_survey.json):** Open-SWE-Traces thinking teachers, Python+resolved+clean and
+≤28 tool calls = **24,918 runs** in 169/171 files (DeepSeek-V4-Flash 9.4k, Qwen3.8-Flash-Next 7.3k, Qwen3.8-27B 7.7k,
+MiniMax 0.55k — MiniMax runs are long). Stage A notebook: kaggle/cells_stage_a/ (trial MAX_FILES=1 pending).
+
 ### Leaderboard (all no-LoRA unless noted)
 | submission | LB | notes |
 |---|---|---|
