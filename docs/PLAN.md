@@ -61,6 +61,12 @@ dataset-loader-test-2-resume (shard 1). KEEP ALL (user): selection only writes a
 export cell kaggle/cells_stage_a/export_stats_cell.py → stats.jsonl.gz (exact Gemma token counts, quality, same-task
 similarity). Trial: estimated whole-run size median ~22k tokens (+ system prompt) → MOST runs need compaction (stage B).
 
+**Selection v1 (2026-10-18, scripts/datasets/select_v1.py → data/selection_v1.json; stats from Kaggle 'tokenizer'
+notebook = data/results/2026-10-18_stats/stats.jsonl.gz, 26,945 rows / 7,364 tasks):** filters: every step ≤2,048
+thinking tokens (19,128) + env_confusion ≤2, no repeated commands, error ≤0.2 (10,302) → one best run per task
+(4,397; DeepSeek 75%, kept as is — user) → **train 500** (285 repos, ~7.5M tokens, categories natural) + **val 50**
+(50 repos NOT in train). All 26,945 episodes kept for later selections.
+
 ### Leaderboard (all no-LoRA unless noted)
 | submission | LB | notes |
 |---|---|---|
