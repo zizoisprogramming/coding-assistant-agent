@@ -110,6 +110,10 @@ def request_to_template_inputs(record):
                 calls.append(c)
             m["tool_calls"] = calls
         msgs.append(m)
+    # vLLM hands message text to the chat template as OpenAI content parts, not a plain string; for the SYSTEM turn
+    # Gemma's template then adds a space before <turn|> (one extra token, confirmed with vLLM's /tokenize: 27 vs 26)
+    msgs = [dict(m, content=[{"type": "text", "text": m["content"]}])
+            if m.get("role") == "system" and isinstance(m.get("content"), str) else m for m in msgs]
     kw = req.get("kwargs") or {}
     ctk = kw.get("chat_template_kwargs") or (kw.get("extra_body") or {}).get("chat_template_kwargs") or {}
     return msgs, req.get("tools"), bool(ctk.get("enable_thinking"))

@@ -32,6 +32,13 @@ one-word docs fix, 14372/14349 share 0 lines with the reference. NOT comparable 
 set; grading now works). Request log: 712 requests, all render to vLLM's count: diff -1 on the 696 with a system
 message, exact (0) on the 16 without → vLLM adds one token in the system turn (probe cell 4 /tokenize will say which).
 
+**vLLM adapter check PASSED (31B, 2026-10-18, data/results/2026-10-18_vllm_adapter_31b/):** base "Since you haven't
+told me…", base+adapter "The secret word is PINEAPPLE-42.", both still answer 42 → train-in-4-bit → vLLM works end to
+end; v_proj missing on the 10 global layers is fine. **The +1 token found:** vLLM passes message text as OpenAI
+content parts; with list content Gemma's template adds a space before the system turn's <turn|>. render_traces now
+does the same → all 712 pilot-#2 requests render EXACTLY (0 diffs). Largest prompt in the pilot: 16,210 tokens
+(compaction keeps prompts ≤ ~16.2k) = the 31B's measured training limit (16k fits, 24k OOM).
+
 ### Leaderboard (all no-LoRA unless noted)
 | submission | LB | notes |
 |---|---|---|
