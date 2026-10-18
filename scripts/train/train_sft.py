@@ -13,6 +13,7 @@ validation loss before training, at every --eval-every and at the end; adapters 
 same as the scorer-tested one) plus a resumable trainer state. Re-running resumes from the last saved step.
 """
 import argparse
+import datetime
 import json
 import math
 import os
@@ -37,7 +38,9 @@ def log(msg, rank=0, me=None):
 def setup():
     if "RANK" in os.environ:
         backend = "nccl" if torch.cuda.is_available() else "gloo"
-        dist.init_process_group(backend)
+        # a hang (copies waiting on different collectives) becomes an error after 40 min instead of burning quota;
+        # the notebook then resumes from the last checkpoint
+        dist.init_process_group(backend, timeout=datetime.timedelta(minutes=40))
         return dist.get_rank(), dist.get_world_size()
     return 0, 1
 
@@ -46,6 +49,14 @@ def all_sum(x, dev):
     t = torch.tensor(x, dtype=torch.float64, device=dev)
     if dist.is_initialized():
         dist.all_reduce(t)
+    return t.item()
+
+
+def from_rank0(x, dev):
+    """Every copy takes rank 0's value: decisions that change the loop must be identical on all copies."""
+    t = torch.tensor(x, dtype=torch.float64, device=dev)
+    if dist.is_initialized():
+        dist.broadcast(t, 0)
     return t.item()
 
 
@@ -143,7 +154,9 @@ def main():
     ap.add_argument("--seed", type=int, default=20261018)
     ap.add_argument("--attn", default="sdpa")
     ap.add_argument("--eval-every", type=int, default=0, help="steps between validation runs (0: 4 per run)")
-    ap.add_argument("--val-max", type=int, default=0, help="validation segments used mid-run (0: all)")
+    ap.add_argument("--val-max", type=int, default=24, help="validation segments used mid-run (0: all); start and "
+                    "final always use all")
+    ap.add_argument("--save-every", type=int, default=10, help="steps between resumable checkpoints")
     ap.add_argument("--max-hours", type=float, default=0, help="stop training in time (schedule re-planned to fit)")
     ap.add_argument("--probe", action="store_true", help="one rank: fwd+bwd on the longest train segment, report memory")
     ap.add_argument("--max-steps", type=int, default=0, help="tests: stop after this many steps")
@@ -214,15 +227,27 @@ def main():
         f"{world * args.accum} segments per step, lr {args.lr} warmup {args.warmup} cosine->{args.min_lr_ratio}, "
         f"validation every {eval_every} steps", 0, rank)
 
+    def save_state():  # resumable checkpoint (rank 0 only; no collectives)
+        if rank != 0:
+            return
+        save_adapter(model, out / "last", args.base_name)
+        torch.save({"lora": [p.detach().cpu() for p in params], "opt": opt.state_dict(), "step": step, "plan": plan,
+                    "history": history}, str(state_path) + ".tmp")
+        os.replace(str(state_path) + ".tmp", state_path)  # never a half-written checkpoint
+        log(f"  checkpoint at step {step}", 0, rank)
+
     def save(tag):
         if rank != 0:
             return
         save_adapter(model, out / tag, args.base_name)
         save_adapter(model, out / "last", args.base_name)
         torch.save({"lora": [p.detach().cpu() for p in params], "opt": opt.state_dict(), "step": step, "plan": plan,
-                    "history": history}, state_path)
+                    "history": history}, str(state_path) + ".tmp")
+        os.replace(str(state_path) + ".tmp", state_path)  # never a half-written checkpoint
         (out / "history.json").write_text(json.dumps(history, indent=1))
         log(f"  saved adapter {out / tag}", 0, rank)
+
+    eval_secs = {}
 
     def run_eval(tag):
         t0 = time.time()
@@ -232,6 +257,7 @@ def main():
         loss, n = evaluate(model, vs, rank, world, dev)
         history.append({"type": "val", "tag": tag, "step": step, "val_loss": round(loss, 4), "val_tokens": n,
                         "segments": len(vs), "seconds": round(time.time() - t0)})
+        eval_secs[tag] = (time.time() - t0, len(vs))
         log(f"VAL [{tag}] step {step}: loss {loss:.4f} over {n} trained tokens in {len(vs)} segments "
             f"({time.time() - t0:.0f}s)", 0, rank)
 
@@ -277,9 +303,13 @@ def main():
         ema = loss if ema is None else 0.9 * ema + 0.1 * loss
         steps_timed += 1
         avg_step = (time.time() - t_train) / steps_timed
-        if args.max_hours and steps_timed == 3:  # re-plan once the speed is known
-            left = args.max_hours * 3600 - (time.time() - t_start) - 0.1 * args.max_hours * 3600  # 10% for evals/saves
-            fit = step + int(left / avg_step)
+        if args.max_hours and steps_timed == 3:  # re-plan once the speed is known (rank 0 decides for everyone)
+            full = eval_secs.get("start", (0.0, max(len(val), 1)))
+            per_seg = full[0] / max(full[1], 1)
+            n_mid = min(args.val_max or len(val), len(val))
+            evals = per_seg * (len(val) + 3 * n_mid) + 120  # final + 3 mid-run validations + saves
+            left = args.max_hours * 3600 - (time.time() - t_start) - evals
+            fit = int(from_rank0(step + max(0, int(left / avg_step)), dev))
             if fit < plan["total"]:
                 log(f"TIME BUDGET: {plan['total']} steps would take {plan['total'] * avg_step / 3600:.1f}h; "
                     f"re-planned to {fit} steps to finish within {args.max_hours}h", 0, rank)
@@ -296,6 +326,8 @@ def main():
             if val:
                 run_eval(f"step{step}")
             save(f"step_{step}")
+        elif step % args.save_every == 0:
+            save_state()
     if val:
         run_eval("final")
     save("final")

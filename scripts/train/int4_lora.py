@@ -123,7 +123,7 @@ def text_hidden_states(model, input_ids):
     return model.model(input_ids=input_ids, use_cache=False, return_dict=True).last_hidden_state
 
 
-def masked_lm_loss(model, hidden, labels, chunk=1024):
+def masked_lm_loss(model, hidden, labels, chunk=256):
     """Mean next-token cross-entropy over positions whose label is not -100, with Gemma's final logit softcapping.
 
     Logits (262k vocab) are computed only for labelled positions, `chunk` positions at a time, and recomputed in
