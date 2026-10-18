@@ -69,10 +69,13 @@ class Unrepresentable(Exception):
     """The teacher saw something our harness would never show for this call (episode is skipped)."""
 
 
+OBSERVATION = re.compile(r"^OBSERVATION:\n")  # some OpenHands runs prefix every tool output with this line
+
+
 def split_run_output(call):
     """(output text, exit code, timed out) from a teacher's run_command record (OpenHands or mini-swe-agent)."""
     out = call.get("output")
-    out = "" if out is None else str(out)
+    out = OBSERVATION.sub("", "" if out is None else str(out))
     code = call.get("exit_code")
     if out.lstrip().startswith("{") and '"returncode"' in out[:200]:  # mini-swe-agent: {"returncode": N, "output": ...}
         try:
@@ -145,7 +148,7 @@ def file_sizes(ep):
 def prepare_call(c, ep, sizes):
     """What the fake sandbox must hand to the real tool for this call."""
     tool, a = c["tool"], c["args"]
-    out = "" if c.get("output") is None else str(c["output"])
+    out = OBSERVATION.sub("", "" if c.get("output") is None else str(c["output"]))
     if tool == "run_command":
         text, code, timed_out = split_run_output(c)
         if timed_out:
@@ -166,7 +169,7 @@ def prepare_call(c, ep, sizes):
             raise Unrepresentable("read_file error: " + out[:80])
         m = OH_VIEW.match(out)
         if not m:
-            raise Unrepresentable("read_file output not a cat -n view")
+            raise Unrepresentable("read_file output not a cat -n view: " + out[:200])
         nums, clipped = numbered_lines(out[m.end():])
         if not nums:
             raise Unrepresentable("empty view")

@@ -46,9 +46,11 @@ def main():
                     continue
                 except Exception as e:  # noqa: BLE001
                     reason = re.sub(r"\d+", "N", str(e))[:70]
+                    detail = str(e)[:400]
                 bad += 1
                 reasons[reason] += 1
-                fh.write(json.dumps({"id": ep["id"], "instance_id": ep["instance_id"], "reason": reason}) + "\n")
+                fh.write(json.dumps({"id": ep["id"], "instance_id": ep["instance_id"], "reason": reason,
+                                     "detail": detail}) + "\n")
             print(f"{f.name}: {n} episodes, {bad} fail", flush=True)
     print(f"{n} episodes, {bad} fail the replay checks ({100 * bad / max(n, 1):.1f}%) -> {a.out}")
     for r, c in reasons.most_common():
