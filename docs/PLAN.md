@@ -41,7 +41,11 @@ does the same → all 712 pilot-#2 requests render EXACTLY (0 diffs). Largest pr
 
 **Shape survey (2026-10-18, data/shape_survey.json):** Open-SWE-Traces thinking teachers, Python+resolved+clean and
 ≤28 tool calls = **24,918 runs** in 169/171 files (DeepSeek-V4-Flash 9.4k, Qwen3.8-Flash-Next 7.3k, Qwen3.8-27B 7.7k,
-MiniMax 0.55k — MiniMax runs are long). Stage A notebook: kaggle/cells_stage_a/ (trial MAX_FILES=1 pending).
+MiniMax 0.55k — MiniMax runs are long). **Stage A trial OK (data/results/2026-10-18_stage_a_trial/):** 1 file →
+253 episodes, 253/253 with issue text + workspace tree (Kaggle's locale sorts like the harness), 200 s/file. Thinking is
+LONG: median 22k chars/run, longest step median 6k chars (mix allows 2,048 thinking tokens ≈ 8k chars/step) → rank/cap
+before training. env metric fixed (env_confusion: site-packages/installed copy/sys.path talk; 97/253 zero). Full run:
+2 CPU notebooks in parallel, SHARD '0/2' and '1/2', MAX_FILES 0 (~5 h each).
 
 ### Leaderboard (all no-LoRA unless noted)
 | submission | LB | notes |

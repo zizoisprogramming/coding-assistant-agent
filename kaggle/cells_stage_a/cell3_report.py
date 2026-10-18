@@ -5,6 +5,7 @@ from pathlib import Path
 OUT = Path('/kaggle/working/stage_a')
 state = json.loads((OUT / 'state.json').read_text())
 eps = [json.loads(l) for f in sorted(OUT.glob('episodes_*.jsonl')) for l in open(f)]
+SHARD = json.loads((OUT / 'state.json').read_text()).get('shard', '0/1').replace('/', 'of')
 print(f"files done {len(state['done_files'])} | runs seen {state['seen']} | episodes kept {len(eps)}")
 print('per teacher:', state['counts'])
 print('dropped:', state['drop_reasons'])
@@ -15,7 +16,7 @@ def dist(key):
     return f'median {statistics.median(v)}, max {max(v)}' if v else '-'
 
 
-for k in ('calls', 'error_rate', 'repeated_commands', 'thinking_chars', 'max_step_thinking_chars', 'env_talk'):
+for k in ('calls', 'error_rate', 'repeated_commands', 'thinking_chars', 'max_step_thinking_chars', 'env_confusion'):
     print(f'  {k:24} {dist(k)}')
 print('with workspace tree:', sum(1 for e in eps if e.get('workspace_tree')), '| with issue text:',
       sum(1 for e in eps if e.get('problem_statement')), 'of', len(eps))
@@ -29,7 +30,7 @@ with open(OUT / 'preview.md', 'w') as f:  # three episodes in readable form
             f.write(f"\n### step {i + 1}\n**thinking:** {s['thinking'][:800]}\n")
             for c in s['calls']:
                 f.write(f"- `{c['tool']}` {json.dumps(c['args'])[:400]}\n  -> {str(c.get('output'))[:300]!r}\n")
-z = Path('/kaggle/working/stage_a_trial.zip')
+z = Path(f'/kaggle/working/stage_a_{SHARD}.zip')
 with zipfile.ZipFile(z, 'w', zipfile.ZIP_DEFLATED) as zf:
     for p in sorted(OUT.iterdir()):
         if p.name != 'source_index.json':

@@ -146,6 +146,9 @@ def parse_bash_output(text):
     return None, text
 
 
+# the teacher reasoning about which copy of the package is imported, stale installs, sys.path, ... (noise for us)
+CONFUSION_RE = re.compile(r"site-packages|dist-packages|installed (?:copy|version|package)|egg-link|sys\.path|"
+                          r"PYTHONPATH|different (?:copy|location)|stale copy|__file__", re.I)
 ERROR_RE = re.compile(r"Traceback \(most recent call last\)|command not found|No such file or directory|"
                       r"SyntaxError|did not appear verbatim|No replacement was performed|Invalid `|ERROR:", re.I)
 
@@ -153,7 +156,7 @@ ERROR_RE = re.compile(r"Traceback \(most recent call last\)|command not found|No
 def convert_run(row):
     """Teacher run -> (episode, None) or (None, reason it was dropped)."""
     msgs = row["messages"] or []
-    steps, final_text, calls_counted, submitted, env_talk = [], None, 0, False, 0
+    steps, final_text, calls_counted, submitted, env_confusion = [], None, 0, False, 0
     pending_thought = []
     by_id = {}
     for m in msgs:
@@ -165,7 +168,7 @@ def convert_run(row):
         if m.get("role") != "assistant":
             continue
         raw_thinking = (m.get("reasoning_content") or "").strip()
-        env_talk += len(re.findall(r"/testbed\b", raw_thinking))  # the teacher reasoning about its own sandbox
+        env_confusion += len(CONFUSION_RE.findall(raw_thinking))  # the teacher puzzling over its own sandbox
         thinking = norm_cmd(raw_thinking)
         text = norm_cmd((m.get("content") or "").strip())
         calls = []
@@ -259,8 +262,9 @@ def convert_run(row):
         "model_patch": (meta.get("model_patch") or {}).get("patch"),
         "stats": {"calls": calls_counted, "errors": errors, "error_rate": round(errors / max(calls_counted, 1), 3),
                   "repeated_commands": repeats, "thinking_chars": sum(len(s["thinking"]) for s in steps),
-                  "steps": len(steps), "env_talk": env_talk,
-                  "max_step_thinking_chars": max(len(s["thinking"]) for s in steps)},
+                  "steps": len(steps), "env_confusion": env_confusion,
+                  "max_step_thinking_chars": max(len(s["thinking"]) for s in steps),
+                  "steps_thinking_over_8k_chars": sum(1 for s in steps if len(s["thinking"]) > 8000)},
     }, None
 
 
@@ -286,7 +290,8 @@ class State:
 def write_batch(out, state, episodes):
     if not episodes:
         return
-    name = f"episodes_{state.d['next_batch']:04d}.jsonl"
+    shard = state.d.get("shard", "0/1").split("/")[0]
+    name = f"episodes_s{shard}_{state.d['next_batch']:04d}.jsonl"
     tmp = Path(out) / (name + ".tmp")
     with open(tmp, "w") as f:
         for e in episodes:
@@ -333,6 +338,7 @@ def main():
     ap.add_argument("--resume-from", help="a previous run's output folder (copied in, finished files skipped)")
     ap.add_argument("--sample", help="local dry run: a JSON of rows per harness instead of downloads")
     ap.add_argument("--no-trees", action="store_true", help="skip workspace trees (no git access)")
+    ap.add_argument("--shard", default="0/1", help="i/n: this run takes every n-th source file starting at i")
     a = ap.parse_args()
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -362,6 +368,9 @@ def main():
     if a.survey:
         keep = json.load(open(a.survey))["files"]
         files = [f for f in files if keep.get(f, 1) > 0]
+    shard_i, shard_n = (int(x) for x in a.shard.split("/"))
+    files = files[shard_i::shard_n]
+    state.d["shard"] = a.shard
     src = build_source_index(out / "source_index.json")
     todo = [f for f in files if f not in state.d["done_files"]]
     if a.max_files:
