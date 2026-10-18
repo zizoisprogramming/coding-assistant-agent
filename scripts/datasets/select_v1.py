@@ -5,8 +5,9 @@
 
 Filters: every step thinks <= 2,048 tokens (our mix budget); env_confusion <= 2; no repeated commands; error rate
 <= 0.2. Dedup (user rule): one run per task, the best by (error rate + calls/100 + thinking/40,000). Teacher mix kept
-as it comes out (user: keep it). Sampling: categories in their natural proportions, fixed seed. Validation: 50
-episodes from repositories that do not appear in the training set.
+as it comes out (user: keep it). Categories matched to the competition's public tasks (user): ~65% bug fix, ~20%
+feature + enhancement, ~15% other (refactor/docs/...). Fixed seed. Validation: 50 episodes, same proportions, from
+repositories that do not appear in the training set.
 """
 import gzip
 import json
@@ -16,6 +17,8 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 N_TRAIN, N_VAL, SEED = 500, 50, 20261018
+# share per category, matched to the competition's 129 public tasks (~67% bug fix, ~20% feature, ~14% other)
+QUOTA = {"bug-fix": 0.65, "feature-request": 0.13, "enhancement": 0.07, "other": 0.15}
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -36,30 +39,29 @@ def main():
     rng = random.Random(SEED)
     rng.shuffle(cands)
 
-    # validation first: whole repositories are held out
-    by_repo = defaultdict(list)
-    for r in cands:
-        by_repo[r["repo"]].append(r)
-    repos = sorted(by_repo)
-    rng.shuffle(repos)
-    val, val_repos = [], set()
-    for repo in repos:
-        if len(val) >= N_VAL:
-            break
-        val.append(by_repo[repo][0])  # one episode per held-out repo: more diverse validation
-        val_repos.add(repo)
-    rest = [r for r in cands if r["repo"] not in val_repos]
+    def take(items, n, used_repos=None, one_per_repo=False):
+        """Fill category quotas from `items` (already shuffled)."""
+        picked, seen = [], set()
+        for cat, share in QUOTA.items():
+            want = round(n * share)
+            for r in items:
+                if want == 0:
+                    break
+                if (r["category"] or "other") != cat or r in picked:
+                    continue
+                if used_repos and r["repo"] in used_repos:
+                    continue
+                if one_per_repo and r["repo"] in seen:
+                    continue
+                picked.append(r)
+                seen.add(r["repo"])
+                want -= 1
+        return picked[:n]
 
-    # training: categories in their natural proportions among the remaining candidates
-    by_cat = defaultdict(list)
-    for r in rest:
-        by_cat[r["category"] or "other"].append(r)
-    total = len(rest)
-    train = []
-    for cat, items in sorted(by_cat.items()):
-        train += items[:round(N_TRAIN * len(items) / total)]
-    train += [r for r in rest if r not in train][:N_TRAIN - len(train)]
-    train = train[:N_TRAIN]
+    # validation first: one episode per repository, and those repositories are kept out of training entirely
+    val = take(cands, N_VAL, one_per_repo=True)
+    val_repos = {r["repo"] for r in val}
+    train = take(cands, N_TRAIN, used_repos=val_repos)
 
     keep = ("id", "file", "line", "instance_id", "repo", "teacher", "category", "calls", "approx_tokens",
             "thinking_tokens", "error_rate")

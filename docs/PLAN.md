@@ -64,8 +64,8 @@ similarity). Trial: estimated whole-run size median ~22k tokens (+ system prompt
 **Selection v1 (2026-10-18, scripts/datasets/select_v1.py → data/selection_v1.json; stats from Kaggle 'tokenizer'
 notebook = data/results/2026-10-18_stats/stats.jsonl.gz, 26,945 rows / 7,364 tasks):** filters: every step ≤2,048
 thinking tokens (19,128) + env_confusion ≤2, no repeated commands, error ≤0.2 (10,302) → one best run per task
-(4,397; DeepSeek 75%, kept as is — user) → **train 500** (285 repos, ~7.5M tokens, categories natural) + **val 50**
-(50 repos NOT in train). All 26,945 episodes kept for later selections.
+(4,397; DeepSeek 75%, kept as is — user) → **train 500** (312 repos, ~7.6M tokens) + **val 50** (50 repos NOT in
+train); categories matched to the competition (user): 65% bug fix, 13% feature, 7% enhancement, 15% other. All 26,945 episodes kept for later selections.
 
 ### Leaderboard (all no-LoRA unless noted)
 | submission | LB | notes |
