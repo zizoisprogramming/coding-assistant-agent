@@ -1,6 +1,6 @@
 # 4. Does vLLM (what the scorer runs) load the adapter trained in cell 3 and reproduce what it learned?
-#    Run right after cell 3, OR in a fresh session: attach the probe notebook's output as an input (it holds
-#    probe_adapter/), attach the model, run cell 1, then this cell. Takes ~8-10 min to start vLLM (31B).
+#    Run right after cell 3, OR in a fresh session: attach the model and a dataset (or notebook output) holding
+#    the probe adapter's adapter_config.json + adapter_model.safetensors, run cell 1, then this cell. Takes ~8-10 min to start vLLM (31B).
 import gc, glob, json, sys, time, urllib.request
 from pathlib import Path
 import torch
@@ -15,8 +15,11 @@ print('GPU memory still allocated by this process (GiB):',
 TARGET_MODEL_NAME = globals().get('TARGET_MODEL_NAME', 'gemma-4-31b-it-qat-w4a16-ct')
 ADAPTER = Path('/kaggle/working/probe_adapter')
 if not (ADAPTER / 'adapter_config.json').exists():  # fresh session: use the probe notebook's output as an input
-    _found = glob.glob('/kaggle/input/**/probe_adapter/adapter_config.json', recursive=True)
-    assert _found, 'no probe adapter: run cell 3 first, or attach the probe notebook output (Add Input -> Notebooks)'
+    _found = [p for p in glob.glob('/kaggle/input/**/adapter_config.json', recursive=True)
+              if Path(p).with_name('adapter_model.safetensors').exists()
+              and '31b' in json.loads(Path(p).read_text()).get('base_model_name_or_path', '')]
+    assert _found, 'no probe adapter: run cell 3 first, or attach a dataset holding adapter_config.json + ' \
+                   'adapter_model.safetensors (Add Input -> Datasets)'
     ADAPTER = Path(_found[0]).parent
 print('adapter:', ADAPTER)
 _c = sorted(p for p in glob.glob(f'/kaggle/input/models/google/gemma-4/**/{TARGET_MODEL_NAME}/*', recursive=True)
