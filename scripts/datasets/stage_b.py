@@ -107,7 +107,17 @@ def numbered_lines(body):
 
 def norm_path(fp):
     """The path our file tools would use; paths they refuse (outside /workspace, e.g. /tmp) cannot be replayed."""
-    from swegemma.tools.workspace import _resolve_workspace_path
+    try:
+        from swegemma.tools.workspace import _resolve_workspace_path
+    except ImportError:  # CPU check notebook without the harness: same rule (relative to /workspace, never outside)
+        def _resolve_workspace_path(fp, allow_root=False):
+            rel = "" if fp == "/workspace" else fp[len("/workspace/"):] if fp.startswith("/workspace/") else fp
+            if rel.startswith("/"):
+                raise ValueError(f"Path traversal detected: '{fp}' escapes workspace root.")
+            full = os.path.normpath(os.path.join("/workspace", rel))
+            if not (full == "/workspace" or full.startswith("/workspace/")) or (not allow_root and full == "/workspace"):
+                raise ValueError(f"Path traversal detected: '{fp}' escapes workspace root.")
+            return full
     try:
         return str(_resolve_workspace_path(fp, allow_root=False))
     except ValueError as e:

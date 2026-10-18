@@ -1,7 +1,7 @@
 """Selection v1 for the 12B test: 500 training + 50 validation episodes from the stage A stats (user decisions
 2026-10-18). Nothing is deleted: this only writes an id list (with file + line, to fetch the episodes later).
 
-    python3 scripts/datasets/select_v1.py data/results/2026-10-18_stats/stats.jsonl.gz [flags.jsonl.gz]
+    python3 scripts/datasets/select_v1.py data/results/2026-10-18_stats/stats.jsonl.gz [flags.jsonl.gz ...]
 
 Filters: no action outside the sandbox (flags from sandbox_check.py: package installs, network, looking at installed
 packages / system dirs, privileged commands; user: drop them from the whole corpus); every step thinks <= 2,048 tokens (our mix budget); env_confusion <= 2; no repeated commands; error rate
@@ -32,7 +32,8 @@ def score(r):  # lower is better: few errors, efficient, concise thinking
 
 def main():
     rows = [json.loads(l) for l in gzip.open(sys.argv[1], "rt")]
-    flagged = {json.loads(l)["id"] for l in gzip.open(sys.argv[2], "rt")} if len(sys.argv) > 2 else set()
+    # flag files (any number): sandbox_check.py flags, replay_check.py flags (stage B could not replay faithfully)
+    flagged = {json.loads(l)["id"] for f in sys.argv[2:] for l in gzip.open(f, "rt")}
     if flagged:
         print(f"sandbox flags: {len(flagged)} of {len(rows)} episodes excluded")
     rows = [r for r in rows if r["id"] not in flagged]
