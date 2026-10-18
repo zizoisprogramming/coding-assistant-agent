@@ -7,7 +7,8 @@ import json, os, threading, time
 from pathlib import Path
 
 
-def install_request_logger(path):
+def install_request_logger(path, tag=None):
+    """tag: optional callable returning extra fields for each record (stage B: which episode / attempt)."""
     from google.adk.models import lite_llm
 
     lock = threading.Lock()
@@ -39,6 +40,8 @@ def install_request_logger(path):
                 'usage': resp.get('usage')}
 
     def _write(record):
+        if tag is not None:
+            record.update(tag())
         line = json.dumps(record, ensure_ascii=False, default=repr)
         with lock, open(path, 'a', encoding='utf-8') as f:
             f.write(line + '\n')
@@ -66,5 +69,5 @@ def install_request_logger(path):
 
 
 REQUEST_LOG = install_request_logger(Path('/kaggle/working') / 'requests' / 'requests.jsonl') \
-    if os.path.isdir('/kaggle/working') else None
+    if os.path.isdir('/kaggle/working') and os.environ.get('REQUEST_LOGGER_AUTO', '1') == '1' else None
 print('Recording model requests to', REQUEST_LOG)

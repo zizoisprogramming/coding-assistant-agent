@@ -18,6 +18,9 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 N_TRAIN, N_VAL, SEED = 500, 50, 20261018
+# reserves (stage B replaces episodes it cannot replay faithfully, e.g. the teacher used output our 5,000-char limit
+# would cut): ordered candidate lists 2x the quota (~70% pass stage B checks); the first picks equal `train` / `val`
+RESERVE = 2.0
 # share per category, matched to the competition's 129 public tasks (~67% bug fix, ~20% feature, ~14% other)
 QUOTA = {"bug-fix": 0.65, "feature-request": 0.13, "enhancement": 0.07, "other": 0.15}
 ROOT = Path(__file__).resolve().parents[2]
@@ -63,22 +66,39 @@ def main():
                 want -= 1
         return picked[:n]
 
-    # validation first: one episode per repository, and those repositories are kept out of training entirely
-    val = take(cands, N_VAL, one_per_repo=True)
-    val_repos = {r["repo"] for r in val}
-    train = take(cands, N_TRAIN, used_repos=val_repos)
+    # validation first: one episode per repository, and those repositories (reserves included) are kept out of
+    # training entirely
+    val_cands = take(cands, round(N_VAL * RESERVE), one_per_repo=True)
+    val_repos = {r["repo"] for r in val_cands}
+    train_cands = take(cands, round(N_TRAIN * RESERVE), used_repos=val_repos)
+    quotas = {name: {c: round(n * share) for c, share in QUOTA.items()} for name, n in (("train", N_TRAIN), ("val", N_VAL))}
+
+    def first(c_list, q):
+        left = dict(q)
+        out = []
+        for r in c_list:
+            c = r["category"] or "other"
+            if left.get(c, 0) > 0:
+                out.append(r)
+                left[c] -= 1
+        return out
+    val, train = first(val_cands, quotas["val"]), first(train_cands, quotas["train"])
 
     keep = ("id", "file", "line", "instance_id", "repo", "teacher", "category", "calls", "approx_tokens",
             "thinking_tokens", "error_rate")
     out = {"version": "v1", "seed": SEED, "sandbox_flags_excluded": len(flagged), "source": "stage A episodes (Kaggle outputs dataset-loader-test-resume, "
            "dataset-loader-test-2-resume)", "pool_after_filters": len(pool), "tasks_after_dedup": len(cands),
-           "train": [{k: r[k] for k in keep} for r in train], "val": [{k: r[k] for k in keep} for r in val]}
+           "quotas": quotas,
+           "train": [{k: r[k] for k in keep} for r in train], "val": [{k: r[k] for k in keep} for r in val],
+           "train_candidates": [{k: r[k] for k in keep} for r in train_cands],
+           "val_candidates": [{k: r[k] for k in keep} for r in val_cands]}
     path = ROOT / "data" / "selection_v1.json"
     path.write_text(json.dumps(out, indent=1))
     for name, s in (("train", train), ("val", val)):
         print(f"{name}: {len(s)} episodes, {len({r['repo'] for r in s})} repos, teachers {dict(Counter(r['teacher'] for r in s))}, "
               f"categories {dict(Counter(r['category'] for r in s))}, ~{sum(r['approx_tokens'] for r in s) / 1e6:.1f}M tokens")
-    assert not {r["repo"] for r in train} & {r["repo"] for r in val}
+    print(f"candidates (with reserves): train {len(train_cands)}, val {len(val_cands)}")
+    assert not {r["repo"] for r in train_cands} & {r["repo"] for r in val_cands}
     print("wrote", path)
 
 

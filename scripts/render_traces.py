@@ -37,11 +37,12 @@ def tool_params(names):
     return [lite_llm._function_declaration_to_tool_param(FunctionTool(funcs[n])._get_declaration()) for n in names]
 
 
-def load_template():
+def load_template(tok_dir=TOK_DIR):
+    tok_dir = Path(tok_dir)
     env = jinja2.Environment(trim_blocks=True, lstrip_blocks=True, extensions=["jinja2.ext.loopcontrols"])
     env.filters["tojson"] = lambda v, **k: json.dumps(v, **k)
-    tmpl = env.from_string((TOK_DIR / "chat_template.jinja").read_text())
-    cfg = json.loads((TOK_DIR / "tokenizer_config.json").read_text())
+    tmpl = env.from_string((tok_dir / "chat_template.jinja").read_text())
+    cfg = json.loads((tok_dir / "tokenizer_config.json").read_text())
     return tmpl, cfg.get("bos_token", "<bos>")
 
 
