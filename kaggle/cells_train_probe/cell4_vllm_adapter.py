@@ -1,6 +1,6 @@
 # 4. Does vLLM (what the scorer runs) load the adapter trained in cell 3 and reproduce what it learned?
-#    Run right after cell 3. If vLLM fails with out-of-memory: restart the session, run cell 1, then this cell
-#    (it only needs /kaggle/working/probe_adapter). Takes ~6-8 min to start vLLM.
+#    Run right after cell 3, OR in a fresh session: attach the probe notebook's output as an input (it holds
+#    probe_adapter/), attach the model, run cell 1, then this cell. Takes ~8-10 min to start vLLM (31B).
 import gc, glob, json, sys, time, urllib.request
 from pathlib import Path
 import torch
@@ -12,9 +12,13 @@ gc.collect(); torch.cuda.empty_cache()
 print('GPU memory still allocated by this process (GiB):',
       [round(torch.cuda.memory_allocated(i) / 2**30, 2) for i in range(torch.cuda.device_count())])
 
-TARGET_MODEL_NAME = globals().get('TARGET_MODEL_NAME', 'gemma-4-12b-it-qat-w4a16-ct')
+TARGET_MODEL_NAME = globals().get('TARGET_MODEL_NAME', 'gemma-4-31b-it-qat-w4a16-ct')
 ADAPTER = Path('/kaggle/working/probe_adapter')
-assert (ADAPTER / 'adapter_config.json').exists(), 'run cell 3 first (it trains and saves the probe adapter)'
+if not (ADAPTER / 'adapter_config.json').exists():  # fresh session: use the probe notebook's output as an input
+    _found = glob.glob('/kaggle/input/**/probe_adapter/adapter_config.json', recursive=True)
+    assert _found, 'no probe adapter: run cell 3 first, or attach the probe notebook output (Add Input -> Notebooks)'
+    ADAPTER = Path(_found[0]).parent
+print('adapter:', ADAPTER)
 _c = sorted(p for p in glob.glob(f'/kaggle/input/models/google/gemma-4/**/{TARGET_MODEL_NAME}/*', recursive=True)
             if Path(p, 'config.json').exists())
 MODEL_PATH = _c[-1]

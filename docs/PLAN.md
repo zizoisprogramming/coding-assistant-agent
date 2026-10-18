@@ -149,6 +149,11 @@ request fixed hand-off: no-edits 4→2, score unchanged). 12B: decodes 2x faster
    answered "" in transformers AND in vLLM (so vLLM did apply the adapter; base unaffected). Fixed: lr 1e-4, grad clip
    1.0, early stop. Ran the old cell 4 (no /tokenize check). Throughput is the real limit: 1k trajectories x 15k tok
    = 15M tok = ~30 h on the 12B at this speed -> needs data-parallel (12B fits per GPU) / speed work / fewer tokens.
+   **Probe #2 (31B, 2026-10-18, data/results/2026-10-18_train_probe_31b/):** load 12.5 min, "42" sanity OK;
+   secret word LEARNED in 9 steps (lr 1e-4 + clip; 4.62 → 0.002), answer "The secret word is PINEAPPLE-42.".
+   Fits to 16k (18.1 GiB peak), OOM at 24k; 56–65 tok/s. Adapter 820 bf16 tensors, PEFT names = scorer-tested
+   noise adapter; v_proj only on 50/60 layers (global layers share K=V) → whether vLLM accepts that is UNTESTED
+   (cell 4 did not report; now runs standalone with the probe output attached).
    **Sample building rule (found 2026-10-17):** sample = the exact prompt the model saw + exactly what it generated
    (request logger records both); re-rendering a finished conversation is NOT the same text (thinking-off prompts
    end with an empty `<|channel>thought\n<channel|>` that the re-render drops).
