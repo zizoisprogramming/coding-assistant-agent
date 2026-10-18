@@ -47,6 +47,14 @@ LONG: median 22k chars/run, longest step median 6k chars (mix allows 2,048 think
 before training. env metric fixed (env_confusion: site-packages/installed copy/sys.path talk; 97/253 zero). Full run:
 2 CPU notebooks in parallel, SHARD '0/2' and '1/2', MAX_FILES 0 (~5 h each).
 
+**Decisions (user, 2026-10-18):** (1) mix first: 12B adapter, then 31B; le with 2 role adapters later as an ablation.
+(2) Thinking budget is OURS (mix sampling.yaml 2048; competition allows 0–32768, default 4096): 12B test keeps 2048 and
+trains only on runs whose every step thinks ≤2048 tokens (61% of the trial); later try more data + budget 4096.
+(3) **12B success = fine-tuned 12B ≥ mix (31B, no LoRA) on dev16**: mix scored 4/16 and 3/16 → run the 12B twice;
+equal or better = success (then consider submitting it while the 31B trains). Baseline 12B: 2/16, 1/16.
+(4) Gemma barely thinks now (pilot #2: median 28 output tokens/call, 59–80 calls on many tasks) vs teacher ~20 steps,
+~109 tokens median/step → expect training to cut calls; measure calls/task, thinking/step, s/task with the score.
+
 ### Leaderboard (all no-LoRA unless noted)
 | submission | LB | notes |
 |---|---|---|
