@@ -12,26 +12,28 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
 ### WHERE WE ARE (2026-10-18 evening, read first)
 - **Sandbox flags DONE (notebook 'tokenizer'):** data/results/2026-10-18_flags/flags.jsonl.gz: 9,237 of 26,945
   episodes flagged (34.3%; outside_workspace 7,992, package_install 1,862, network 53, privileged 49; spot check:
-  almost all real, a few false alarms in network/privileged). Selection v1 re-run with them: pool 8,866 episodes /
-  3,924 tasks → data/selection_v1.json: train 500 (311 repos, DeepSeek 355 / Qwen-Flash 107 / Qwen-27B 35 /
-  MiniMax 3, 325 bug / 65 feat / 35 enh / 75 other, ~7.3M tokens), val 50 (50 repos, none in train, ~0.7M).
-  0 selected episodes are flagged.
-- **Proven so far:** 4-bit LoRA training on Kaggle (scripts/train/int4_lora.py; 31B fits to 16k, 12B to 32k);
-  vLLM serves our adapter (31B secret-word check passed); request logs render token-exact (712/712).
-- **Data:** stage A done → 26,945 episodes in the two *-resume Kaggle outputs (KEEP ALL). Stats for selection:
-  data/results/2026-10-18_stats/stats.jsonl.gz (from Kaggle notebook 'tokenizer'). Selection v1 (decided with user):
-  every step ≤2,048 thinking tokens, env_confusion ≤2, no repeated commands, error ≤0.2, one best run per task,
-  teacher mix as is (DeepSeek ~73%), categories = competition (65% bug fix / 13% feature / 7% enhancement / 15%
-  other), train 500 + val 50 (val repos never in train), + exclude sandbox-flagged episodes.
-- **NEXT BUILD: stage B (agreed with user, not started):** replay selected episodes through the REAL harness
-  (ADK runner + swegemma context + mix prompt + real build_agent_prompt with the episode's issue text and tree): a
-  scripted model returns the teacher's step (thinking + tool call); tools return the teacher's recorded output
-  WRAPPED IN OUR EXACT TOOL FORMATS (run_command JSON {status, stdout, stderr, exit_code}, read_file/edit_file
-  shapes, 5,000-char truncation, budget warnings in the last 10 calls); ADK compaction runs as on the scorer and its
-  summariser calls go to REAL vLLM with the model being trained (12B data for the 12B, 31B for the 31B; user OK with
-  the small mismatch that it summarises the teacher's thoughts); request logger records every request → training
-  samples = exact prompt + exact generation, split at compaction (66% of episodes compact at least once). Cost OK
-  (GPU session, ~30–60 min for 550 episodes). Plan: local dry run → 1-batch Kaggle trial (user runs, I check) → full.
+  almost all real). Selection v1 re-run without them (pool 8,866 episodes / 3,924 tasks) and now with 2x RESERVE
+  candidates (train 1,000, val 100; val repos incl. reserves never in train) + quotas (train 325 bug / 65 feat / 35
+  enh / 75 other; val 32/6/4/8) → data/selection_v1.json.
+- **Stage B BUILT (commit 02f9d13), Kaggle run pending (user):** scripts/datasets/stage_b.py replays episodes through
+  the real harness: competition compiler + ADK Runner + harness plugins + build_agent_prompt + per-episode
+  EventsCompactionConfig (14336/5/2/5). Fake vLLM (local HTTP, episode named in the model id `stage-b-ep<N>`) answers
+  with the teacher's step and the exact prompt token count (our renderer; checked against vLLM /tokenize in the
+  trial) so compaction happens exactly as on the scorer; no-tool calls (ADK summaries) go to the real 12B. Harness
+  tools run on a FakeSandbox returning the teacher's recorded output (exit code from the OpenHands trailer /
+  mini-swe-agent JSON; files rebuilt from `cat -n` views and edit snippets) → our JSON, 5,000/150/10,000 limits,
+  budget warnings. Decisions taken while building (tell user / revisit): (1) episodes where the teacher's next 2
+  steps use a name seen only in output our limits would cut are skipped (24% locally) and replaced from reserves,
+  instead of training on unseen content (option --limits full exists); (2) the teacher's visible text before a tool
+  call becomes its thinking if it had none, else dropped (Gemma wrote no visible text in 13,557 pilot calls); (3)
+  bad view ranges / steps > 4,096 output tokens skipped; ~25% of teacher steps have no thinking (kept).
+  Local dry run: all 281 locally available usable candidates OK (fake summaries), notebook flow simulated end to end.
+  Kaggle: kaggle/cells_stage_b/cell1..5 (regenerate with scripts/datasets/make_stage_b_cells.py), GPU L4x4,
+  inputs: competition + google/gemma-4 12B + dataset-loader-test-resume + dataset-loader-test-2-resume. Cell 4 runs
+  a ~30-episode trial, checks it (all ok, tokenize exact, tool docstring indentation like the pilot (warning only),
+  summaries from the 12B) and continues to the full 550 only if clean. Output: stage_b_out/requests_<attempt>.jsonl
+  (tagged episode_id/attempt; use only attempts with status ok in status.jsonl), report + sample for me:
+  fetch with --file-pattern 'stage_b_report\.json$|status\.jsonl$|sample_requests\.jsonl$'.
 - **Then:** training data rendering + masking (loss only on model tokens), 12B training (data-parallel 4 copies
   to build; ~3.5 h/epoch est.), eval: fine-tuned 12B on dev16 ×2. **Success = 12B ≥ mix (4+3=7 over two runs)**;
   also measure calls/task, thinking/step, s/task. Thinking budget 2048 for this test; later more data + 4096.
