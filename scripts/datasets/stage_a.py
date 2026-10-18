@@ -213,9 +213,13 @@ def convert_run(row):
                         a = {"filepath": path}
                         vr = args.get("view_range")
                         if isinstance(vr, list) and len(vr) == 2:
-                            a["start_line"], a["end_line"] = int(vr[0]), (int(vr[1]) if int(vr[1]) > 0 else None)
-                            if a["end_line"] is None:
-                                del a["end_line"]
+                            try:
+                                start, end = int(vr[0]), int(vr[1])
+                            except (TypeError, ValueError):  # e.g. ["start", "end"]: not a usable line range
+                                return None, "bad view_range"
+                            a["start_line"] = start
+                            if end > 0:
+                                a["end_line"] = end
                         calls.append({"tool": "read_file", "args": a, "output": norm_cmd(out or "")})
                 elif cmd == "create":
                     calls.append({"tool": "write_file", "args": {"filepath": path, "content": args.get("file_text", "")},
@@ -308,7 +312,10 @@ def process_rows(rows, out, state, src_index, trees, no_trees, file_label):
             reason = "filtered (language/resolved/contaminated/no thinking)"
             state.d["drop_reasons"][reason] = state.d["drop_reasons"].get(reason, 0) + 1
             continue
-        ep, why = convert_run(row)
+        try:
+            ep, why = convert_run(row)
+        except Exception as e:  # one odd row must never stop the run: drop it and count why
+            ep, why = None, f"converter error: {type(e).__name__}"
         if ep is None:
             state.d["drop_reasons"][why] = state.d["drop_reasons"].get(why, 0) + 1
             continue
