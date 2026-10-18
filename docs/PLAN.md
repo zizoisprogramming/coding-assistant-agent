@@ -10,12 +10,12 @@ account runs its OWN notebook copy (a shared notebook made `kaggle kernels outpu
 and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly quota is tight → small runs.
 
 ### WHERE WE ARE (2026-10-18 evening, read first)
-- **Pending (user ran it, fetch first):** Kaggle CPU notebook running `kaggle/cells_stage_a/sandbox_check_cell.py`
-  (inputs: dataset-loader-test-resume + dataset-loader-test-2-resume) → `flags.jsonl.gz`. The user will give its
-  notebook slug. Fetch ONLY that file: `uvx --from kaggle kaggle kernels output ziad23samer/<slug> -p
-  data/results/2026-10-18_flags --file-pattern 'flags\.jsonl\.gz$'` (use --file-pattern always: outputs are big).
-  Then `python3 scripts/datasets/select_v1.py data/results/2026-10-18_stats/stats.jsonl.gz <flags>` → re-check the
-  500/50 split (expect ~64% of the corpus flagged, mostly pip show / site-packages probing; plenty left).
+- **Sandbox flags DONE (notebook 'tokenizer'):** data/results/2026-10-18_flags/flags.jsonl.gz: 9,237 of 26,945
+  episodes flagged (34.3%; outside_workspace 7,992, package_install 1,862, network 53, privileged 49; spot check:
+  almost all real, a few false alarms in network/privileged). Selection v1 re-run with them: pool 8,866 episodes /
+  3,924 tasks → data/selection_v1.json: train 500 (311 repos, DeepSeek 355 / Qwen-Flash 107 / Qwen-27B 35 /
+  MiniMax 3, 325 bug / 65 feat / 35 enh / 75 other, ~7.3M tokens), val 50 (50 repos, none in train, ~0.7M).
+  0 selected episodes are flagged.
 - **Proven so far:** 4-bit LoRA training on Kaggle (scripts/train/int4_lora.py; 31B fits to 16k, 12B to 32k);
   vLLM serves our adapter (31B secret-word check passed); request logs render token-exact (712/712).
 - **Data:** stage A done → 26,945 episodes in the two *-resume Kaggle outputs (KEEP ALL). Stats for selection:
