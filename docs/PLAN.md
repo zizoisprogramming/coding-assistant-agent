@@ -34,6 +34,16 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   summaries from the 12B) and continues to the full 550 only if clean. Output: stage_b_out/requests_<attempt>.jsonl
   (tagged episode_id/attempt; use only attempts with status ok in status.jsonl), report + sample for me:
   fetch with --file-pattern 'stage_b_report\.json$|status\.jsonl$|sample_requests\.jsonl$'.
+- **Stage B DONE (2026-10-18, Kaggle notebook getting-started-gemma-4-developer-agent-4554ae, output kept there as
+  the training input; small files in data/results/2026-10-18_stage_b/):** 550/550 ok (train 325/65/35/75, val
+  32/6/4/8; val repos ∩ train repos = 0), 0 bad; trial checks all true (tokenize 40/40 exact vs vLLM, Python 3.12
+  tool docstrings as in the pilot, summaries from the real 12B, ~34 s each). 338 compactions in 289 episodes
+  (0:261, 1:243, 2:43, 3:3); agent calls median 17 (max 30); max prompt median 14.4k (max 17.4k). Request logs
+  stage_b_out/requests_{4ad37c877820 (trial), 00610eaebcc4 (full)}.jsonl, 343 MB, records tagged episode_id/attempt.
+  Teachers: DeepSeek 434, Qwen-Flash 68, Qwen-27B 47, MiniMax 1. ~18 min replay after vLLM (L4x4).
+  Skips among candidates: cut output 254, unreadable read_file 60 + edit/write 'OBSERVATION:'-prefixed ~30 (fixed
+  after the run, bbbf3e9; quotas were filled anyway), bad view ranges 31, /tmp paths 3, >4,096 tokens 2.
+  Whole-corpus replay check (kaggle/cells_stage_b/replay_check_cell.py, CPU) pending.
 - **Then:** training data rendering + masking (loss only on model tokens), 12B training (data-parallel 4 copies
   to build; ~3.5 h/epoch est.), eval: fine-tuned 12B on dev16 ×2. **Success = 12B ≥ mix (4+3=7 over two runs)**;
   also measure calls/task, thinking/step, s/task. Thinking budget 2048 for this test; later more data + 4096.
