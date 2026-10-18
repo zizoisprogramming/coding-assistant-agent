@@ -57,6 +57,12 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
 - **Then:** training data rendering + masking (loss only on model tokens), 12B training (data-parallel 4 copies
   to build; ~3.5 h/epoch est.), eval: fine-tuned 12B on dev16 ×2. **Success = 12B ≥ mix (4+3=7 over two runs)**;
   also measure calls/task, thinking/step, s/task. Thinking budget 2048 for this test; later more data + 4096.
+- **For the FINAL 31B data (user 2026-10-18): drop tasks the model already handles, keep the ones it fails.** We
+  cannot run teacher tasks' tests on Kaggle (no Docker, no internet on GPU), so measure difficulty as the BASE 31B's
+  loss on the teacher's replies (forward pass only; instruction-following-difficulty / Superfiltering idea, cited
+  from memory, verify): replay a larger pool (~1,500) in stage B, score every episode, drop the easiest ~30-40%
+  (not only the very hardest: extreme loss is often teacher noise), keep category quotas. One GPU notebook: replay +
+  score + select + train. Not for the 12B test run.
 - **Later:** 31B adapter (relay across sessions/accounts, public data only on the friend's account); le with 2 role
   adapters as an ablation (needs plan synthesis between locator and editor); CoderForge tasks run by Gemma itself.
 - **Kaggle run rules (user):** every run self-contained with all outputs saved as it goes; trial first, then full;
