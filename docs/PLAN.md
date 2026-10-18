@@ -1,6 +1,6 @@
 # Gemma 4 Developer Agent — Competition Plan (living doc)
 
-## >>> START HERE (session handoff, updated 2026-10-18) <<<
+## >>> START HERE (session handoff, updated 2026-10-18 evening) <<<
 **User:** beginner to agents/ADK (ML engineer background); wants step-by-step plain explanations, research-backed
 claims (verify, cite), chat before building, decides when planning ends. Rules: one change per arm where possible;
 prompts generic (no dev-task content); competition data never committed (data/ is gitignored, incl. adapters built
@@ -9,21 +9,36 @@ change cell 4's printed output. **No training data from Claude, GPT or Gemini (u
 account runs its OWN notebook copy (a shared notebook made `kaggle kernels output` return only the latest version
 and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly quota is tight → small runs.
 
-### WHERE WE ARE (2026-10-18, read first)
-- **Waiting on (user):** (1) GPU data-gen pilot #2 running: mix 31B on 16 gradable tasks with cells 2b (test deps
-  from the gold notebook output test-gemma-comp) + 2c (per-task pins) + 3b (logger → requests/requests.jsonl, now
-  zipped by cell 5). On arrival: `data/venv_harness/bin/python scripts/render_traces.py <requests.jsonl>` (expect
-  vLLM = rendered +1 per request until the /tokenize check explains it), count solved. (2) 31B training probe
-  (kaggle/cells_train_probe/, defaults 31B, lengths 4k–24k, lr 1e-4 + clip, cell 4 asks vLLM /tokenize).
-- **Decided:** thinking ON in training data (user). Data sources = Open-SWE-Traces thinking teachers (117k clean
-  Python resolved: Qwen3.8-27B, Qwen3.8-Flash-Next, DeepSeek-V4-Flash, MiniMax-M2.5) + Gemma's own successes;
-  Qwen3-Coder sets (SWE-Lego/CoderForge/Nebius/SWE-Hero) have no reasoning → secondary. Decontam = drop whole
-  fastapi/requests/rich/httpx repos (done, scripts/datasets/decontam.py). No RL (compute); maybe 2nd SFT round/DPO.
-- **Next build (after results):** dataset pipeline: convert OpenHands/SWE-agent/mini-swe-agent tool calls to our
-  tools, filter ≤28 calls/≤32k, rank by error-retry rate, dedupe by task, mask failed steps, render with Gemma's
-  template as "exact prompt + generation". Then speed: 12B data-parallel (4 copies), 31B pipelining; second account
-  only for relay training / data-gen (public data + public model only).
-- Background check pending: R2E-Gym rescan of CoderForge (expect 0 from our repos).
+### WHERE WE ARE (2026-10-18 evening, read first)
+- **Pending (user ran it, fetch first):** Kaggle CPU notebook running `kaggle/cells_stage_a/sandbox_check_cell.py`
+  (inputs: dataset-loader-test-resume + dataset-loader-test-2-resume) → `flags.jsonl.gz`. The user will give its
+  notebook slug. Fetch ONLY that file: `uvx --from kaggle kaggle kernels output ziad23samer/<slug> -p
+  data/results/2026-10-18_flags --file-pattern 'flags\.jsonl\.gz$'` (use --file-pattern always: outputs are big).
+  Then `python3 scripts/datasets/select_v1.py data/results/2026-10-18_stats/stats.jsonl.gz <flags>` → re-check the
+  500/50 split (expect ~64% of the corpus flagged, mostly pip show / site-packages probing; plenty left).
+- **Proven so far:** 4-bit LoRA training on Kaggle (scripts/train/int4_lora.py; 31B fits to 16k, 12B to 32k);
+  vLLM serves our adapter (31B secret-word check passed); request logs render token-exact (712/712).
+- **Data:** stage A done → 26,945 episodes in the two *-resume Kaggle outputs (KEEP ALL). Stats for selection:
+  data/results/2026-10-18_stats/stats.jsonl.gz (from Kaggle notebook 'tokenizer'). Selection v1 (decided with user):
+  every step ≤2,048 thinking tokens, env_confusion ≤2, no repeated commands, error ≤0.2, one best run per task,
+  teacher mix as is (DeepSeek ~73%), categories = competition (65% bug fix / 13% feature / 7% enhancement / 15%
+  other), train 500 + val 50 (val repos never in train), + exclude sandbox-flagged episodes.
+- **NEXT BUILD: stage B (agreed with user, not started):** replay selected episodes through the REAL harness
+  (ADK runner + swegemma context + mix prompt + real build_agent_prompt with the episode's issue text and tree): a
+  scripted model returns the teacher's step (thinking + tool call); tools return the teacher's recorded output
+  WRAPPED IN OUR EXACT TOOL FORMATS (run_command JSON {status, stdout, stderr, exit_code}, read_file/edit_file
+  shapes, 5,000-char truncation, budget warnings in the last 10 calls); ADK compaction runs as on the scorer and its
+  summariser calls go to REAL vLLM with the model being trained (12B data for the 12B, 31B for the 31B; user OK with
+  the small mismatch that it summarises the teacher's thoughts); request logger records every request → training
+  samples = exact prompt + exact generation, split at compaction (66% of episodes compact at least once). Cost OK
+  (GPU session, ~30–60 min for 550 episodes). Plan: local dry run → 1-batch Kaggle trial (user runs, I check) → full.
+- **Then:** training data rendering + masking (loss only on model tokens), 12B training (data-parallel 4 copies
+  to build; ~3.5 h/epoch est.), eval: fine-tuned 12B on dev16 ×2. **Success = 12B ≥ mix (4+3=7 over two runs)**;
+  also measure calls/task, thinking/step, s/task. Thinking budget 2048 for this test; later more data + 4096.
+- **Later:** 31B adapter (relay across sessions/accounts, public data only on the friend's account); le with 2 role
+  adapters as an ablation (needs plan synthesis between locator and editor); CoderForge tasks run by Gemma itself.
+- **Kaggle run rules (user):** every run self-contained with all outputs saved as it goes; trial first, then full;
+  give exact cells + inputs; fetch outputs with --file-pattern to spare the user's internet.
 
 **Pilot #2 result (2026-10-18, data/results/2026-10-18_datagen_pilot2/):** mix 31B 7/16 on the 16 gradable non-dev
 tasks (fastapi_14786, 14492, 12942, 14372, 14349, rich_3905, 3518). Checked: submission identical to submissions/mix;
