@@ -55,6 +55,12 @@ equal or better = success (then consider submitting it while the 31B trains). Ba
 (4) Gemma barely thinks now (pilot #2: median 28 output tokens/call, 59–80 calls on many tasks) vs teacher ~20 steps,
 ~109 tokens median/step → expect training to cut calls; measure calls/task, thinking/step, s/task with the score.
 
+**Stage A COMPLETE (2026-10-18):** 171/171 files, 117,467 runs seen, **26,945 episodes** (DeepSeek-V4-Flash 9,467,
+Qwen3.8-27B 8,804, Qwen3.8-Flash-Next 7,976, MiniMax 698), in Kaggle outputs dataset-loader-test-resume (shard 0) and
+dataset-loader-test-2-resume (shard 1). KEEP ALL (user): selection only writes an id list. Selection step 1 = Kaggle
+export cell kaggle/cells_stage_a/export_stats_cell.py → stats.jsonl.gz (exact Gemma token counts, quality, same-task
+similarity). Trial: estimated whole-run size median ~22k tokens (+ system prompt) → MOST runs need compaction (stage B).
+
 ### Leaderboard (all no-LoRA unless noted)
 | submission | LB | notes |
 |---|---|---|
