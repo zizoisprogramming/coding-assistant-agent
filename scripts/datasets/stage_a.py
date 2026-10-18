@@ -83,30 +83,32 @@ def git_file_list(repo_url, commit, timeout=120):
 
 
 # --- source tasks: clean issue text + base commit ---
-def build_source_index(cache_path, instance_ids):
-    """instance_id -> {repo_url, base_commit, problem_statement} for the ids we need (cached on disk)."""
+def build_source_index(cache_path):
+    """instance_id -> {repo_url, base_commit, problem_statement} for every task of both source datasets. Built once
+    (reads only the needed columns / fields) and cached on disk, so a restart does not rebuild it."""
     cache_path = Path(cache_path)
-    idx = json.loads(cache_path.read_text()) if cache_path.exists() else {}
-    need = set(instance_ids) - set(idx)
-    if not need:
-        return idx
+    if cache_path.exists():
+        return json.loads(cache_path.read_text())
     import pyarrow.parquet as pq
     from huggingface_hub import HfFileSystem
     fs = HfFileSystem()
+    idx = {}
     for f in fs.glob("datasets/nebius/SWE-rebench-V2/**/*.parquet"):
         with fs.open(f, "rb") as fh:
             t = pq.ParquetFile(fh).read(columns=["instance_id", "repo", "base_commit", "problem_statement"])
         for r in t.to_pylist():
-            if r["instance_id"] in need:
-                idx[r["instance_id"]] = {"repo_url": f"https://github.com/{r['repo']}.git",
-                                         "base_commit": r["base_commit"], "problem_statement": r["problem_statement"]}
+            idx[r["instance_id"]] = {"repo_url": f"https://github.com/{r['repo']}.git",
+                                     "base_commit": r["base_commit"], "problem_statement": r["problem_statement"]}
+    print(f"source index: {len(idx)} SWE-rebench-V2 tasks", flush=True)
     with fs.open("datasets/AweAI-Team/Scale-SWE/processed_to_upload.jsonl", "rb", block_size=2 ** 22) as fh:
         for line in fh:
             r = json.loads(line)
-            if r["instance_id"] in need:
-                idx[r["instance_id"]] = {"repo_url": r["github_url"] + ".git", "base_commit": r["parent_commit"],
-                                         "problem_statement": r["problem_statement"]}
-    cache_path.write_text(json.dumps(idx))
+            idx[r["instance_id"]] = {"repo_url": r["github_url"] + ".git", "base_commit": r["parent_commit"],
+                                     "problem_statement": r["problem_statement"]}
+    print(f"source index: {len(idx)} tasks in total", flush=True)
+    tmp = cache_path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(idx))
+    tmp.replace(cache_path)
     return idx
 
 
@@ -346,7 +348,7 @@ def main():
     if a.sample:
         groups = json.load(open(a.sample))
         rows = [r for rs in groups.values() for r in rs]
-        src = build_source_index(out / "source_index.json", []) if False else {}
+        src = {}
         eps = process_rows(rows, out, state, src, trees, a.no_trees, "sample")
         write_batch(out, state, eps)
         state.save()
@@ -360,6 +362,7 @@ def main():
     if a.survey:
         keep = json.load(open(a.survey))["files"]
         files = [f for f in files if keep.get(f, 1) > 0]
+    src = build_source_index(out / "source_index.json")
     todo = [f for f in files if f not in state.d["done_files"]]
     if a.max_files:
         todo = todo[:a.max_files]
@@ -379,7 +382,6 @@ def main():
             continue
         rows = [r for r in pq.read_table(local).to_pylist() if keep_row(r)]
         local.unlink(missing_ok=True)
-        src = build_source_index(out / "source_index.json", [r["instance_id"] for r in rows])
         eps = process_rows(rows, out, state, src, trees, a.no_trees, f)
         write_batch(out, state, eps)
         trees_path.write_text(json.dumps(trees))

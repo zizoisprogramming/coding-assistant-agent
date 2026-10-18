@@ -24,7 +24,12 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def competition_repo_names():
-    names = {json.loads(line)["repo"].split("/")[-1].lower() for line in open(ROOT / "data" / "tasks.jsonl")}
+    """Repositories of the competition's tasks (data/tasks.jsonl when present; on Kaggle without the competition
+    data attached, the same four names, checked against tasks.jsonl in self_test)."""
+    path = ROOT / "data" / "tasks.jsonl"
+    if not path.exists():
+        return {"fastapi", "requests", "rich", "httpx"}
+    names = {json.loads(line)["repo"].split("/")[-1].lower() for line in open(path)}
     assert names, "data/tasks.jsonl has no tasks"
     return names
 
@@ -110,6 +115,7 @@ def self_test():
                     "image": "qingyangwu/aiohttp_final:3c31b3837404fa2fed3cdd42e89f9d6f25c6931e"}) == "aiohttp"
     assert repo_of({"repo": "Textualize/rich"}) == "rich" and is_contaminated({"repo": "psf/requests"})
     assert not is_contaminated({"repo": "psf/requests-html"}) and is_contaminated({})
+    assert BLOCKED == {"fastapi", "requests", "rich", "httpx"}, "update the fallback list in competition_repo_names"
     print("self-test ok; blocked repos:", sorted(BLOCKED))
 
 
