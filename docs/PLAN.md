@@ -25,6 +25,13 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   only for relay training / data-gen (public data + public model only).
 - Background check pending: R2E-Gym rescan of CoderForge (expect 0 from our repos).
 
+**Pilot #2 result (2026-10-18, data/results/2026-10-18_datagen_pilot2/):** mix 31B 7/16 on the 16 gradable non-dev
+tasks (fastapi_14786, 14492, 12942, 14372, 14349, rich_3905, 3518). Checked: submission identical to submissions/mix;
+no command touched site-packages/git history//usr//kaggle; 14786's fix is written in its task text, 14492 is a
+one-word docs fix, 14372/14349 share 0 lines with the reference. NOT comparable to dev16/LB (different, easier task
+set; grading now works). Request log: 712 requests, all render to vLLM's count: diff -1 on the 696 with a system
+message, exact (0) on the 16 without → vLLM adds one token in the system turn (probe cell 4 /tokenize will say which).
+
 ### Leaderboard (all no-LoRA unless noted)
 | submission | LB | notes |
 |---|---|---|
