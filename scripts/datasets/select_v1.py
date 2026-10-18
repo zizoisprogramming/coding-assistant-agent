@@ -1,9 +1,10 @@
 """Selection v1 for the 12B test: 500 training + 50 validation episodes from the stage A stats (user decisions
 2026-10-18). Nothing is deleted: this only writes an id list (with file + line, to fetch the episodes later).
 
-    python3 scripts/datasets/select_v1.py data/results/2026-10-18_stats/stats.jsonl.gz
+    python3 scripts/datasets/select_v1.py data/results/2026-10-18_stats/stats.jsonl.gz [flags.jsonl.gz]
 
-Filters: every step thinks <= 2,048 tokens (our mix budget); env_confusion <= 2; no repeated commands; error rate
+Filters: no action outside the sandbox (flags from sandbox_check.py: package installs, network, looking at installed
+packages / system dirs, privileged commands; user: drop them from the whole corpus); every step thinks <= 2,048 tokens (our mix budget); env_confusion <= 2; no repeated commands; error rate
 <= 0.2. Dedup (user rule): one run per task, the best by (error rate + calls/100 + thinking/40,000). Teacher mix kept
 as it comes out (user: keep it). Categories matched to the competition's public tasks (user): ~65% bug fix, ~20%
 feature + enhancement, ~15% other (refactor/docs/...). Fixed seed. Validation: 50 episodes, same proportions, from
@@ -28,6 +29,10 @@ def score(r):  # lower is better: few errors, efficient, concise thinking
 
 def main():
     rows = [json.loads(l) for l in gzip.open(sys.argv[1], "rt")]
+    flagged = {json.loads(l)["id"] for l in gzip.open(sys.argv[2], "rt")} if len(sys.argv) > 2 else set()
+    if flagged:
+        print(f"sandbox flags: {len(flagged)} of {len(rows)} episodes excluded")
+    rows = [r for r in rows if r["id"] not in flagged]
     pool = [r for r in rows if r["steps_over_2048"] == 0 and r["env_confusion"] <= 2
             and r["repeated_commands"] == 0 and r["error_rate"] <= 0.2]
     best = {}
@@ -65,7 +70,7 @@ def main():
 
     keep = ("id", "file", "line", "instance_id", "repo", "teacher", "category", "calls", "approx_tokens",
             "thinking_tokens", "error_rate")
-    out = {"version": "v1", "seed": SEED, "source": "stage A episodes (Kaggle outputs dataset-loader-test-resume, "
+    out = {"version": "v1", "seed": SEED, "sandbox_flags_excluded": len(flagged), "source": "stage A episodes (Kaggle outputs dataset-loader-test-resume, "
            "dataset-loader-test-2-resume)", "pool_after_filters": len(pool), "tasks_after_dedup": len(cands),
            "train": [{k: r[k] for k in keep} for r in train], "val": [{k: r[k] for k in keep} for r in val]}
     path = ROOT / "data" / "selection_v1.json"
