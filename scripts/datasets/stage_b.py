@@ -106,8 +106,12 @@ def numbered_lines(body):
 
 
 def norm_path(fp):
+    """The path our file tools would use; paths they refuse (outside /workspace, e.g. /tmp) cannot be replayed."""
     from swegemma.tools.workspace import _resolve_workspace_path
-    return str(_resolve_workspace_path(fp, allow_root=False))
+    try:
+        return str(_resolve_workspace_path(fp, allow_root=False))
+    except ValueError as e:
+        raise Unrepresentable(f"file tool path refused by our harness: {e}") from None
 
 
 def file_sizes(ep):
@@ -193,6 +197,7 @@ def prepare_call(c, ep, sizes):
             content = "\n" * max(first - 1, 0) + old + "\n"
         return {"tool": tool, "path": path, "content": content}
     if tool == "write_file":
+        norm_path(a["filepath"])
         if out and not out.startswith("File created successfully"):
             raise Unrepresentable("write_file output: " + out[:80])
         return {"tool": tool}
@@ -612,8 +617,8 @@ async def main_async(args):
             continue
         try:
             rep = Replay(ep, harness if args.limits == "harness" else None, counter, args.max_output_tokens)
-        except Unrepresentable as e:
-            reason = re.sub(r"\d+", "N", str(e))[:60]
+        except Exception as e:  # noqa: BLE001  (Unrepresentable, or anything unexpected: skip, never crash the run)
+            reason = re.sub(r"\d+", "N", str(e) if isinstance(e, Unrepresentable) else f"error {e!r}")[:60]
             skipped[reason] = skipped.get(reason, 0) + 1
             continue
         usable.setdefault(key, []).append((r, ep, rep))
