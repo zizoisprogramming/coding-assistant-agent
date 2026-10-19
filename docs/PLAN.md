@@ -80,6 +80,16 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   example (repeated_commands==0, error_rate≤0.2); lr 2e-4 x105 steps drifted from base + mix prompt. Low val loss =
   imitation, not skill. Cheap test next: kaggle/cells_diag2_12b_sft (final@T1.0, step_26@T0.2, step_26@T1.0, 3 tasks,
   summary table). Then v2 data: require real thinking per step, keep recovery episodes, lighter training.
+- **Diag2 (2026-10-19):** T0.2 loops for any checkpoint (max same call 77/50); T1.0 escapes (repeats ≤2), final@T1.0
+  1/3 (rich_3882, base solves it too), step26 not better → sampling caused the loops; data causes the weak style.
+  User decisions: v2 = THINKING FIRST (same rules for all teachers; result mostly Qwen); eval fine-tuned models at T1.0.
+- **Gemma's own runs as VALIDATION only (user):** scripts/train/gemma_runs_to_episodes.py splits pilot #2's request log
+  (mix 31B, 16 non-dev tasks) per task → data/results/2026-10-19_gemma_val/ (local, competition data): val_gemma_ok
+  (7 resolved) + val_gemma_fail (9), 31 segments. Score base / v1 / v2 on them in the next GPU run.
+- **Behaviour comparison (scripts/train/compare_behaviour.py):** Gemma resolved runs use read_file 20% with ~21-line
+  reads, git grep, no whole-file cat, no long chains, think 102 chars/call (failed: 54); teachers use run_command
+  89-100%, read_file 0%, 68-90-line reads, chains 17-22%. v1 trained Gemma AWAY from its successful style.
+  → v2 also rewrites simple teacher reads into our tools (sed -n a,bp / short cat → read_file with the same text).
 - **For the FINAL 31B data (user 2026-10-18): drop tasks the model already handles, keep the ones it fails.** We
   cannot run teacher tasks' tests on Kaggle (no Docker, no internet on GPU), so measure difficulty as the BASE 31B's
   loss on the teacher's replies (forward pass only; instruction-following-difficulty / Superfiltering idea, cited
