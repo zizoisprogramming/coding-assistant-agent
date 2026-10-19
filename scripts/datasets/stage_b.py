@@ -264,8 +264,74 @@ def uses_cut_output(ep, steps, harness):
     return False
 
 
+# ---------------------------------------------------------------------------------------------------------------
+# Gemma-style reads (selection v2, user 2026-10-19): Gemma's resolved runs read with read_file and narrow line ranges;
+# the teachers read with sed/cat/head in bash. Simple, single read commands are rewritten into read_file with the
+# SAME text the teacher saw (only when our read_file would show all of it: <= 150 lines, <= 10,000 chars).
+# ---------------------------------------------------------------------------------------------------------------
+_PFX = r"^\s*(?:cd\s+/workspace\s*&&\s*)?"
+_PATH = r"""['"]?([\w./-]+)['"]?"""
+READ_SED = re.compile(_PFX + r"""sed\s+-n\s+['"]?(\d+),(\d+)p['"]?\s+""" + _PATH + r"\s*$")
+READ_CAT = re.compile(_PFX + r"cat\s+" + _PATH + r"\s*$")
+READ_HEAD = re.compile(_PFX + r"head\s+-(?:n\s*)?(\d+)\s+" + _PATH + r"\s*$")
+
+
+def _rel(path):
+    path = path[len("/workspace/"):] if path.startswith("/workspace/") else path
+    path = path[2:] if path.startswith("./") else path
+    return None if (not path or path.startswith(("/", "..")) or "*" in path) else path
+
+
+def rewrite_read(call):
+    """A read_file call equivalent to this simple teacher read command, or None."""
+    if call["tool"] != "run_command":
+        return None
+    cmd = call["args"].get("command", "")
+    m_sed, m_cat, m_head = READ_SED.match(cmd), READ_CAT.match(cmd), READ_HEAD.match(cmd)
+    if not (m_sed or m_cat or m_head):
+        return None
+    text, code, timed_out = split_run_output(call)
+    if timed_out or code != 0 or not text.strip():
+        return None
+    lines = text.rstrip("\n").split("\n")
+    if len(lines) > 150 or len(text) > 10000:
+        return None
+    if m_sed:
+        a, b, path = int(m_sed.group(1)), int(m_sed.group(2)), _rel(m_sed.group(3))
+        if b < a or b - a + 1 > 150:
+            return None
+        args, first = {"filepath": path, "start_line": a, "end_line": b}, a
+    elif m_head:
+        n, path = int(m_head.group(1)), _rel(m_head.group(2))
+        if n > 150:
+            return None
+        args, first = {"filepath": path, "start_line": 1, "end_line": n}, 1
+    else:
+        path = _rel(m_cat.group(1))
+        args, first = {"filepath": path}, 1
+    if path is None or not re.search(r"\.\w+$", path):  # a file with an extension (not a folder / device)
+        return None
+    body = "\n".join(f"{first + i:6}\t{line}" for i, line in enumerate(lines))
+    return {"tool": "read_file", "args": args, "rewritten_from": cmd,
+            "output": f"Here's the result of running `cat -n` on /workspace/{path}:\n{body}"}
+
+
+def rewrite_reads(ep):
+    """Copy of the episode with simple teacher reads turned into read_file calls; counts them in ep['rewrites']."""
+    out = dict(ep, steps=[], rewrites=0)
+    for s in ep["steps"]:
+        calls = []
+        for c in s["calls"]:
+            r = rewrite_read(c)
+            calls.append(r or c)
+            out["rewrites"] += r is not None
+        out["steps"].append(dict(s, calls=calls))
+    return out
+
+
 class Replay:
-    def __init__(self, ep, harness=None, counter=None, max_output_tokens=None):
+    def __init__(self, ep, harness=None, counter=None, max_output_tokens=None, rewrite=False):
+        ep = rewrite_reads(ep) if rewrite else ep
         self.ep = ep
         sizes = file_sizes(ep)
         self.steps = [[prepare_call(c, ep, sizes) for c in s["calls"]] for s in ep["steps"]]
@@ -629,7 +695,8 @@ async def main_async(args):
         if ep["id"] in bad_ids:
             continue
         try:
-            rep = Replay(ep, harness if args.limits == "harness" else None, counter, args.max_output_tokens)
+            rep = Replay(ep, harness if args.limits == "harness" else None, counter, args.max_output_tokens,
+                         rewrite=args.rewrite_reads)
         except Exception as e:  # noqa: BLE001  (Unrepresentable, or anything unexpected: skip, never crash the run)
             reason = re.sub(r"\d+", "N", str(e) if isinstance(e, Unrepresentable) else f"error {e!r}")[:60]
             skipped[reason] = skipped.get(reason, 0) + 1
@@ -707,6 +774,8 @@ def main():
     ap.add_argument("--check-tokenize", type=int, default=0, help="compare our prompt token count with vLLM /tokenize "
                     "for the first N agent calls")
     ap.add_argument("--limits", choices=("harness", "full"), default="harness")
+    ap.add_argument("--rewrite-reads", action="store_true", help="v2: simple sed -n/cat/head reads -> read_file "
+                    "(Gemma's style), same text")
     ap.add_argument("--split", nargs="+", default=["train", "val"])
     ap.add_argument("--quota-scale", type=float, default=1.0, help="e.g. 0.05 for a ~28-episode trial")
     ap.add_argument("--concurrency", type=int, default=8)
