@@ -72,6 +72,14 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   "exceeded turns budget" = used the 28 tool calls then kept calling (harness checks the tool budget only between
   rounds) → explores, never commits to an edit; others timed out with no edit. Diagnostic next: kaggle/cells_diag_12b_sft
   (interactive; rich_3882 [base solves], fastapi_14258, fastapi_15589; one at a time; request logger; cell5 digest).
+- **SFT v1 diagnosis (trace fastapi_15589, 2026-10-19):** thinking collapsed to one-line narration, the SAME sentence
+  72x; same grep on a nonexistent path 20x despite "No such file" (it had seen tests/ earlier); teacher OpenHands habits
+  (cd /workspace &&, find, sed -n of 3 files) replaced the mix workflow; never edits; keeps calling after budget.
+  Base 12B on the same tasks: varied thoughts, max same call ≤12 (mostly ≤3), some edits. Causes (likely): thin
+  teacher thinking (+ text→thinking merge) taught narration not reasoning; filters removed every error/recovery
+  example (repeated_commands==0, error_rate≤0.2); lr 2e-4 x105 steps drifted from base + mix prompt. Low val loss =
+  imitation, not skill. Cheap test next: kaggle/cells_diag2_12b_sft (final@T1.0, step_26@T0.2, step_26@T1.0, 3 tasks,
+  summary table). Then v2 data: require real thinking per step, keep recovery episodes, lighter training.
 - **For the FINAL 31B data (user 2026-10-18): drop tasks the model already handles, keep the ones it fails.** We
   cannot run teacher tasks' tests on Kaggle (no Docker, no internet on GPU), so measure difficulty as the BASE 31B's
   loss on the teacher's replies (forward pass only; instruction-following-difficulty / Superfiltering idea, cited
