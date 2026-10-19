@@ -107,6 +107,14 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   chains 15% (0%), reads 71 lines (21), think 185 chars/call (102). NEXT ROUND idea: split chained commands at the
   teacher's own `echo "=== x ==="` separators (411/800 chains in v2 picks splittable) into separate calls; leave
   sed -i edits (regex, unseen content). Decide after v2's val_gemma_ok + 3-task check.
+- **v2 RESULT (2026-10-19, finetuning-v2 + diag3 'getting-started-...-new', data/results/2026-10-19_diag3/):**
+  training 96 steps (no plateau stop, monitor was teacher subset): teacher val 1.350→0.819 (v1 0.833);
+  val_gemma_fail 0.263→0.340 (v1 0.352); **val_gemma_ok 0.305→0.413 (v1 0.429)** = still drifts ~35% from Gemma's
+  successful style. 3-task check @T1.0: base 12B 1/3 (rich_3882), v2 best 0/3, v2 final 0/3 (v1 final 1/3 earlier).
+  v2: no loops, uses read_file ranges (rewrite worked), but 2-4x more tool errors than base (teacher bash chains with
+  broken quoting). CONCLUSION: teacher-imitation SFT does not improve the 12B in our harness. Options: self-distillation
+  on Gemma's own resolved runs (check rules on training with public tasks first) or back to agent/prompt/sampling work
+  on the 31B (untested: 31B @T1.0).
 - **For the FINAL 31B data (user 2026-10-18): drop tasks the model already handles, keep the ones it fails.** We
   cannot run teacher tasks' tests on Kaggle (no Docker, no internet on GPU), so measure difficulty as the BASE 31B's
   loss on the teacher's replies (forward pass only; instruction-following-difficulty / Superfiltering idea, cited
