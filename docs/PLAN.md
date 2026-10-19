@@ -57,6 +57,17 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
 - **Then:** training data rendering + masking (loss only on model tokens), 12B training (data-parallel 4 copies
   to build; ~3.5 h/epoch est.), eval: fine-tuned 12B on dev16 ×2. **Success = 12B ≥ mix (4+3=7 over two runs)**;
   also measure calls/task, thinking/step, s/task. Thinking budget 2048 for this test; later more data + 4096.
+- **12B SFT v1 TRAINED (2026-10-19, Kaggle notebook ziad23samer/finetuning; data/results/2026-10-19_train_12b_v1/:
+  report.json, history.json, adapter_12b_v1_final.zip):** 887 segments (train 806 = 9.48M tokens, 2.05M trained;
+  val 81). One 12B copy per L4 OOMs (21.9/22 GB, a 268 MB activation) → 2 copies x 2 GPUs, ~245 tok/s → 6 h cap =
+  105 steps ≈ half an epoch (4.9M tokens). **Val loss (all 81 segments): start 1.093 → final 0.572 (−48%)**; mid-run
+  (24 segments) 0.633 / 0.584 / 0.567 / 0.562. Train loss avg 1.28 → 0.68; grad spikes clipped. 6.3 h wall.
+  First attempt hung at step 25 (copies re-planned the time budget separately) → fixed e32ceec (rank 0 decides,
+  40-min timeout + auto-resume, checkpoints every 10 steps). Adapter validated locally with the official
+  discover_adapters/compile_submission (rank 16, agent → openai/sft_v1, 125 MiB).
+  **NEXT: dev16 x2 eval** kaggle/cells_eval_12b_sft (scripts/train/make_eval_cells.py = cells_12b_base + adapter;
+  inputs: competition, 12B model, finetuning notebook output). Success = ≥7 over two runs (mix 31B 4+3; 12B base
+  2+1). Speed ideas for next training: fit one copy per L4 (~2x), smaller mid-run val (done).
 - **For the FINAL 31B data (user 2026-10-18): drop tasks the model already handles, keep the ones it fails.** We
   cannot run teacher tasks' tests on Kaggle (no Docker, no internet on GPU), so measure difficulty as the BASE 31B's
   loss on the teacher's replies (forward pass only; instruction-following-difficulty / Superfiltering idea, cited

@@ -1,0 +1,87 @@
+"""Writes kaggle/cells_eval_12b_sft/: the fine-tuned 12B (mix_12b + our LoRA) on dev16 x2, built from the cells that
+measured the 12B baseline (kaggle/cells_12b_base: mix_12b 2/16 and 1/16) so the only difference is the adapter.
+
+    python3 scripts/train/make_eval_cells.py
+
+Changes vs the baseline cells: the submission gets `adapter: sft_v1` + adapters/sft_v1/ (copied from the training
+notebook's output, attached as input); vLLM starts with LoRA on and the adapter manifest, like the host notebook /
+scorer; the Evaluator gets the manifest; a quick check that vLLM serves the adapter and that it changes the replies.
+"""
+import re
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+SRC = ROOT / "kaggle" / "cells_12b_base"
+OUT = ROOT / "kaggle" / "cells_eval_12b_sft"
+OUT.mkdir(parents=True, exist_ok=True)
+ADAPTER = "sft_v1"
+
+
+def must_replace(text, old, new):
+    assert text.count(old) == 1, f"pattern not found once: {old[:60]!r}"
+    return text.replace(old, new)
+
+
+(OUT / "cell1.py").write_text((SRC / "cell1.py").read_text())
+
+c2 = (SRC / "cell2.py").read_text()
+c2 = must_replace(c2, "CONFIGS = ['mix_12b']", "CONFIGS = ['mix_12b_sft']")
+c2 = c2.replace('"mix_12b": {', '"mix_12b_sft": {', 1)
+c2 = re.sub(r'"agent\.yaml": "# Arm mix_12b: mix unchanged on the 12B \(baseline before LoRA\)\.\\n',
+            f'"agent.yaml": "# Arm mix_12b_sft: mix_12b + the stage B LoRA (sft v1).\\\\n', c2, count=1)
+c2 = must_replace(c2, "model: gemma-4-12b-it-qat-w4a16-ct\\ninstruction:",
+                  f"model: gemma-4-12b-it-qat-w4a16-ct\\nadapter: {ADAPTER}\\ninstruction:")
+c2 = must_replace(c2, "\nif 'sample' in CONFIGS:", f'''
+# The adapter trained in the 12B training notebook (attach that notebook's output as input): final checkpoint.
+_ad = sorted(glob.glob('/kaggle/input/**/adapter_12b_v1/final/adapter_config.json', recursive=True))
+assert _ad, 'attach the training notebook output (folder adapter_12b_v1/final with adapter_config.json)'
+ADAPTER_SRC = Path(_ad[-1]).parent
+_dst = SUB_ROOT / 'mix_12b_sft' / 'adapters' / {ADAPTER!r}
+_dst.mkdir(parents=True, exist_ok=True)
+for _f in ('adapter_config.json', 'adapter_model.safetensors'):
+    shutil.copy(ADAPTER_SRC / _f, _dst / _f)
+_cfg = json.loads((_dst / 'adapter_config.json').read_text())
+print('adapter', ADAPTER_SRC, '| r', _cfg['r'], 'alpha', _cfg['lora_alpha'], '| targets', _cfg['target_modules'],
+      '| size', round((_dst / 'adapter_model.safetensors').stat().st_size / 1e6), 'MB')
+
+if 'sample' in CONFIGS:''')
+if "import json" not in c2:
+    c2 = c2.replace("import re\n", "import json, re\n", 1)
+(OUT / "cell2.py").write_text(c2)
+
+c3 = (SRC / "cell3.py").read_text()
+c3 = c3[:c3.index("# Sampling diagnostic")].rstrip() + "\n"
+c3 = must_replace(c3, "# 3. Start vLLM once for all configs (no adapters → LoRA off → more KV cache). Takes ~6–8 min.",
+                  "# 3. Start vLLM with LoRA on and the submission's adapter (as the host notebook / scorer). ~6–8 min.")
+c3 = must_replace(c3, "from adk_submission import VllmConfig, VllmServer",
+                  "from adk_submission import VllmConfig, VllmServer, discover_adapters\n"
+                  "from swegemma.config import ALLOWED_ADAPTER_EXTENSIONS")
+c3 = must_replace(c3, "    enable_lora=False,", "    enable_lora=True,\n    max_loras=8,\n    max_lora_rank=128,")
+c3 = must_replace(c3, "server_instance = VllmServer(vllm_cfg)",
+                  "ADAPTERS = discover_adapters(str(SUB_ROOT / 'mix_12b_sft'), adapter_extensions=ALLOWED_ADAPTER_EXTENSIONS)\n"
+                  "print('adapters found:', list(ADAPTERS.adapters))\n"
+                  "server_instance = VllmServer(vllm_cfg, adapter_manifest=ADAPTERS)")
+c3 += f'''
+# Is the adapter served, and does it change the model? Same short prompt to the base and to the adapter (greedy).
+import json as _json, urllib.request as _url
+_base = server_instance.base_url.rstrip('/')
+_base = _base if _base.endswith('/v1') else _base + '/v1'
+_served = [m['id'] for m in _json.load(_url.urlopen(_base + '/models'))['data']]
+print('served models:', _served)
+assert {ADAPTER!r} in _served, 'vLLM does not serve the adapter: stop and send me this output'
+def _ask(model):
+    body = {{'model': model, 'max_tokens': 60, 'temperature': 0, 'messages': [{{'role': 'user', 'content':
+            'You are fixing a bug in /workspace. What is your first tool call? Answer in one line.'}}]}}
+    req = _url.Request(_base + '/chat/completions', data=_json.dumps(body).encode(), headers={{'Content-Type': 'application/json'}})
+    return _json.load(_url.urlopen(req))['choices'][0]['message'].get('content')
+_a, _b = _ask(str(MODEL_PATH)), _ask({ADAPTER!r})
+print('base   :', repr(_a)); print('adapter:', repr(_b)); print('adapter changes the reply:', _a != _b)
+'''
+(OUT / "cell3.py").write_text(c3)
+
+c4 = (SRC / "cell4.py").read_text()
+c4 = must_replace(c4, "                          concurrency=CONCURRENCY)",
+                  "                          concurrency=CONCURRENCY, adapter_manifest=ADAPTERS)")
+(OUT / "cell4.py").write_text(c4)
+(OUT / "cell5.py").write_text((SRC / "cell5.py").read_text())
+print("wrote", sorted(p.name for p in OUT.iterdir()))
