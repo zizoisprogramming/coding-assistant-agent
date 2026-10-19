@@ -3,15 +3,19 @@ scripts/datasets/stage_b.py, scripts/request_logger.py, scripts/render_traces.py
 selection candidates (data/selection_v1.json, ids of public Open-SWE-Traces episodes only). Re-run after editing any
 of them so the notebook always carries the tested code.
 
-    python3 scripts/datasets/make_stage_b_cells.py
+    python3 scripts/datasets/make_stage_b_cells.py        # v1 -> kaggle/cells_stage_b (+ CPU check cells)
+    python3 scripts/datasets/make_stage_b_cells.py v2     # v2 -> kaggle/cells_stage_b_v2: selection_v2.json,
+                                                          # reads rewritten into read_file, output stage_b_v2_out
 """
+import sys
 import base64
 import gzip
 import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-OUT = ROOT / "kaggle" / "cells_stage_b"
+VARIANT = sys.argv[1] if len(sys.argv) > 1 else "v1"
+OUT = ROOT / "kaggle" / ("cells_stage_b" if VARIANT == "v1" else f"cells_stage_b_{VARIANT}")
 OUT.mkdir(parents=True, exist_ok=True)
 SUB = ROOT / "submissions" / "mix_12b"
 
@@ -19,7 +23,7 @@ code = {"stage_b.py": (ROOT / "scripts" / "datasets" / "stage_b.py").read_text()
         "request_logger.py": (ROOT / "scripts" / "request_logger.py").read_text(),
         "render_traces.py": (ROOT / "scripts" / "render_traces.py").read_text()}
 sub = {p.relative_to(SUB).as_posix(): p.read_text() for p in sorted(SUB.rglob("*")) if p.is_file()}
-sel = json.loads((ROOT / "data" / "selection_v1.json").read_text())
+sel = json.loads((ROOT / "data" / f"selection_{VARIANT}.json").read_text())
 compact = {"quotas": sel["quotas"], "seed": sel["seed"]}
 for k in ("train_candidates", "val_candidates"):
     compact[k] = [{"id": r["id"], "file": r["file"], "line": r["line"], "category": r["category"]} for r in sel[k]]
@@ -170,6 +174,16 @@ server_instance.stop()
 '''
 (OUT / "cell5_report.py").write_text(cell5)
 print("wrote", sorted(p.name for p in OUT.iterdir()), f"(selection {len(sel_b64) / 1e3:.0f} kB)")
+if VARIANT != "v1":
+    for name in ("cell4_run.py", "cell5_report.py"):
+        t = (OUT / name).read_text().replace("stage_b_out", f"stage_b_{VARIANT}_out")
+        t = t.replace("'--concurrency', '16', '--print-every', '25']",
+                      "'--concurrency', '16', '--print-every', '5', '--rewrite-reads']")
+        t = t.replace("=== full run (500 train + 50 val) ===", f"=== full run (selection {VARIANT}) ===")
+        (OUT / name).write_text(t)
+    assert "--rewrite-reads" in (OUT / "cell4_run.py").read_text()
+    print(f"{VARIANT}: reads rewritten, output stage_b_{VARIANT}_out")
+    raise SystemExit
 
 # --- whole-corpus replay check (CPU notebook): which episodes stage B could replay faithfully ---
 chk = {"stage_b.py": code["stage_b.py"], "replay_check.py": (ROOT / "scripts" / "datasets" / "replay_check.py").read_text()}

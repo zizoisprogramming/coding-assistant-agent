@@ -90,6 +90,12 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   reads, git grep, no whole-file cat, no long chains, think 102 chars/call (failed: 54); teachers use run_command
   89-100%, read_file 0%, 68-90-line reads, chains 17-22%. v1 trained Gemma AWAY from its successful style.
   → v2 also rewrites simple teacher reads into our tools (sed -n a,bp / short cat → read_file with the same text).
+- **Selection v2 (2026-10-19, scripts/datasets/select_v2.py → data/selection_v2.json):** full-corpus features
+  (Kaggle notebook 'tokenizer' → data/results/2026-10-19_features/features.jsonl.gz). Strict rules left 828 episodes /
+  639 tasks; relaxed to ≤20% steps without thinking + ≤1 output over limits → pool 1,715 / 1,259 tasks. Picks: train
+  482 (other 57/75), val 50 (50 repos), 636 train reserves; thinking median ~825 chars/step; 47% with a recovered
+  error; teachers Qwen-27B 208, Qwen-Flash 181, DeepSeek 90, MiniMax 3. Stage B v2 cells: kaggle/cells_stage_b_v2
+  (make_stage_b_cells.py v2: --rewrite-reads, output stage_b_v2_out); local sim 230/230 ok.
 - **For the FINAL 31B data (user 2026-10-18): drop tasks the model already handles, keep the ones it fails.** We
   cannot run teacher tasks' tests on Kaggle (no Docker, no internet on GPU), so measure difficulty as the BASE 31B's
   loss on the teacher's replies (forward pass only; instruction-following-difficulty / Superfiltering idea, cited
