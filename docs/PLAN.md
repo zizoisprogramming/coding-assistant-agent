@@ -68,6 +68,10 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   **NEXT: dev16 x2 eval** kaggle/cells_eval_12b_sft (scripts/train/make_eval_cells.py = cells_12b_base + adapter;
   inputs: competition, 12B model, finetuning notebook output). Success = ≥7 over two runs (mix 31B 4+3; 12B base
   2+1). Speed ideas for next training: fit one copy per L4 (~2x), smaller mid-run val (done).
+- **12B SFT v1 dev16 r1 = 0/16 (2026-10-19; base 12B 2/16):** stopped after pass 1. Every finished task: NO edits;
+  "exceeded turns budget" = used the 28 tool calls then kept calling (harness checks the tool budget only between
+  rounds) → explores, never commits to an edit; others timed out with no edit. Diagnostic next: kaggle/cells_diag_12b_sft
+  (interactive; rich_3882 [base solves], fastapi_14258, fastapi_15589; one at a time; request logger; cell5 digest).
 - **For the FINAL 31B data (user 2026-10-18): drop tasks the model already handles, keep the ones it fails.** We
   cannot run teacher tasks' tests on Kaggle (no Docker, no internet on GPU), so measure difficulty as the BASE 31B's
   loss on the teacher's replies (forward pass only; instruction-following-difficulty / Superfiltering idea, cited
