@@ -74,8 +74,8 @@ code, _ = stream([sys.executable, '-u', str(CODE / 'build_samples.py'), '--stage
 assert code == 0 and SAMPLES.exists(), 'building the samples failed (see above)'
 ''')
 
-(OUT / "cell4_fit.py").write_text('''# 4. Memory + speed check on the LONGEST training segment: can one L4 hold a full copy of the 12B (4 copies train in
-#    parallel, ~4x faster)? If not, each copy uses 2 GPUs (2 copies). Prints the expected training time.
+(OUT / "cell4_fit.py").write_text('''# 4. Memory + speed check on the LONGEST training segment with 2 GPUs per 12B copy (2 copies train in parallel).
+#    Prints the expected training time.
 def probe(g):
     out = WORKING_DIR / 'fit'
     print(f'--- trying {g} GPU(s) per copy (loading the 12B, then fwd+bwd on the longest segment) ---', flush=True)
@@ -93,11 +93,13 @@ def probe(g):
     return res
 
 n_gpu = torch.cuda.device_count()
-fit = probe(1)
+# One L4 per 12B copy ran out of memory in both earlier runs (21.9/22 GB): go straight to 2 GPUs per copy (user).
+# Set TRY_ONE_GPU = True to test 1 GPU per copy again (e.g. after a memory change).
+TRY_ONE_GPU = False
+fit = probe(1) if TRY_ONE_GPU else None
 GPUS_PER_RANK = 1 if fit and fit['peak_gib'] < 21.0 else 2
 if GPUS_PER_RANK == 2:
-    print('one GPU is not enough (or too tight): using 2 GPUs per copy')
-    fit = probe(2)
+    fit = probe(2)  # still measured: memory + speed on the longest segment, for the time estimate
     assert fit, 'the 12B does not fit even on 2 GPUs per copy: send me the output above'
 RANKS = n_gpu // GPUS_PER_RANK
 _s = torch.load(SAMPLES)
