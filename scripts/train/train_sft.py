@@ -94,6 +94,19 @@ def lora_params(model):
     return ps
 
 
+def load_adapter_weights(model, adapter_dir):
+    """Put a saved PEFT adapter's LoRA weights into our model (to score an earlier adapter, e.g. v1)."""
+    from safetensors.torch import load_file
+    sd = load_file(str(Path(adapter_dir) / "adapter_model.safetensors"))
+    n = 0
+    for name, mod in model.named_modules():
+        if isinstance(mod, Int4LoRALinear) and mod.r:
+            mod.lora_A.data.copy_(sd[f"base_model.model.{name}.lora_A.weight"].to(mod.lora_A.device, torch.float32))
+            mod.lora_B.data.copy_(sd[f"base_model.model.{name}.lora_B.weight"].to(mod.lora_B.device, torch.float32))
+            n += 1
+    return n
+
+
 def first_device(model):
     return model.get_input_embeddings().weight.device
 
@@ -153,11 +166,19 @@ def main():
     ap.add_argument("--dropout", type=float, default=0.0)
     ap.add_argument("--seed", type=int, default=20261018)
     ap.add_argument("--attn", default="sdpa")
-    ap.add_argument("--eval-every", type=int, default=0, help="steps between validation runs (0: 4 per run)")
+    ap.add_argument("--eval-every", type=int, default=0, help="steps between validation runs (0: --evals per run)")
+    ap.add_argument("--evals", type=int, default=4, help="mid-run validations per run (when --eval-every is 0)")
+    ap.add_argument("--early-stop-patience", type=int, default=0, help="stop when the mid-run validation loss has not "
+                    "improved by --min-delta for this many validations in a row (0: off)")
+    ap.add_argument("--min-delta", type=float, default=0.005)
     ap.add_argument("--val-max", type=int, default=24, help="validation segments used mid-run (0: all); start and "
                     "final always use all")
     ap.add_argument("--save-every", type=int, default=10, help="steps between resumable checkpoints")
     ap.add_argument("--max-hours", type=float, default=0, help="stop training in time (schedule re-planned to fit)")
+    ap.add_argument("--extra-val", nargs="*", default=[], help="more samples files (e.g. Gemma's own runs): each split "
+                    "in them is scored separately at the start and at the end")
+    ap.add_argument("--score-adapter", default=None, help="adapter folder to score on every validation set before "
+                    "training (e.g. v1), then training starts from a fresh LoRA")
     ap.add_argument("--probe", action="store_true", help="one rank: fwd+bwd on the longest train segment, report memory")
     ap.add_argument("--max-steps", type=int, default=0, help="tests: stop after this many steps")
     args = ap.parse_args()
@@ -169,6 +190,10 @@ def main():
     samples = torch.load(args.samples)
     train = [s for s in samples if s["split"] == "train"]
     val = [s for s in samples if s["split"] == "val"]
+    extra = {}
+    for f in args.extra_val:
+        for s in torch.load(f):
+            extra.setdefault(s["split"], []).append(s)
     log(f"ranks {world} x {args.gpus_per_rank} GPU(s) | train {len(train)} segments "
         f"{sum(len(s['input_ids']) for s in train) / 1e6:.2f}M tokens ({sum(int(s['labels_mask'].sum()) for s in train) / 1e6:.2f}M trained) "
         f"| val {len(val)} segments", 0, rank)
@@ -222,7 +247,9 @@ def main():
         opt.load_state_dict(st["opt"])
         step, plan, history = st["step"], st["plan"], st["history"]
         log(f"RESUMED at step {step}/{plan['total']}", 0, rank)
-    eval_every = args.eval_every or max(1, plan["total"] // 4)
+    plan.setdefault("best", None)
+    plan.setdefault("bad", 0)
+    eval_every = args.eval_every or max(1, plan["total"] // (args.evals + 1))
     log(f"plan: {plan['total']} optimizer steps ({per_epoch}/epoch x {args.epochs} epochs), "
         f"{world * args.accum} segments per step, lr {args.lr} warmup {args.warmup} cosine->{args.min_lr_ratio}, "
         f"validation every {eval_every} steps", 0, rank)
@@ -260,9 +287,33 @@ def main():
         eval_secs[tag] = (time.time() - t0, len(vs))
         log(f"VAL [{tag}] step {step}: loss {loss:.4f} over {n} trained tokens in {len(vs)} segments "
             f"({time.time() - t0:.0f}s)", 0, rank)
+        return loss
 
+    def run_extra(tag):  # the extra validation sets (Gemma's resolved / failed runs), full each time
+        for split, segs in sorted(extra.items()):
+            t0 = time.time()
+            loss, n = evaluate(model, segs, rank, world, dev)
+            history.append({"type": "val", "set": split, "tag": tag, "step": step, "val_loss": round(loss, 4),
+                            "val_tokens": n, "segments": len(segs), "seconds": round(time.time() - t0)})
+            log(f"VAL [{tag}] {split}: loss {loss:.4f} over {n} trained tokens in {len(segs)} segments "
+                f"({time.time() - t0:.0f}s)", 0, rank)
+
+    if step == 0 and args.score_adapter:  # score an earlier adapter on the same sets, then start fresh
+        fresh = [p.detach().clone() for p in params]
+        k = load_adapter_weights(model, args.score_adapter)
+        log(f"scoring adapter {args.score_adapter} ({k} LoRA modules loaded)", 0, rank)
+        if val:
+            loss, n = evaluate(model, val, rank, world, dev)
+            history.append({"type": "val", "set": "val", "tag": "scored_adapter", "step": 0, "val_loss": round(loss, 4),
+                            "val_tokens": n, "segments": len(val)})
+            log(f"VAL [scored_adapter] val: loss {loss:.4f} over {n} trained tokens in {len(val)} segments", 0, rank)
+        run_extra("scored_adapter")
+        for p, v in zip(params, fresh):
+            p.data.copy_(v)
     if step == 0 and val:
         run_eval("start")
+    if step == 0:
+        run_extra("start")
     all_batches = [b for e in range(math.ceil(args.epochs)) for b in batches(train, world, args.accum, args.seed, e)]
     ema, t_train, steps_timed = None, time.time(), 0
     while step < plan["total"] and step < len(all_batches):
@@ -307,14 +358,14 @@ def main():
             full = eval_secs.get("start", (0.0, max(len(val), 1)))
             per_seg = full[0] / max(full[1], 1)
             n_mid = min(args.val_max or len(val), len(val))
-            evals = per_seg * (len(val) + 3 * n_mid) + 120  # final + 3 mid-run validations + saves
+            evals = per_seg * (len(val) + args.evals * n_mid + sum(len(v) for v in extra.values())) + 120  # final+mid+extra
             left = args.max_hours * 3600 - (time.time() - t_start) - evals
             fit = int(from_rank0(step + max(0, int(left / avg_step)), dev))
             if fit < plan["total"]:
                 log(f"TIME BUDGET: {plan['total']} steps would take {plan['total'] * avg_step / 3600:.1f}h; "
                     f"re-planned to {fit} steps to finish within {args.max_hours}h", 0, rank)
                 plan["total"] = fit
-                eval_every = args.eval_every or max(1, fit // 4)
+                eval_every = args.eval_every or max(1, fit // (args.evals + 1))
         eta = (plan["total"] - step) * avg_step
         history.append({"type": "train", "step": step, "loss": round(loss, 4), "ema": round(ema, 4), "lr": lr,
                         "grad_norm": round(gnorm, 4), "tokens": int(toks), "trained_tokens": int(g_lab),
@@ -323,17 +374,32 @@ def main():
             f"{int(toks):6} tok ({int(g_lab)} trained) {toks / secs:6.0f} tok/s | mem {mem:.1f} GiB | "
             f"{secs:5.1f}s | ETA {eta / 60:5.1f} min", 0, rank)
         if step % eval_every == 0 and step < plan["total"]:
+            stop = False
             if val:
-                run_eval(f"step{step}")
+                loss_v = run_eval(f"step{step}")  # the same 24-segment subset every time: comparable across steps
+                if plan["best"] is None or loss_v < plan["best"] - args.min_delta:
+                    plan["best"], plan["bad"] = loss_v, 0
+                    save("best")
+                    log(f"  new best mid-run validation loss {loss_v:.4f} -> saved as best", 0, rank)
+                else:
+                    plan["bad"] += 1
+                    log(f"  no improvement over best {plan['best']:.4f} (by {args.min_delta}) for {plan['bad']} "
+                        f"validation(s)", 0, rank)
+                    stop = bool(args.early_stop_patience) and plan["bad"] >= args.early_stop_patience
             save(f"step_{step}")
+            if from_rank0(1.0 if stop else 0.0, dev) > 0.5:  # rank 0 decides for every copy
+                log(f"EARLY STOP at step {step}: validation loss plateaued ({plan['bad']} validations without "
+                    f"improvement); final validation + save next", 0, rank)
+                break
         elif step % args.save_every == 0:
             save_state()
     if val:
         run_eval("final")
+    run_extra("final")
     save("final")
     if rank == 0:
         vals = [h for h in history if h["type"] == "val"]
-        log("\nVALIDATION LOSS: " + " | ".join(f"{h['tag']} {h['val_loss']}" for h in vals), 0, rank)
+        log("\nVALIDATION LOSS: " + " | ".join(f"{h.get('set', 'val')}@{h['tag']} {h['val_loss']}" for h in vals), 0, rank)
         log(f"done: {step} steps in {(time.time() - t_start) / 3600:.2f}h -> {out / 'final'}", 0, rank)
     if dist.is_initialized():
         dist.destroy_process_group()

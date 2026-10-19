@@ -96,6 +96,11 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   482 (other 57/75), val 50 (50 repos), 636 train reserves; thinking median ~825 chars/step; 47% with a recovered
   error; teachers Qwen-27B 208, Qwen-Flash 181, DeepSeek 90, MiniMax 3. Stage B v2 cells: kaggle/cells_stage_b_v2
   (make_stage_b_cells.py v2: --rewrite-reads, output stage_b_v2_out); local sim 230/230 ok.
+- **Training v2 notebook (kaggle/cells_train_12b_v2, make_train_cells.py v2):** stage B v2 data; extra validation
+  val_gemma_ok / val_gemma_fail (Gemma's pilot #2 runs, data/results/2026-10-19_gemma_val/samples_all.pt → PRIVATE
+  Kaggle dataset, validation only) at start + end; v1 adapter scored on all validation sets first (--score-adapter);
+  plateau early stopping (8 mid-run validations on the same 24 segments, stop after 2 without ≥0.005 improvement,
+  rank 0 decides) + 'best' checkpoint. Tested on CPU incl. 2 copies (both stop together).
 - **For the FINAL 31B data (user 2026-10-18): drop tasks the model already handles, keep the ones it fails.** We
   cannot run teacher tasks' tests on Kaggle (no Docker, no internet on GPU), so measure difficulty as the BASE 31B's
   loss on the teacher's replies (forward pass only; instruction-following-difficulty / Superfiltering idea, cited

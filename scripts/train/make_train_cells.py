@@ -151,3 +151,63 @@ for h in tr[::10] + tr[-1:]:
 print('files: adapter_12b_v1_final.zip (adapter_config.json + adapter_model.safetensors), history.json, report.json')
 ''')
 print("wrote", sorted(p.name for p in OUT.iterdir()))
+
+# --- v2: stage B v2 data; Gemma's own runs as extra validation; the v1 adapter scored on the same sets first ---
+import sys  # noqa: E402
+if len(sys.argv) > 1 and sys.argv[1] == "v2":
+    V2 = ROOT / "kaggle" / "cells_train_12b_v2"
+    V2.mkdir(parents=True, exist_ok=True)
+
+    def sub(text, pairs):
+        for old, new in pairs:
+            assert old in text, f"v2: pattern not found: {old[:60]!r}"
+            text = text.replace(old, new)
+        return text
+    (V2 / "cell1_install.py").write_text((OUT / "cell1_install.py").read_text())
+    (V2 / "cell2_setup.py").write_text(sub((OUT / "cell2_setup.py").read_text(), [
+        ("# Inputs to attach: the competition (wheelhouse), the model google/gemma-4 -> gemma-4-12b-it-qat-w4a16-ct, and the stage B\n"
+         "# output (the notebook version that printed \"550 ok\": its stage_b_out folder, attached as notebook output or as a\n"
+         "# dataset made from it).",
+         "# v2. Inputs to attach: the competition (wheelhouse), the model google/gemma-4 -> gemma-4-12b-it-qat-w4a16-ct, the\n"
+         "# stage B v2 output (folder stage_b_v2_out), and if available: the PRIVATE dataset with gemma_val_samples.pt (Gemma's\n"
+         "# own pilot runs, validation only) and the 'finetuning' notebook output (the v1 adapter, scored for comparison)."),
+        ("# Training settings (first 12B run; decided with the user: thinking budget 2048 data, mix prompt, 500 train / 50 val)",
+         "# Training settings: same as v1 (the final v1 checkpoint was not worse than step 26); data is what changed (v2)"),
+        ("glob.glob('/kaggle/input/**/stage_b_out/status.jsonl', recursive=True)",
+         "glob.glob('/kaggle/input/**/stage_b_v2_out/status.jsonl', recursive=True)"),
+        ("assert STAGE_B, 'attach the stage B output (the folder stage_b_out with status.jsonl and requests_*.jsonl)'",
+         "assert STAGE_B, 'attach the stage B v2 output (the folder stage_b_v2_out with status.jsonl and requests_*.jsonl)'\n"
+         "_g = sorted(glob.glob('/kaggle/input/**/gemma_val_samples.pt', recursive=True) +\n"
+         "            glob.glob('/kaggle/input/**/samples_all.pt', recursive=True))\n"
+         "GEMMA_VAL = Path(_g[0]) if _g else None\n"
+         "_v1 = sorted(glob.glob('/kaggle/input/**/adapter_12b_v1/final/adapter_config.json', recursive=True))\n"
+         "V1_ADAPTER = Path(_v1[-1]).parent if _v1 else None\n"
+         "print('Gemma validation set:', GEMMA_VAL or 'NOT attached (skipped)', '| v1 adapter to score:', V1_ADAPTER or 'NOT attached (skipped)')"),
+    ]))
+    (V2 / "cell3_samples.py").write_text((OUT / "cell3_samples.py").read_text())
+    (V2 / "cell4_fit.py").write_text((OUT / "cell4_fit.py").read_text())
+    (V2 / "cell5_train.py").write_text(sub((OUT / "cell5_train.py").read_text(), [
+        ("TRAIN_OUT = WORKING_DIR / 'adapter_12b_v1'", "TRAIN_OUT = WORKING_DIR / 'adapter_12b_v2'"),
+        ("#    resumable checkpoint every 10 steps; an error resumes automatically (up to 2 times).",
+         "#    resumable checkpoint every 10 steps; an error resumes automatically (up to 2 times). v2: 8 mid-run validations;\n"
+         "#    stops early when the validation loss has not improved by 0.005 for 2 validations in a row (plateau); the\n"
+         "#    best mid-run adapter is kept as 'best'."),
+        ("       '--max-hours', str(CONFIG['max_hours'])]",
+         "       '--max-hours', str(CONFIG['max_hours']), '--evals', '8', '--early-stop-patience', '2', '--min-delta', '0.005']\n"
+         "if GEMMA_VAL:  # Gemma's resolved / failed pilot runs, scored at the start and the end\n"
+         "    cmd += ['--extra-val', str(GEMMA_VAL)]\n"
+         "if V1_ADAPTER:  # v1 scored on every validation set before training (~25 min, inside the time cap)\n"
+         "    cmd += ['--score-adapter', str(V1_ADAPTER)]"),
+        ("# 5. Train.", "# 5. Train (v2). First (if attached) the v1 adapter is scored on every validation set, then the base model;"
+                        "\n#    then training."),
+    ]))
+    (V2 / "cell6_report.py").write_text(sub((OUT / "cell6_report.py").read_text(), [
+        ("'validation': [(h['tag'], h['val_loss']) for h in va],",
+         "'validation': [(h.get('set', 'val'), h['tag'], h['val_loss']) for h in va],"),
+        ("shutil.make_archive(str(WORKING_DIR / 'adapter_12b_v1_final'), 'zip', TRAIN_OUT / 'final')",
+         "shutil.make_archive(str(WORKING_DIR / 'adapter_12b_v2_final'), 'zip', TRAIN_OUT / 'final')\n"
+         "if (TRAIN_OUT / 'best').exists():  # best mid-run validation loss (plateau early stopping)\n"
+         "    shutil.make_archive(str(WORKING_DIR / 'adapter_12b_v2_best'), 'zip', TRAIN_OUT / 'best')"),
+        ("files: adapter_12b_v1_final.zip", "files: adapter_12b_v2_final.zip + adapter_12b_v2_best.zip"),
+    ]))
+    print("wrote v2", sorted(p.name for p in V2.iterdir()))
