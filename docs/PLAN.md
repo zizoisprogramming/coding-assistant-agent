@@ -115,6 +115,10 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   broken quoting). CONCLUSION: teacher-imitation SFT does not improve the 12B in our harness. Options: self-distillation
   on Gemma's own resolved runs (check rules on training with public tasks first) or back to agent/prompt/sampling work
   on the 31B (untested: 31B @T1.0).
+- **NEXT (user 2026-10-19): self-distillation.** Start by researching the competition rules + forum: may we train on the
+  public tasks (and which: non-dev only, to keep dev16 clean)? risk of overfitting the leaderboard? Then design: run the
+  31B (mix, several samples per task, T1.0?) on graded tasks, keep only resolved runs (request logger → stage-B-style
+  episodes via gemma_runs_to_episodes.py → build_samples), train the 12B, check on dev16 + val_gemma_ok.
 - **For the FINAL 31B data (user 2026-10-18): drop tasks the model already handles, keep the ones it fails.** We
   cannot run teacher tasks' tests on Kaggle (no Docker, no internet on GPU), so measure difficulty as the BASE 31B's
   loss on the teacher's replies (forward pass only; instruction-following-difficulty / Superfiltering idea, cited
