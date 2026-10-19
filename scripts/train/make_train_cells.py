@@ -197,7 +197,8 @@ if len(sys.argv) > 1 and sys.argv[1] == "v2":
         ("       '--max-hours', str(CONFIG['max_hours'])]",
          "       '--max-hours', str(CONFIG['max_hours']), '--evals', '8', '--early-stop-patience', '2', '--min-delta', '0.005']\n"
          "if GEMMA_VAL:  # Gemma's resolved / failed pilot runs, scored at the start and the end\n"
-         "    cmd += ['--extra-val', str(GEMMA_VAL)]\n"
+         "    cmd += ['--extra-val', str(GEMMA_VAL), '--monitor', 'val_gemma_ok']  # user: Gemma's resolved runs drive\n"
+         "    # the mid-run checks, the plateau stop and the best checkpoint\n"
          "if V1_ADAPTER:  # v1 scored on every validation set before training (~25 min, inside the time cap)\n"
          "    cmd += ['--score-adapter', str(V1_ADAPTER)]"),
         ("# 5. Train.", "# 5. Train (v2). First (if attached) the v1 adapter is scored on every validation set, then the base model;"

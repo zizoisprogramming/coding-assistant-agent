@@ -171,6 +171,9 @@ def main():
     ap.add_argument("--early-stop-patience", type=int, default=0, help="stop when the mid-run validation loss has not "
                     "improved by --min-delta for this many validations in a row (0: off)")
     ap.add_argument("--min-delta", type=float, default=0.005)
+    ap.add_argument("--monitor", default="val", help="validation set the mid-run checks, the plateau stop and the best "
+                    "checkpoint use: 'val' (teacher, 24-segment subset) or a split of --extra-val, e.g. val_gemma_ok "
+                    "(Gemma's own resolved runs, scored in full)")
     ap.add_argument("--val-max", type=int, default=24, help="validation segments used mid-run (0: all); start and "
                     "final always use all")
     ap.add_argument("--save-every", type=int, default=10, help="steps between resumable checkpoints")
@@ -289,14 +292,23 @@ def main():
             f"({time.time() - t0:.0f}s)", 0, rank)
         return loss
 
+    def eval_set(split, segs, tag):
+        t0 = time.time()
+        loss, n = evaluate(model, segs, rank, world, dev)
+        history.append({"type": "val", "set": split, "tag": tag, "step": step, "val_loss": round(loss, 4),
+                        "val_tokens": n, "segments": len(segs), "seconds": round(time.time() - t0)})
+        log(f"VAL [{tag}] {split}: loss {loss:.4f} over {n} trained tokens in {len(segs)} segments "
+            f"({time.time() - t0:.0f}s)", 0, rank)
+        return loss
+
     def run_extra(tag):  # the extra validation sets (Gemma's resolved / failed runs), full each time
         for split, segs in sorted(extra.items()):
-            t0 = time.time()
-            loss, n = evaluate(model, segs, rank, world, dev)
-            history.append({"type": "val", "set": split, "tag": tag, "step": step, "val_loss": round(loss, 4),
-                            "val_tokens": n, "segments": len(segs), "seconds": round(time.time() - t0)})
-            log(f"VAL [{tag}] {split}: loss {loss:.4f} over {n} trained tokens in {len(segs)} segments "
-                f"({time.time() - t0:.0f}s)", 0, rank)
+            eval_set(split, segs, tag)
+
+    monitor = args.monitor if (args.monitor == "val" or args.monitor in extra) else "val"
+    if monitor != args.monitor:
+        log(f"WARNING: --monitor {args.monitor} not among the validation sets; monitoring 'val' instead", 0, rank)
+    log(f"mid-run checks, plateau stop and best checkpoint use: {monitor}", 0, rank)
 
     if step == 0 and args.score_adapter:  # score an earlier adapter on the same sets, then start fresh
         fresh = [p.detach().clone() for p in params]
@@ -357,7 +369,7 @@ def main():
         if args.max_hours and steps_timed == 3:  # re-plan once the speed is known (rank 0 decides for everyone)
             full = eval_secs.get("start", (0.0, max(len(val), 1)))
             per_seg = full[0] / max(full[1], 1)
-            n_mid = min(args.val_max or len(val), len(val))
+            n_mid = min(args.val_max or len(val), len(val)) if monitor == "val" else len(extra[monitor])
             evals = per_seg * (len(val) + args.evals * n_mid + sum(len(v) for v in extra.values())) + 120  # final+mid+extra
             left = args.max_hours * 3600 - (time.time() - t_start) - evals
             fit = int(from_rank0(step + max(0, int(left / avg_step)), dev))
@@ -375,12 +387,16 @@ def main():
             f"{secs:5.1f}s | ETA {eta / 60:5.1f} min", 0, rank)
         if step % eval_every == 0 and step < plan["total"]:
             stop = False
-            if val:
+            loss_v = None
+            if monitor != "val":  # the chosen validation set (e.g. Gemma's resolved runs), in full every time
+                loss_v = eval_set(monitor, extra[monitor], f"step{step}")
+            elif val:
                 loss_v = run_eval(f"step{step}")  # the same 24-segment subset every time: comparable across steps
+            if loss_v is not None:
                 if plan["best"] is None or loss_v < plan["best"] - args.min_delta:
                     plan["best"], plan["bad"] = loss_v, 0
                     save("best")
-                    log(f"  new best mid-run validation loss {loss_v:.4f} -> saved as best", 0, rank)
+                    log(f"  new best mid-run {monitor} loss {loss_v:.4f} -> saved as best", 0, rank)
                 else:
                     plan["bad"] += 1
                     log(f"  no improvement over best {plan['best']:.4f} (by {args.min_delta}) for {plan['bad']} "

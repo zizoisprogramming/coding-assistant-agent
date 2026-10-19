@@ -11,7 +11,8 @@ cmd = [sys.executable, '-u', '-m', 'torch.distributed.run', '--standalone', f'--
        '--r', str(CONFIG['r']), '--alpha', str(CONFIG['alpha']), '--accum', str(CONFIG['accum']),
        '--max-hours', str(CONFIG['max_hours']), '--evals', '8', '--early-stop-patience', '2', '--min-delta', '0.005']
 if GEMMA_VAL:  # Gemma's resolved / failed pilot runs, scored at the start and the end
-    cmd += ['--extra-val', str(GEMMA_VAL)]
+    cmd += ['--extra-val', str(GEMMA_VAL), '--monitor', 'val_gemma_ok']  # user: Gemma's resolved runs drive
+    # the mid-run checks, the plateau stop and the best checkpoint
 if V1_ADAPTER:  # v1 scored on every validation set before training (~25 min, inside the time cap)
     cmd += ['--score-adapter', str(V1_ADAPTER)]
 # NCCL_P2P_DISABLE: gradient sums go through host memory (~0.3 GB/step, <1 s); avoids P2P hangs seen on Kaggle
