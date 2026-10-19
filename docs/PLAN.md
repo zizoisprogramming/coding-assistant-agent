@@ -101,6 +101,12 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   Kaggle dataset, validation only) at start + end; v1 adapter scored on all validation sets first (--score-adapter);
   plateau early stopping (8 mid-run validations on the same 24 segments, stop after 2 without ≥0.005 improvement,
   rank 0 decides) + 'best' checkpoint. Tested on CPU incl. 2 copies (both stop together).
+- **Stricter-style exploration (scripts/datasets/explore_stricter.py, 2026-10-19):** filtering cannot reach Gemma's
+  style: chains ≤5% of calls → 254 eps/236 tasks; + no whole-file cat → 120/112; + edit_file-only → 50/49 (style then
+  matches Gemma: read_file 21%, chains 0%, edit 9%). v2 picks after read rewrite: read_file 14% (Gemma resolved 20%),
+  chains 15% (0%), reads 71 lines (21), think 185 chars/call (102). NEXT ROUND idea: split chained commands at the
+  teacher's own `echo "=== x ==="` separators (411/800 chains in v2 picks splittable) into separate calls; leave
+  sed -i edits (regex, unseen content). Decide after v2's val_gemma_ok + 3-task check.
 - **For the FINAL 31B data (user 2026-10-18): drop tasks the model already handles, keep the ones it fails.** We
   cannot run teacher tasks' tests on Kaggle (no Docker, no internet on GPU), so measure difficulty as the BASE 31B's
   loss on the teacher's replies (forward pass only; instruction-following-difficulty / Superfiltering idea, cited

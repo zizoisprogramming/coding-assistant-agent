@@ -131,6 +131,19 @@ def main():
     summarise("Gemma 31B failed", gemma_episodes("_fail"))
     ok = [json.loads(l) for l in open(ROOT / "data/results/2026-10-18_stage_b/status.jsonl") if '"ok"' in l]
     summarise("teacher v1 train (trained)", teacher_calls(teacher_episodes([r["id"] for r in ok if r["split"] == "train"])))
+    v2 = ROOT / "data" / "selection_v2.json"
+    if v2.exists():  # the actual v2 training picks, as stage B v2 will show them (simple reads -> read_file)
+        from stage_b import rewrite_reads
+        sel2 = json.loads(v2.read_text())
+        files = {os.path.basename(p): p for p in glob.glob(str(ROOT / "data/results/2026-10-18_stage_a_*/stage_a/episodes_*.jsonl"))}
+        eps2, cache = [], {}
+        for r in sel2["train"]:
+            if r["file"] in files:
+                cache.setdefault(r["file"], open(files[r["file"]]).readlines())
+                ep = json.loads(cache[r["file"]][r["line"]])
+                if ep["id"] == r["id"]:
+                    eps2.append(rewrite_reads(ep))
+        summarise("teacher v2 picks + rewrite", teacher_calls(eps2))
     feats = ROOT / "data/results/2026-10-19_features_local.jsonl.gz"
     if feats.exists():
         f = [json.loads(l) for l in gzip.open(feats, "rt")]
