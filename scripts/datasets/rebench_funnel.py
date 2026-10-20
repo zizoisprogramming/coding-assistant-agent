@@ -6,7 +6,7 @@ Input: data/swe_rebench/test_cols.parquet (nebius/SWE-rebench test split, CC-BY-
 Excludes the public competition repos and the 17 OOD-45 repos (our yardstick). llm_score scales follow SWE-bench
 Verified's annotation (lower = better: 0 = well specified / valid tests / <15 min fix).
 Size caps follow the public 129 tasks (user 2026-10-20): core tier up to their 90th percentile (128 changed lines),
-plus a large tier (131-400 lines, up to 8 files) for their tail.
+plus a large tier (131-500 lines, up to 8 files) for their tail; nothing above 500 (user 2026-10-20).
 """
 import collections
 import json
@@ -62,8 +62,8 @@ def main():
         ("difficulty <=3 (score 3 only for large fixes)", lambda r: 0 <= r["meta"]["llm_score"]["difficulty_score"] <= 3),
         ("1-20 FAIL_TO_PASS tests", lambda r: 1 <= len(r["FAIL_TO_PASS"] or []) <= 20),
         ("patch: 1-8 source .py files, no other files", lambda r: (lambda f, s, n: 1 <= len(s) <= 8 and len(f) == len(s))(*patch_stats(r["patch"]))),
-        ("patch: <=400 changed lines", lambda r: patch_stats(r["patch"])[2] <= 400),
-        ("tier core (<=130 lines, <=6 files, difficulty<=2) or large (131-400)", lambda r: tier(r) is not None),
+        ("patch: <=500 changed lines", lambda r: patch_stats(r["patch"])[2] <= 500),
+        ("tier core (<=130 lines, <=6 files, difficulty<=2) or large (131-500)", lambda r: tier(r) is not None),
         ("python >= 3.8 in install_config", lambda r: tuple(int(x) for x in ((r["install_config"] or {}).get("python") or "0").split(".")[:2]) >= (3, 8)),
     ]
     cur = rows
