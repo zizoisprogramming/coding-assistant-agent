@@ -28,6 +28,18 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
      non-dev public tasks, request logger on → keep resolved, prefer fewest calls;
   4) train 12B on them (scale 1.0 i.e. alpha=r, lr ~1e-4, monitor val_gemma_ok, plateau stop);
   5) judge on OOD-45 vs 12B base and 31B; then 31B RFT or submit 12B.
+  STATUS 2026-10-20: user said go. Steps 1-2 BUILT (scripts/train/make_ood45_cells.py 31b|12b →
+  kaggle/cells_ood45_31b = mix31 T0.2, conc 4, stop new tasks after 4h; kaggle/cells_ood45_12b = base12 / v2 final at
+  scale 1.0 (alpha 16) / 0.5 (alpha 8), all T1.0 top_k 64, conc 6, 132 jobs, stop after 5h). Runner = author's notebook
+  (rodrigospalma/ood45-evaluate-your-agent, saved in research/raw/kernels/ood45/): one Evaluator per (variant, repo),
+  evaluate_task per job, g1 statements, urllib3_5279 skipped, competition data attached (sandbox setup.py + tasks_path,
+  as author). Local fake end-to-end sim passed both (real ood45_harness + swegemma 0.2.7; fake vLLM/evaluate_task).
+  Untested on Kaggle: real sandbox installs (author-validated on 0.2.11) and 31B with LoRA on at util 0.80 (author's).
+  The 12b notebook needs the v2 training output attached → user's account; 31b can run on the friend's account.
+  OOD-45 must NEVER become training data (it is the yardstick). How it was built (for our own task mining): one
+  contributor's 64 merged PRs → 57 with tests → 52 fail-on-base/pass-with-fix 3/3 → 45 pass the harness Docker gate
+  (verify_task, net off) on 2 platforms → statements rewritten as user reports (leakage checker) → executed repro
+  scripts; per-repo offline wheel sets (2 GB) so it runs in a Kaggle notebook.
 - **Tooling ready:** stage B (scripts/datasets/stage_b.py, --rewrite-reads), episode features/selection v1/v2,
   build_samples.py, train_sft.py (data parallel 2x2 GPUs, --extra-val, --score-adapter, --monitor, --evals,
   --early-stop-patience, best checkpoint, auto-resume, 40-min NCCL timeout), gemma_runs_to_episodes.py (our own
