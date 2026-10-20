@@ -34,6 +34,7 @@ import pyarrow.parquet as pq
 ROOT = Path(__file__).resolve().parents[2]
 HEAVY = re.compile(r"^(torch|tensorflow|jax|jaxlib|pyspark|mxnet|paddlepaddle|onnxruntime|cupy|nvidia-)", re.I)
 PILOT_DIR = ROOT / "data/results/2026-10-21_rebench_pilot2/rebench/tasks.jsonl"
+PART1_OUT = ROOT / "data/results/2026-10-21_rebench_full_new-data/rebench"  # part 1's output (Kaggle: ziad23samer/new-data)
 
 
 def pool_of(part):
@@ -55,14 +56,15 @@ def pool_of(part):
     return sorted(out)
 
 
-CELL2 = '''# 2. FULL BUILD part {part}/2: inputs, output layout, this part's candidate pool and its SWE-rebench rows.
+CELL2 = '''# 2. FULL BUILD part {part}: inputs, output layout, this part's candidate pool and its SWE-rebench rows.
 #    CPU, INTERNET ON, secret GITHUB_TOKEN switched on for this notebook. See scripts/datasets/make_rebench_full_cells.py.
 import collections, json, random, re, time, urllib.request
 import pyarrow.parquet as pq
 
 T_START = time.time()
 DEADLINE_H = 10.5  # the gate starts no new task after this (Kaggle ends sessions at 12 h); cells 5-6 still run
-PART, N_TARGET = {part}, {n}
+PART, N_TARGET = {part!r}, {n}
+MATCH_SHARE, CAP, SEED = {match_share}, {cap}, {seed}  # public-like share wanted; max new tasks per repo
 WORKING_DIR = Path('/kaggle/working')
 OUT = WORKING_DIR / 'rebench'  # the task set, OOD-45 layout
 WHEEL_SET = f'{{__import__("platform").machine()}}-cp{{sys.version_info.major}}{{sys.version_info.minor}}'  # Kaggle: x86_64-cp313
@@ -152,12 +154,12 @@ def gh(path, tries=4):
 # Public-like domains: what the graded tasks are (fastapi = web/API framework, rich = terminal rendering,
 # requests/httpx = HTTP clients) plus the libraries they lean on (pydantic-style data models / config / parsing).
 DOMAINS = {
-    'web_api': {'web', 'api', 'rest', 'restful', 'rest-api', 'asgi', 'wsgi', 'web-framework', 'framework', 'flask',
+    'web_api': {'web', 'api', 'rest', 'restful', 'rest-api', 'asgi', 'wsgi', 'web-framework', 'flask',
                 'django', 'fastapi', 'starlette', 'aiohttp', 'tornado', 'sanic', 'graphql', 'openapi', 'swagger',
                 'websocket', 'websockets', 'server', 'http-server', 'backend', 'microservice', 'webapp', 'jinja2'},
     'http_client': {'http', 'http-client', 'client', 'requests', 'httpx', 'urllib3', 'sdk', 'api-client',
-                    'api-wrapper', 'wrapper', 'oauth', 'oauth2', 'networking', 'network', 'scraping', 'scraper',
-                    'crawler', 'download', 'downloader', 'streaming', 'proxy', 'webhook'},
+                    'api-wrapper', 'wrapper', 'oauth', 'oauth2', 'scraping', 'scraper',
+                    'crawler', 'streaming', 'proxy', 'webhook'},
     'cli_terminal': {'cli', 'terminal', 'console', 'command-line', 'commandline', 'command-line-tool', 'tui', 'shell',
                      'ansi', 'color', 'colors', 'progress', 'progress-bar', 'pretty-print', 'formatting',
                      'formatter', 'markdown', 'table', 'tables', 'logging', 'argparse', 'click', 'prompt', 'repl'},
@@ -171,12 +173,13 @@ def domain_of(info, repo):
     if not info or info.get('missing'):
         return 'other', []
     topics = [t.lower() for t in info.get('topics') or []]
-    words = re.findall(r'[a-z0-9]+(?:-[a-z0-9]+)*', ((info.get('description') or '') + ' ' + repo.split('/')[1]).lower())
+    desc = re.sub(r'https?://\S+', ' ', info.get('description') or '')  # a URL's 'http' says nothing about the domain
+    words = re.findall(r'[a-z0-9]+(?:-[a-z0-9]+)*', (desc + ' ' + repo.split('/')[1]).lower())
     words += [a + '-' + b for a, b in zip(words, words[1:])]
     score = {d: 2 * sum(t in kw for t in topics) + sum(w in kw for w in words) for d, kw in DOMAINS.items()}
     best = max(score, key=score.get)
     hits = sorted({t for t in topics + words for kw in DOMAINS.values() if t in kw})
-    return (best if score[best] >= 2 else 'other'), hits
+    return (best if score[best] >= 1 else 'other'), hits
 
 
 REPO_LOG = OUT / 'repos.jsonl'
@@ -214,10 +217,9 @@ DOMAIN = {r: domain_of(REPO_INFO[r], r)[0] for r in repos}
 print(f'repos classified in {time.time() - t0:.0f}s:', dict(collections.Counter(DOMAIN.values())))
 print('pool tasks by domain:', dict(collections.Counter(DOMAIN[ROWS[i]['repo']] for i in LEVEL)))
 
-# SELECT: one task from every repo first, then a 2nd, then a 3rd (max 3 per repo), under two quotas:
-# level (10% large; core strata in the pool's difficulty proportions) and domain (80% public-like / 20% other).
-CAP = 3
-rng = random.Random(20261021 + PART)
+# SELECT: one task from every repo first, then a 2nd, ... (max CAP new tasks per repo), under two quotas:
+# level (10% large; core strata in the pool's difficulty proportions) and domain (MATCH_SHARE public-like).
+rng = random.Random(SEED)
 ids = sorted(LEVEL)
 rng.shuffle(ids)
 nth, seen = {}, collections.Counter()
@@ -230,7 +232,7 @@ core = collections.Counter(v for v in LEVEL.values() if v != 'large')
 lv_want = {lv: round((N_TARGET - n_large) * c / sum(core.values())) for lv, c in core.items()}
 lv_want['core d1'] = lv_want.get('core d1', 0) + N_TARGET - n_large - sum(lv_want.values())
 lv_want['large'] = n_large
-dom_want = {'match': round(0.80 * N_TARGET), 'other': N_TARGET - round(0.80 * N_TARGET)}
+dom_want = {'match': round(MATCH_SHARE * N_TARGET), 'other': N_TARGET - round(MATCH_SHARE * N_TARGET)}
 dkind = lambda i: 'other' if DOMAIN[ROWS[i]['repo']] == 'other' else 'match'  # noqa: E731
 chosen, per_repo = [], collections.Counter()
 for strict_level, strict_domain in ((True, True), (True, False), (False, False)):
@@ -684,17 +686,36 @@ print(f"wrote {OUT / 'tasks.jsonl'}: {len(keep)} usable tasks | snapshots {snap_
 '''
 
 
+def domain_of_repo():
+    """Cell 2b's classifier, run here on part 1's fetched repo info (rebench/repos.jsonl)."""
+    ns = {"re": re}
+    exec(CELL2B[CELL2B.index("DOMAINS = {"):CELL2B.index("REPO_LOG =")], ns)
+    info = {json.loads(l)["repo"]: json.loads(l)["info"] for l in open(PART1_OUT / "repos.jsonl")}
+    return {r: ns["domain_of"](i, r)[0] for r, i in info.items()}
+
+
+def pool_1b():
+    """Part 1 top-up (2026-10-21): part 1 reached only 51% public-like usable tasks (its pool has few such repos at
+    3 per repo, and the first classifier needed 2 keyword hits). Its public-like tasks (fixed classifier) that part 1
+    did not select, up to 6 more per repo."""
+    dom = domain_of_repo()
+    done = {json.loads(l)["id"] for l in open(PART1_OUT / "gated_all.jsonl")}
+    repo = {json.loads(l)["instance_id"]: json.loads(l)["repo"] for l in open(ROOT / "data/swe_rebench/candidates.jsonl")}
+    return [(i, lv) for i, lv in pool_of(1) if i not in done and dom.get(repo[i], "other") != "other"]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--n", type=int, default=350)
     args = ap.parse_args()
     cell3 = build_cell()
-    for part in (1, 2):
-        pool = pool_of(part)
+    pb = pool_1b()
+    # Part 1 already ran (2026-10-21, commit 9335570's cells, first classifier): its cells are not regenerated.
+    for part, pool, n, share, cap, seed in ((2, pool_of(2), args.n, 0.8, 3, 20261023), ("1b", pb, len(pb), 1.0, 6, 20261121)):
         out = ROOT / f"kaggle/cells_rebench_full_p{part}"
         out.mkdir(parents=True, exist_ok=True)
         (out / "cell1.py").write_text((ROOT / "kaggle/cells_rebench_pilot/cell1.py").read_text())
-        (out / "cell2.py").write_text(CELL2.format(part=part, n=args.n, pool=pool))
+        (out / "cell2.py").write_text(CELL2.format(part=part, n=n, pool=pool, match_share=share, cap=cap, seed=seed))
         (out / "cell2b_select.py").write_text(CELL2B)
         (out / "cell3_build.py").write_text(cell3)
         (out / "cell4_gate.py").write_text(CELL4)

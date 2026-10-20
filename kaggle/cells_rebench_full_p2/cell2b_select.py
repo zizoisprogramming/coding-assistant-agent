@@ -23,12 +23,12 @@ def gh(path, tries=4):
 # Public-like domains: what the graded tasks are (fastapi = web/API framework, rich = terminal rendering,
 # requests/httpx = HTTP clients) plus the libraries they lean on (pydantic-style data models / config / parsing).
 DOMAINS = {
-    'web_api': {'web', 'api', 'rest', 'restful', 'rest-api', 'asgi', 'wsgi', 'web-framework', 'framework', 'flask',
+    'web_api': {'web', 'api', 'rest', 'restful', 'rest-api', 'asgi', 'wsgi', 'web-framework', 'flask',
                 'django', 'fastapi', 'starlette', 'aiohttp', 'tornado', 'sanic', 'graphql', 'openapi', 'swagger',
                 'websocket', 'websockets', 'server', 'http-server', 'backend', 'microservice', 'webapp', 'jinja2'},
     'http_client': {'http', 'http-client', 'client', 'requests', 'httpx', 'urllib3', 'sdk', 'api-client',
-                    'api-wrapper', 'wrapper', 'oauth', 'oauth2', 'networking', 'network', 'scraping', 'scraper',
-                    'crawler', 'download', 'downloader', 'streaming', 'proxy', 'webhook'},
+                    'api-wrapper', 'wrapper', 'oauth', 'oauth2', 'scraping', 'scraper',
+                    'crawler', 'streaming', 'proxy', 'webhook'},
     'cli_terminal': {'cli', 'terminal', 'console', 'command-line', 'commandline', 'command-line-tool', 'tui', 'shell',
                      'ansi', 'color', 'colors', 'progress', 'progress-bar', 'pretty-print', 'formatting',
                      'formatter', 'markdown', 'table', 'tables', 'logging', 'argparse', 'click', 'prompt', 'repl'},
@@ -42,12 +42,13 @@ def domain_of(info, repo):
     if not info or info.get('missing'):
         return 'other', []
     topics = [t.lower() for t in info.get('topics') or []]
-    words = re.findall(r'[a-z0-9]+(?:-[a-z0-9]+)*', ((info.get('description') or '') + ' ' + repo.split('/')[1]).lower())
+    desc = re.sub(r'https?://\S+', ' ', info.get('description') or '')  # a URL's 'http' says nothing about the domain
+    words = re.findall(r'[a-z0-9]+(?:-[a-z0-9]+)*', (desc + ' ' + repo.split('/')[1]).lower())
     words += [a + '-' + b for a, b in zip(words, words[1:])]
     score = {d: 2 * sum(t in kw for t in topics) + sum(w in kw for w in words) for d, kw in DOMAINS.items()}
     best = max(score, key=score.get)
     hits = sorted({t for t in topics + words for kw in DOMAINS.values() if t in kw})
-    return (best if score[best] >= 2 else 'other'), hits
+    return (best if score[best] >= 1 else 'other'), hits
 
 
 REPO_LOG = OUT / 'repos.jsonl'
@@ -85,10 +86,9 @@ DOMAIN = {r: domain_of(REPO_INFO[r], r)[0] for r in repos}
 print(f'repos classified in {time.time() - t0:.0f}s:', dict(collections.Counter(DOMAIN.values())))
 print('pool tasks by domain:', dict(collections.Counter(DOMAIN[ROWS[i]['repo']] for i in LEVEL)))
 
-# SELECT: one task from every repo first, then a 2nd, then a 3rd (max 3 per repo), under two quotas:
-# level (10% large; core strata in the pool's difficulty proportions) and domain (80% public-like / 20% other).
-CAP = 3
-rng = random.Random(20261021 + PART)
+# SELECT: one task from every repo first, then a 2nd, ... (max CAP new tasks per repo), under two quotas:
+# level (10% large; core strata in the pool's difficulty proportions) and domain (MATCH_SHARE public-like).
+rng = random.Random(SEED)
 ids = sorted(LEVEL)
 rng.shuffle(ids)
 nth, seen = {}, collections.Counter()
@@ -101,7 +101,7 @@ core = collections.Counter(v for v in LEVEL.values() if v != 'large')
 lv_want = {lv: round((N_TARGET - n_large) * c / sum(core.values())) for lv, c in core.items()}
 lv_want['core d1'] = lv_want.get('core d1', 0) + N_TARGET - n_large - sum(lv_want.values())
 lv_want['large'] = n_large
-dom_want = {'match': round(0.80 * N_TARGET), 'other': N_TARGET - round(0.80 * N_TARGET)}
+dom_want = {'match': round(MATCH_SHARE * N_TARGET), 'other': N_TARGET - round(MATCH_SHARE * N_TARGET)}
 dkind = lambda i: 'other' if DOMAIN[ROWS[i]['repo']] == 'other' else 'match'  # noqa: E731
 chosen, per_repo = [], collections.Counter()
 for strict_level, strict_domain in ((True, True), (True, False), (False, False)):

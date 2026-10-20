@@ -1,4 +1,4 @@
-# 2. FULL BUILD part 2/2: inputs, output layout, this part's candidate pool and its SWE-rebench rows.
+# 2. FULL BUILD part 2: inputs, output layout, this part's candidate pool and its SWE-rebench rows.
 #    CPU, INTERNET ON, secret GITHUB_TOKEN switched on for this notebook. See scripts/datasets/make_rebench_full_cells.py.
 import collections, json, random, re, time, urllib.request
 import pyarrow.parquet as pq
@@ -6,6 +6,7 @@ import pyarrow.parquet as pq
 T_START = time.time()
 DEADLINE_H = 10.5  # the gate starts no new task after this (Kaggle ends sessions at 12 h); cells 5-6 still run
 PART, N_TARGET = 2, 350
+MATCH_SHARE, CAP, SEED = 0.8, 3, 20261023  # public-like share wanted; max new tasks per repo
 WORKING_DIR = Path('/kaggle/working')
 OUT = WORKING_DIR / 'rebench'  # the task set, OOD-45 layout
 WHEEL_SET = f'{__import__("platform").machine()}-cp{sys.version_info.major}{sys.version_info.minor}'  # Kaggle: x86_64-cp313
