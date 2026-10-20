@@ -40,6 +40,21 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   contributor's 64 merged PRs → 57 with tests → 52 fail-on-base/pass-with-fix 3/3 → 45 pass the harness Docker gate
   (verify_task, net off) on 2 platforms → statements rewritten as user reports (leakage checker) → executed repro
   scripts; per-repo offline wheel sets (2 GB) so it runs in a Kaggle notebook.
+- **LEADERBOARD RESEARCH (2026-10-20; notebooks saved in research/raw/kernels/lb_top/):** top 0.24 (3 teams), 0.22 x7,
+  us 0.17. **The public LB = 58 tasks (1 task ≈ 0.017; private = the other ~58)** (dmitriigluzdov "Public Agent Ideas
+  and Evidence": the only K in 30-130 matching every displayed score). **Identical files score 7-13 of 58 (0.12-0.22)**
+  across runs (budget-aware files: 13, 11, 9, 7, 7; budget-fit reference 8-11 over 7 runs, mean ~10) → 0.24 = 14/58 is
+  inside the noise of the ~10/58 configs; our 0.17 = 10/58 ≈ the family mean. All top public configs are NO-LoRA
+  single agents of the "budget-fit/budget-aware" lineage: 31B, T0.2, top_p 0.95, max_output 8192, thinking_budget
+  4096, 8 min / 28 calls / 80 turns / 240 s; prompt: literal spec extraction, call plan (edit by call 12, verify
+  13-20, submit), batched independent searches in ONE run_command, ~40-line region reads (<=3 per command), edit
+  recovery (re-read → heredoc python replace after 2 edit_file misses), parallel implementations (sync/async,
+  __all__), protected pytest.ini/conftest, `git status --short && git diff` before submit, graph tools declared but
+  forbidden. 0.24 notebook (honghanhhh) = budget-aware + those last 3 edits. Measured by others: T0 / 0.4 within noise;
+  **12B with the same files EXCEEDED the 12-hour limit → no score** (time/task binding: 116 tasks × 8 min = 15.5 h if
+  all ran to the cap); local 31-task screen: prompt variants all within noise (sign test p=1). IMPLICATIONS: single LB
+  submissions cannot detect gains of 1-3 tasks → judge with our own large local sets (OOD-hard, dev16, test16, and the
+  rebench tasks from unseen repos); any 12B submission needs a sequential timing check (shorter cap).
 - **OOD-45 12B RESULT (2026-10-20, kaggle/cells_ood45_12b, T1.0, 44 tasks, data/results/2026-10-20_ood45_12b):**
   base 27/44, v2 LoRA scale 1.0 23/44, scale 0.5 23/44 (scale does not matter). Paired: base-only 7 vs s1.0-only 3,
   base-only 8 vs s0.5-only 4 (sign test p≈0.34: direction consistent, not significant alone). CLEAR damage: runs with
