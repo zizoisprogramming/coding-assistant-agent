@@ -24,9 +24,8 @@ print(dict(reasons))
 print(f"\n{'task':46} {'pypi':10} {'built':>5} {'pfail':>5} {'gold':5} {'empty':7} why")
 for r in rows:
     print(f"{r['id'][:46]:46} {r['pypi']:10} {r['built']:5} {r['pins_failed']:5} {r['gold']:5} {r['empty']:7} {r['why']}")
-times = [b['build_s'] for b in built.values()]
 gates = [g.get('gold_s', 0) + g.get('empty_s', 0) for g in gate.values()]
-print(f"\nper task: build median {sorted(times)[len(times) // 2]} s, gate median {sorted(gates)[len(gates) // 2] if gates else '-'} s")
+print(f"\ngate per task: median {sorted(gates)[len(gates) // 2] if gates else '-'} s (build time: see the end of cell 3)")
 with open(OUT / 'tasks.jsonl', 'w') as fh:
     for iid, _ in PILOT:
         r, g = ROWS[iid], gate.get(iid, {})

@@ -198,37 +198,51 @@ def snapshot(r):
     return {'commits': int(ncommits.strip() or 0), 'mb': round(tgz.stat().st_size / 1e6, 1), 'build_reqs': build_reqs}, None
 
 
-def build(iid):
+def build_row(iid, snap, err, res):
     r = ROWS[iid]
-    t0 = time.time()
-    snap, err = snapshot(r)
-    row = {'id': iid, 'repo': r['repo'], 'snapshot': snap, 'snapshot_error': err}
-    specs = pins_of(r['requirements'])
+    specs = task_specs(iid, snap)
+    row = {'id': iid, 'repo': r['repo'], 'snapshot': snap, 'snapshot_error': err, 'pins': len(specs)}
+    row['pins_failed'] = {s: res[s][0] for s in specs if res[s][0].startswith('failed')}
+    row['pins_built'] = sorted(s for s in specs if res[s][0] == 'built')
+    row['wheels'] = sorted({n for s in specs for n in res[s][1]})
+    return row
+
+
+def task_specs(iid, snap):
+    specs = pins_of(ROWS[iid]['requirements'])
     if snap:  # the build backend: '-e /workspace --no-build-isolation' needs it inside the sandbox
         specs += [s for s in snap['build_reqs'] if not s.lower().startswith(('setuptools', 'wheel'))]
-    res = {s: fetch_wheels(s) for s in specs}
-    row['pins'] = len(specs)
-    row['pins_failed'] = {s: st for s, (st, _) in res.items() if st.startswith('failed')}
-    row['pins_built'] = sorted(s for s, (st, _) in res.items() if st == 'built')
-    row['wheels'] = sorted({n for _, names in res.values() for n in names})
-    row['build_s'] = round(time.time() - t0)
-    return row
+    return specs
 
 
 todo = [i for i, _ in PILOT if i not in built]
 print(f'building {len(todo)} tasks ({len(built)} already built)', flush=True)
 t_all = time.time()
+# Phase A: snapshots, 8 at a time (git fetch = network bound).
+SNAPS = {}
 with cf.ThreadPoolExecutor(8) as ex:
-    for k, row in enumerate(ex.map(build, todo), 1):
-        built[row['id']] = row
-        with open(BUILD_LOG, 'a') as fh:
-            fh.write(json.dumps(row) + '\n')
-        s = row['snapshot'] or {}
-        print(f"[{k:3}/{len(todo)}] {row['id'][:44]:44} snap={'ok' if s else 'FAIL'} {s.get('commits', '-'):>6} commits "
-              f"{s.get('mb', '-'):>6} MB | pins {row['pins']:3} built {len(row['pins_built']):2} "
-              f"failed {len(row['pins_failed']):2} | {row['build_s']:4}s"
-              + (f"\n      snapshot: {row['snapshot_error']}" if row['snapshot_error'] else '')
-              + ''.join(f"\n      pin {s}: {st}" for s, st in list(row['pins_failed'].items())[:3]), flush=True)
+    for k, (iid, (snap, err)) in enumerate(zip(todo, ex.map(lambda i: snapshot(ROWS[i]), todo)), 1):
+        SNAPS[iid] = (snap, err)
+        print(f"[snap {k:3}/{len(todo)}] {iid[:44]:44} " + (f"{snap['commits']:6} commits {snap['mb']:7} MB" if snap
+              else f"FAILED: {err}"), flush=True)
+# Phase B: every distinct package pin of all tasks once, 16 at a time.
+specs = sorted({s for i in todo for s in task_specs(i, SNAPS[i][0])})
+print(f'fetching {len(specs)} distinct package pins as Linux/CPython 3.12 wheels', flush=True)
+RES = {}
+with cf.ThreadPoolExecutor(16) as ex:
+    for k, (s, res) in enumerate(zip(specs, ex.map(fetch_wheels, specs)), 1):
+        RES[s] = res
+        if res[0] != 'wheel' or k % 50 == 0 or k == len(specs):
+            print(f"[pin {k:4}/{len(specs)}] {s[:50]:50} {res[0][:150]}", flush=True)
+# Phase C: one line per task.
+for k, iid in enumerate(todo, 1):
+    row = build_row(iid, *SNAPS[iid], RES)
+    built[iid] = row
+    with open(BUILD_LOG, 'a') as fh:
+        fh.write(json.dumps(row) + '\n')
+    print(f"[task {k:3}/{len(todo)}] {iid[:44]:44} snap={'ok' if row['snapshot'] else 'FAIL'} | pins {row['pins']:3} "
+          f"built from source {len(row['pins_built']):2} failed {len(row['pins_failed']):2}"
+          + ''.join(f"\n      pin {s}: {st[:150]}" for s, st in list(row['pins_failed'].items())[:3]), flush=True)
 manifest = {i: b['wheels'] for i, b in built.items() if b['snapshot']}
 (OUT / 'wheels' / WHEEL_SET / 'manifest.json').write_text(json.dumps(manifest, indent=1))
 house_gb = sum(p.stat().st_size for p in HOUSE.glob('*.whl')) / 1e9
@@ -368,9 +382,8 @@ print(dict(reasons))
 print(f"\n{'task':46} {'pypi':10} {'built':>5} {'pfail':>5} {'gold':5} {'empty':7} why")
 for r in rows:
     print(f"{r['id'][:46]:46} {r['pypi']:10} {r['built']:5} {r['pins_failed']:5} {r['gold']:5} {r['empty']:7} {r['why']}")
-times = [b['build_s'] for b in built.values()]
 gates = [g.get('gold_s', 0) + g.get('empty_s', 0) for g in gate.values()]
-print(f"\nper task: build median {sorted(times)[len(times) // 2]} s, gate median {sorted(gates)[len(gates) // 2] if gates else '-'} s")
+print(f"\ngate per task: median {sorted(gates)[len(gates) // 2] if gates else '-'} s (build time: see the end of cell 3)")
 with open(OUT / 'tasks.jsonl', 'w') as fh:
     for iid, _ in PILOT:
         r, g = ROWS[iid], gate.get(iid, {})
