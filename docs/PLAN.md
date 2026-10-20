@@ -1,6 +1,6 @@
 # Gemma 4 Developer Agent — Competition Plan (living doc)
 
-## >>> START HERE (session handoff, updated 2026-10-20 evening) <<<
+## >>> START HERE (session handoff, updated 2026-10-21) <<<
 **User:** beginner to agents/ADK (ML engineer background); wants step-by-step plain explanations, research-backed
 claims (verify, cite), chat before building, decides when planning ends. Rules: one change per arm where possible;
 prompts generic (no dev-task content); competition data never committed (data/ is gitignored, incl. adapters built
@@ -8,6 +8,22 @@ from sample data); Kaggle token only in ~/.kaggle/access_token. Give Kaggle cell
 change cell 4's printed output. **No training data from Claude, GPT or Gemini (user decision, D14).** Each Kaggle
 account runs its OWN notebook copy (a shared notebook made `kaggle kernels output` return only the latest version
 and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly quota is tight → small runs.
+
+### CHECKPOINT 2026-10-21 (newest; the 10-20 evening block below is the background)
+- **Task builds DONE (CPU, scripts/datasets/make_rebench_full_cells.py):** pilot-2 23/40 usable; part 1 172/350
+  (Kaggle ziad23samer/new-data VERSION 1); part 1b 74/113 (new-data VERSION 2 = latest; same notebook re-used);
+  part 2 184/344 (ziad23samer/new-data-2). Usable = gold PASS x3 + empty FAIL; 0 flaky; ~7% env_partial. Small
+  output files (tasks.jsonl, gate, leakage, repos, pr...) in data/results/2026-10-21_rebench_full_{new-data,p1b,p2}/
+  and 2026-10-21_rebench_pilot2/. No overlap between parts. Failures: mostly Python 3.13 breakage of old repos.
+- **Total 453 usable tasks, ~330 repos; public-like domain 306 / other 140 / pilot 7 unclassified** (fixed
+  classifier: 1 keyword hit, no generic words, URLs stripped; part 1's own labels used the old 2-hit classifier, so
+  RE-CLASSIFY at assembly from repos.jsonl). 80/20 (user) -> keep all public-like + sample ~77 other -> ~385 tasks.
+- **Leak:** issue texts ~50-57% leak, PR texts ~19-26% -> choose PR/issue text per task at assembly to hit 34%.
+- **WAITING ON USER:** save each output as a private Kaggle dataset (new-data v1, new-data v2, new-data-2) and send
+  the names. **NEXT (me):** the OFFLINE verification/assembly notebook (internet off): attach 3 datasets + pilot-2;
+  re-gate all once; scan snapshots for commits after base; reclassify domains; 80/20 trim; PR/issue text choice to 34%
+  leak; unfair_names labels (scripts/datasets/unfair_tests.py); fake-model end-to-end through the real tools + our
+  episode builder; write ONE merged dataset to publish PUBLIC for generation (other account, 30 h).
 
 ### CHECKPOINT 2026-10-20 EVENING (read this first; details in the bullets below it)
 - **Direction (user):** self-distillation on CLEAN data = Gemma 31B's own resolved runs on tasks we build from
