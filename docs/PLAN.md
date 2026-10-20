@@ -51,7 +51,12 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   final turn as visible text "Patch submitted." WITHOUT thinking, while every other training turn = thinking + tool
   call → the model learned "after thinking comes a tool call" and never "think, then end". The base ends with a
   thinking turn and then a final text. LESSON for self-distillation data: keep Gemma's own real ending (thinking +
-  final text after submit_patch) in every sample; the offline verification must check each sample ends that way. → teacher data dropped;
+  final text after submit_patch) in every sample; the offline verification must check each sample ends that way.
+  **Second LoRA habit = failing-retry streaks (burns the tool budget):** calls 1,038 base / 1,356 s1.0 / 1,302 s0.5;
+  failed 16% / 20% / 19%; runs with >=4 failed calls in a row 2 / 7 / 10; near-copies of one failing command (e.g.
+  `python3 -c 'from fsspec...'` 9x, 7 failures in a row) and re-reading one file in slices (12x). Selection v2 only
+  caught IDENTICAL repeats. Run filters for self-distillation: near-duplicate calls (same tool + command stem / same
+  file), <=2 failed calls in a row, <=~3 reads of one file. → teacher data dropped;
   self-distillation (option B) is the path. 31B OOD baseline postponed (quota).
 - **OPTION B DATA (user decisions 2026-10-20; data must be clean before ANY generation GPU time):** source =
   nebius/SWE-rebench (CC-BY-4.0) tasks, our own build + gate (scripts/datasets/rebench_funnel.py → 2,589 candidates:
