@@ -25,13 +25,17 @@ def _first(*cands, pattern=None):
         if Path(c).exists():
             return Path(c)
     hits = sorted(glob.glob(pattern, recursive=True)) if pattern else []
+    if not hits:
+        print('attached inputs (3 levels):', sorted(glob.glob('/kaggle/input/*/*/*'))[:40])
     assert hits, f'none of {cands} exists: attach it as a notebook input'
     return Path(hits[0])
 
 
 DATA_DIR = _first('/kaggle/input/competitions/gemma-4-developer-agent', '/kaggle/input/gemma-4-developer-agent')
+# The dataset is found by its own file (tools/ood45_harness.py), whatever folder name Kaggle mounts it under.
 OOD_DIR = _first('/kaggle/input/datasets/rodrigospalma/ood45-bugfix-split', '/kaggle/input/ood45-bugfix-split',
-                 pattern='/kaggle/input/**/ood45-bugfix-split')
+                 pattern='/kaggle/input/**/tools/ood45_harness.py')
+OOD_DIR = OOD_DIR.parent.parent if OOD_DIR.name == 'ood45_harness.py' else OOD_DIR
 print('competition:', DATA_DIR, '| OOD-45:', OOD_DIR)
 
 shutil.rmtree(SUB_ROOT, ignore_errors=True)
