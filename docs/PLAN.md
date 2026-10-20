@@ -1,6 +1,6 @@
 # Gemma 4 Developer Agent — Competition Plan (living doc)
 
-## >>> START HERE (session handoff, updated 2026-10-18 evening) <<<
+## >>> START HERE (session handoff, updated 2026-10-20 morning) <<<
 **User:** beginner to agents/ADK (ML engineer background); wants step-by-step plain explanations, research-backed
 claims (verify, cite), chat before building, decides when planning ends. Rules: one change per arm where possible;
 prompts generic (no dev-task content); competition data never committed (data/ is gitignored, incl. adapters built
@@ -9,7 +9,38 @@ change cell 4's printed output. **No training data from Claude, GPT or Gemini (u
 account runs its OWN notebook copy (a shared notebook made `kaggle kernels output` return only the latest version
 and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly quota is tight → small runs.
 
-### WHERE WE ARE (2026-10-18 evening, read first)
+### NOW (2026-10-20 morning, read first; the log below is chronological history)
+- **Goal:** win. Best LB so far = mix (31B, no LoRA) 0.17; LB noise ±0.02. Hidden test = ~120 tasks from PRIVATE repos.
+- **Fine-tuning so far = imitation of open teachers (Qwen/DeepSeek/MiniMax trajectories) → does NOT beat the base:**
+  - v1 (adapter_12b_v1, notebook 'finetuning'): val 1.093→0.572 but dev16 r1 0/16 (loops at T0.2, no edits).
+  - v2 (adapter_12b_v2, notebook 'finetuning-v2'; thinking-first selection v2, reads rewritten to read_file):
+    teacher val 1.350→0.819; Gemma val (Gemma's own pilot runs) ok 0.305→0.413 (v1 0.429), fail 0.263→0.340 (v1 0.352)
+    = both drift ~35-40% from Gemma's successful style. 3-task check @T1.0 (notebook 'getting-started-...-new'):
+    base 12B 1/3, v2 best 0/3, v2 final 0/3; v2 = no loops, uses read_file, but 2-4x more tool errors (bash chains).
+  - Loops at T0.2 = sampling; T1.0 removes them. BUT our adapters use r16/alpha32 = scale 2.0, which forum 750713
+    found causes loops/degeneration; alpha=16 (1.0) / 8 (0.5) at inference = cheap fix/interpolation (untested by us).
+- **DECIDED NEXT (user 2026-10-19/20): self-distillation.** Research done (section "Self-distillation research"
+  below). Proposed plan awaiting user go-ahead:
+  1) OOD-45 eval notebook (Kaggle dataset rodrigospalma/ood45-bugfix-split + its tools/ood45_harness.py; 45 tasks,
+     17 repos, public → friend's account): 31B mix (T0.2) + 12B base baselines = new yardstick (dev16 = weak proxy);
+  2) same run: v2 adapter at scale 1.0 and 0.5 (edit lora_alpha in adapter_config.json);
+  3) generation (user's account; competition data): 31B mix WITH thinking, 2 samples/task @T1.0 on ~84 gradable
+     non-dev public tasks, request logger on → keep resolved, prefer fewest calls;
+  4) train 12B on them (scale 1.0 i.e. alpha=r, lr ~1e-4, monitor val_gemma_ok, plateau stop);
+  5) judge on OOD-45 vs 12B base and 31B; then 31B RFT or submit 12B.
+- **Tooling ready:** stage B (scripts/datasets/stage_b.py, --rewrite-reads), episode features/selection v1/v2,
+  build_samples.py, train_sft.py (data parallel 2x2 GPUs, --extra-val, --score-adapter, --monitor, --evals,
+  --early-stop-patience, best checkpoint, auto-resume, 40-min NCCL timeout), gemma_runs_to_episodes.py (our own
+  harness request logs → stage-B-style episodes/val), compare_behaviour.py, explore_stricter.py, diag cell
+  generators (make_diag2_cells.py diag2/diag3), eval cells (make_eval_cells.py), sim_stage_b_notebook.py.
+- **Kaggle notebooks (user ziad23samer):** getting-started-gemma-4-developer-agent-4554ae (stage B v1+v2 outputs),
+  finetuning (v1 adapter), finetuning-v2 (v2 adapter), getting-started-...-new (diag3), tokenizer (features),
+  dataset-loader-test(-2)-resume (stage A episodes). Private dataset 'gemma-val' (samples_all.pt; competition-derived).
+- **Working rules learned (also in memory):** audit crash paths before any GPU handoff; verbose per-step logs; give
+  cells as file links; one notebook run has everything; fetch only small files; 2 GPUs per 12B copy (skip 1-GPU
+  probe); monitor Gemma's resolved runs (val_gemma_ok); Save & Run All is fine (I fetch outputs myself).
+
+### HISTORY: WHERE WE WERE (2026-10-18 evening)
 - **Sandbox flags DONE (notebook 'tokenizer'):** data/results/2026-10-18_flags/flags.jsonl.gz: 9,237 of 26,945
   episodes flagged (34.3%; outside_workspace 7,992, package_install 1,862, network 53, privileged 49; spot check:
   almost all real). Selection v1 re-run without them (pool 8,866 episodes / 3,924 tasks) and now with 2x RESERVE
