@@ -5,6 +5,7 @@
 Input: data/swe_rebench/test_cols.parquet (nebius/SWE-rebench test split, CC-BY-4.0, all columns but `environment`).
 Excludes the public competition repos and the 17 OOD-45 repos (our yardstick). llm_score scales follow SWE-bench
 Verified's annotation (lower = better: 0 = well specified / valid tests / <15 min fix).
+Size caps follow the public 129 tasks (90th percentile: 4 source files, 128 changed lines; user 2026-10-20).
 """
 import collections
 import json
@@ -46,10 +47,10 @@ def main():
         ("pytest log parser", lambda r: (r["install_config"] or {}).get("log_parser", "").startswith("parse_log_pytest")),
         ("issue text clear (score<=1)", lambda r: 0 <= r["meta"]["llm_score"]["issue_text_score"] <= 1),
         ("tests valid (score<=1)", lambda r: 0 <= r["meta"]["llm_score"]["test_score"] <= 1),
-        ("difficulty <=1 (<1h for a human)", lambda r: 0 <= r["meta"]["llm_score"]["difficulty_score"] <= 1),
+        ("difficulty <=2 (<4h for a human)", lambda r: 0 <= r["meta"]["llm_score"]["difficulty_score"] <= 2),
         ("1-20 FAIL_TO_PASS tests", lambda r: 1 <= len(r["FAIL_TO_PASS"] or []) <= 20),
-        ("patch: 1-3 source .py files, no other files", lambda r: (lambda f, s, n: 1 <= len(s) <= 3 and len(f) == len(s))(*patch_stats(r["patch"]))),
-        ("patch: <=60 changed lines", lambda r: patch_stats(r["patch"])[2] <= 60),
+        ("patch: 1-4 source .py files, no other files", lambda r: (lambda f, s, n: 1 <= len(s) <= 4 and len(f) == len(s))(*patch_stats(r["patch"]))),
+        ("patch: <=130 changed lines", lambda r: patch_stats(r["patch"])[2] <= 130),
         ("python >= 3.8 in install_config", lambda r: tuple(int(x) for x in ((r["install_config"] or {}).get("python") or "0").split(".")[:2]) >= (3, 8)),
     ]
     cur = rows

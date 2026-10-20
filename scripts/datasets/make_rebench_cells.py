@@ -19,8 +19,7 @@ Output /kaggle/working/rebench/ in the OOD-45 layout (tasks.jsonl, snapshots/<id
 wheels/x86_64-cp312/manifest.json mapping task id -> its wheel names), so the same tools load it later.
 
 Pilot choice (seeded): candidates with no FAIL_TO_FAIL / PASS_TO_FAIL (the harness needs every test in the touched
-files to pass), from the 300-task PyPI sample (data/swe_rebench/wheels_check.json), one task per repo, no heavy
-frameworks; mix of wheel statuses: all wheels / some sdist-only / old compiled pins.
+files to pass), one task per repo, no heavy frameworks, stratified by Nebius's difficulty score.
 """
 import argparse
 import json
@@ -36,24 +35,27 @@ HEAVY = re.compile(r"^(torch|tensorflow|jax|jaxlib|pyspark|mxnet|paddlepaddle|on
 
 
 def pick(n):
-    cand = {json.loads(l)["instance_id"]: json.loads(l) for l in open(ROOT / "data/swe_rebench/candidates.jsonl")}
+    """n tasks, one per repo, stratified by Nebius's difficulty score (0: <15 min, 1: <1 h, 2: 1-4 h for a human) in
+    the candidate pool's proportions; no heavy frameworks; no FAIL_TO_FAIL / PASS_TO_FAIL."""
+    cand = [json.loads(l) for l in open(ROOT / "data/swe_rebench/candidates.jsonl")]
     f2f = {r["instance_id"]: (len(r["FAIL_TO_FAIL"] or []), len(r["PASS_TO_FAIL"] or []))
            for r in pq.read_table(ROOT / "data/swe_rebench/test_f2f.parquet").to_pylist()}
-    checked = json.loads((ROOT / "data/swe_rebench/wheels_check.json").read_text())["tasks"]
-    want = {"wheel": round(n * 0.6), "sdist_only": round(n * 0.3)}
-    want["old_binary"] = n - sum(want.values())
+    pool = [r for r in cand if f2f[r["instance_id"]] == (0, 0) and not any(
+        HEAVY.match(line.strip()) for line in (r["requirements"] or "").splitlines())]
+    diff = lambda r: r["meta"]["llm_score"]["difficulty_score"]  # noqa: E731
+    share = {d: sum(diff(r) == d for r in pool) / len(pool) for d in (0, 1, 2)}
+    want = {d: round(n * share[d]) for d in (0, 1, 2)}
+    want[1] += n - sum(want.values())
     rng = random.Random(20261020)
-    ids = sorted(checked)
-    rng.shuffle(ids)
+    rng.shuffle(pool)
     chosen, repos = [], set()
-    for iid in ids:
-        r, st = cand[iid], checked[iid]["worst"]
-        heavy = any(HEAVY.match(line.strip()) for line in (r["requirements"] or "").splitlines())
-        if f2f[iid] != (0, 0) or heavy or r["repo"] in repos or want.get(st, 0) <= 0:
+    for r in pool:
+        d = diff(r)
+        if r["repo"] in repos or want[d] <= 0:
             continue
-        want[st] -= 1
+        want[d] -= 1
         repos.add(r["repo"])
-        chosen.append((iid, st))
+        chosen.append((r["instance_id"], f"difficulty {d}"))
     return sorted(chosen)
 
 
@@ -63,7 +65,7 @@ def main():
     args = ap.parse_args()
     chosen = pick(args.n)
     OUT.mkdir(parents=True, exist_ok=True)
-    print(len(chosen), "pilot tasks:", {s: sum(1 for _, x in chosen if x == s) for s in ("wheel", "sdist_only", "old_binary")})
+    print(len(chosen), "pilot tasks:", dict(sorted(__import__("collections").Counter(x for _, x in chosen).items())))
 
     (OUT / "cell1.py").write_text((ROOT / "kaggle/cells_datagen_pilot/cell1_cpu.py").read_text())
 
@@ -78,7 +80,7 @@ WHEEL_SET = 'x86_64-cp312'
 HOUSE = OUT / 'wheels' / 'house'
 for p in (OUT / 'snapshots', HOUSE, OUT / 'wheels' / WHEEL_SET):
     p.mkdir(parents=True, exist_ok=True)
-PILOT = {chosen!r}  # (instance_id, PyPI wheel status from the local metadata check)
+PILOT = {chosen!r}  # (instance_id, Nebius difficulty score: 0 <15 min, 1 <1 h, 2 1-4 h for a human)
 
 
 def _first(*cands, pattern=None):
@@ -361,15 +363,15 @@ st_of = dict(PILOT)
 rows = []
 for iid, _ in PILOT:
     b, g = built.get(iid, {}), gate.get(iid, {})
-    rows.append({'id': iid, 'pypi': st_of[iid], 'snap': bool(b.get('snapshot')), 'pins_failed': len(b.get('pins_failed', {})),
+    rows.append({'id': iid, 'level': st_of[iid], 'snap': bool(b.get('snapshot')), 'pins_failed': len(b.get('pins_failed', {})),
                  'built': len(b.get('pins_built', [])), 'gold': g.get('gold', '-'), 'empty': g.get('empty', '-'),
                  'usable': bool(g.get('usable')), 'why': (g.get('why') or b.get('snapshot_error') or '')[:90]})
 print('funnel: pilot', len(rows), '| snapshot ok', sum(r['snap'] for r in rows),
       '| all pins installed', sum(r['snap'] and r['pins_failed'] == 0 for r in rows),
       '| gold PASS', sum(r['gold'] == 'PASS' for r in rows), '| usable (gold PASS + empty FAIL)', sum(r['usable'] for r in rows))
-for s in ('wheel', 'sdist_only', 'old_binary'):
-    sub = [r for r in rows if r['pypi'] == s]
-    print(f"  PyPI status {s:11}: {len(sub):2} tasks, usable {sum(r['usable'] for r in sub)}")
+for s in sorted({r['level'] for r in rows}):
+    sub = [r for r in rows if r['level'] == s]
+    print(f"  {s}: {len(sub):2} tasks, usable {sum(r['usable'] for r in sub)}")
 print('\nnot usable, by first reason:')
 reasons = collections.Counter()
 for r in rows:
@@ -379,9 +381,9 @@ for r in rows:
                 'sandbox env' if 'sandboxenv' in w or 'importable' in w else 'empty patch passes' if r['gold'] == 'PASS'
                 else 'tests fail with gold' if r['gold'] == 'FAIL' else 'harness error'] += 1
 print(dict(reasons))
-print(f"\n{'task':46} {'pypi':10} {'built':>5} {'pfail':>5} {'gold':5} {'empty':7} why")
+print(f"\n{'task':46} {'level':12} {'built':>5} {'pfail':>5} {'gold':5} {'empty':7} why")
 for r in rows:
-    print(f"{r['id'][:46]:46} {r['pypi']:10} {r['built']:5} {r['pins_failed']:5} {r['gold']:5} {r['empty']:7} {r['why']}")
+    print(f"{r['id'][:46]:46} {r['level']:12} {r['built']:5} {r['pins_failed']:5} {r['gold']:5} {r['empty']:7} {r['why']}")
 gates = [g.get('gold_s', 0) + g.get('empty_s', 0) for g in gate.values()]
 print(f"\ngate per task: median {sorted(gates)[len(gates) // 2] if gates else '-'} s (build time: see the end of cell 3)")
 with open(OUT / 'tasks.jsonl', 'w') as fh:
