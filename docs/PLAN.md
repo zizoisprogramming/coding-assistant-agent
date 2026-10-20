@@ -40,6 +40,22 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   contributor's 64 merged PRs → 57 with tests → 52 fail-on-base/pass-with-fix 3/3 → 45 pass the harness Docker gate
   (verify_task, net off) on 2 platforms → statements rewritten as user reports (leakage checker) → executed repro
   scripts; per-repo offline wheel sets (2 GB) so it runs in a Kaggle notebook.
+- **OPTION B DATA (user decisions 2026-10-20; data must be clean before ANY generation GPU time):** source =
+  nebius/SWE-rebench (CC-BY-4.0) tasks, our own build + gate (scripts/datasets/rebench_funnel.py → 2,589 candidates:
+  core ≤130 lines/≤6 files/difficulty ≤2 + large 131-500 lines; nothing >500; excludes public + OOD-45 repos).
+  Public splits (data/splits_public.json): val = pilot#2 16 (gemma-val), test = 16 new, dev16 held out, train 52.
+  Distribution targets = the public 129: **domain 80% matching (web/API frameworks, terminal/CLI/text rendering,
+  HTTP/networking) / 20% other ("surprises")** via GitHub topics; task kind; patch shape (already 68/32 vs 66/34);
+  size tiers (~10% large); **text = PR title+description vs issue mixed to the public style share, leak share matched
+  to the public share** (measured with OOD-45's checker, pilot cell 6) and re-capped after generation (leaky tasks get
+  solved more). **Unfair tests dropped entirely** (tests need a name the fix creates and the text never mentions:
+  scripts/datasets/unfair_tests.py: public 12%, candidates 8%; re-check against the chosen text). Clean-task checks:
+  gold PASS/empty FAIL ×3 offline (internet OFF notebook attaching only the dataset), snapshot has nothing after base,
+  all wheels incl. host pytest plugins in the dataset, fake-model end-to-end run through the real tools + our
+  episode/sample builder. Clean-run checks: resolved, honest (no reads outside /workspace, no test edits), located
+  before editing, no loops / repeated failed calls, thinking every step (selection v2 rules), same files as gold and
+  similar size, ≤2 distinct runs/task. Generation on the user's other account (30 h) → final dataset must be PUBLIC.
+  Pilot (40 tasks, CPU, cells kaggle/cells_rebench_pilot, scripts/datasets/make_rebench_cells.py) running 2026-10-20.
 - **Tooling ready:** stage B (scripts/datasets/stage_b.py, --rewrite-reads), episode features/selection v1/v2,
   build_samples.py, train_sft.py (data parallel 2x2 GPUs, --extra-val, --score-adapter, --monitor, --evals,
   --early-stop-patience, best checkpoint, auto-resume, 40-min NCCL timeout), gemma_runs_to_episodes.py (our own
