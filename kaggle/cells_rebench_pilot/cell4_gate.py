@@ -1,6 +1,6 @@
 # 4. GATE: the scorer's verify_task on the gold patch (must PASS) and an empty patch (must FAIL), subprocess sandbox,
 #    with ood45_harness's install step (task wheels into the sandbox venv + editable install). One line per task.
-import asyncio, dataclasses, gc, logging, warnings
+import asyncio, dataclasses, gc, logging, tarfile, warnings
 warnings.filterwarnings('ignore')
 logging.getLogger('swegemma.sandbox.subprocess').setLevel(logging.ERROR)
 from adk_submission import ModelRegistry
@@ -15,6 +15,39 @@ print('swegemma', ood.check_swegemma())
 ood._STATE['house'] = OOD_DIR / 'wheels' / 'house'  # the Docker image's extras (pytest-timeout, hatchling, ...)
 ood.ENV_LOG['path'] = str(WORKING_DIR / 'gate_env_install.jsonl')
 ood.patch_harness()
+
+# Kaggle's image has pytest plugins the scoring Docker image does not (pilot 1: typeguard's plugin crashed 16/40 tasks
+# on the task's older typing_extensions; langsmith's too). pytest loads every installed plugin, so hide each host-only
+# plugin in the sandbox venv with an empty module, unless the task ships that distribution itself. Kept: the ones the
+# harness expects from the image (pytest-timeout, pytest-asyncio, xdist, httpbin) and anyio (the harness passes -p no:anyio).
+import importlib.metadata as _md
+KEEP_PLUGIN_DISTS = {'pytest', 'pytest-timeout', 'pytest-asyncio', 'pytest-xdist', 'pytest-httpbin', 'anyio'}
+HOST_PLUGINS = sorted({(ep.value.split(':')[0], (ep.dist.name if ep.dist else '').lower().replace('_', '-'))
+                       for ep in _md.entry_points(group='pytest11')})
+print('host pytest plugins:', HOST_PLUGINS)
+
+
+def shadow_host_plugins(site):
+    shadowed = []
+    for module, dist in HOST_PLUGINS:
+        if dist in KEEP_PLUGIN_DISTS or list(site.glob(f"{dist.replace('-', '_')}-*.dist-info")):
+            continue
+        parts = module.split('.')
+        if (site / parts[0]).exists() or (site / f'{parts[0]}.py').exists():
+            continue  # the task's own copy of that package is in the venv
+        if len(parts) == 1:
+            (site / f'{parts[0]}.py').write_text('# hidden by the gate: host-only pytest plugin\n')
+        else:
+            pkg = site.joinpath(*parts[:-1])
+            pkg.mkdir(parents=True, exist_ok=True)
+            for k in range(1, len(parts)):
+                site.joinpath(*parts[:k], '__init__.py').touch()
+            (pkg / f'{parts[-1]}.py').write_text('# hidden by the gate: host-only pytest plugin\n')
+        shadowed.append(module)
+    return shadowed
+
+
+ood._shadow_host_plugins = shadow_host_plugins
 WHEEL_ROOT = Path('/tmp/rb_wheels')
 ood.materialize_wheels(OUT, WHEEL_SET, WHEEL_ROOT / WHEEL_SET)
 
@@ -27,24 +60,25 @@ if _plugins:
 
 
 def import_name(r):
-    """Package the probe imports: the patched one among the snapshot's real packages (cell 3), else the one named like
-    the repo, else the first; without package dirs (single-module projects), the first patched top-level module."""
-    pkgs = (built.get(r['instance_id'], {}).get('snapshot') or {}).get('packages') or []
-    tops = []
+    """Module the probe imports: the package that holds the first patched source file (its deepest directory with an
+    __init__.py), dotted (google/cloud/storage/blob.py -> google.cloud.storage; src/ layout aware),
+    read from the snapshot; single-file modules -> their name; fallback: the repo name."""
+    tgz = OUT / 'snapshots' / f"{r['instance_id']}.tgz"
+    names = set()
+    if tgz.exists():
+        with tarfile.open(tgz) as tf:
+            names = {m.name[2:] if m.name.startswith('./') else m.name for m in tf if m.name.endswith('__init__.py')}
+    skip = ('tests/', 'test/', 'testing/', 'docs/', 'doc/', 'examples/', 'example/', 'scripts/', 'tools/', 'benchmarks/')
     for f in re.findall(r'^diff --git a/(\S+)', r['patch'], re.M):
-        parts = f.split('/')
-        parts = parts[1:] if parts[0] == 'src' and len(parts) > 1 else parts
-        tops.append(parts[0][:-3] if parts[0].endswith('.py') else parts[0])
-    for t in tops:
-        if t in pkgs:
-            return t
-    norm = r['repo'].split('/')[1].lower().replace('-', '_')
-    for p in pkgs:
-        if p.lower() in (norm, norm.replace('python_', ''), norm.replace('_python', '')):
-            return p
-    if pkgs:
-        return pkgs[0]
-    return next((t for t in tops if t not in ('tests', 'test', 'docs', 'examples', 'scripts')), norm)
+        if not f.endswith('.py') or f.startswith(skip) or '/tests/' in f:
+            continue
+        root, parts = ('src/', f.split('/')[1:]) if f.startswith('src/') else ('', f.split('/'))
+        if len(parts) == 1:
+            return parts[0][:-3]
+        for k in range(len(parts) - 1, 0, -1):  # deepest package: shared namespaces (google) clash with the host's
+            if root + '/'.join(parts[:k]) + '/__init__.py' in names:
+                return '.'.join(parts[:k])
+    return r['repo'].split('/')[1].lower().replace('-', '_')
 
 
 def as_task(r):

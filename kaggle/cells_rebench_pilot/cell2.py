@@ -28,6 +28,14 @@ OOD_DIR = _first('/kaggle/input/datasets/rodrigospalma/ood45-bugfix-split', '/ka
                  pattern='/kaggle/input/**/tools/ood45_harness.py')
 OOD_DIR = OOD_DIR.parent.parent if OOD_DIR.name == 'ood45_harness.py' else OOD_DIR
 print('competition:', DATA_DIR, '| OOD-45 tools:', OOD_DIR)
+# Resume: if an earlier run of this notebook is attached as input (its rebench/ folder), start from its build (snapshots,
+# wheels, logs) instead of rebuilding; the gate always runs fresh.
+_prev = [p for p in sorted(glob.glob('/kaggle/input/**/rebench/build.jsonl', recursive=True))
+         if list((Path(p).parent / 'snapshots').glob('*.tgz'))]  # only a complete earlier output (with its snapshots)
+if _prev and not (OUT / 'build.jsonl').exists():
+    import shutil as _sh
+    _sh.copytree(Path(_prev[0]).parent, OUT, dirs_exist_ok=True)
+    print('resumed the build from', Path(_prev[0]).parent)
 try:
     urllib.request.urlopen('https://pypi.org/simple/pip/', timeout=20)
 except Exception as e:

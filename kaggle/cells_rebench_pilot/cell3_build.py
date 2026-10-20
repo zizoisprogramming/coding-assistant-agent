@@ -6,6 +6,7 @@ BUILD_LOG = OUT / 'build.jsonl'
 PIN_LOG = OUT / 'pins.jsonl'  # every package result as it lands: a re-run resumes instead of starting over
 SNAP_LOG = OUT / 'snapshots.jsonl'
 built = {json.loads(l)['id']: json.loads(l) for l in open(BUILD_LOG)} if BUILD_LOG.exists() else {}
+built = {k: v for k, v in built.items() if not v.get('snapshot') or (OUT / 'snapshots' / f'{k}.tgz').exists()}  # rebuild if lost
 PIN_FILES = {json.loads(l)['spec']: tuple(json.loads(l)['res']) for l in open(PIN_LOG)} if PIN_LOG.exists() else {}
 SNAP_DONE = {json.loads(l)['id']: tuple(json.loads(l)['res']) for l in open(SNAP_LOG)} if SNAP_LOG.exists() else {}
 _lock = __import__('threading').Lock()
