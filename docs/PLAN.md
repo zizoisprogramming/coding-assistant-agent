@@ -45,7 +45,13 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   base-only 8 vs s0.5-only 4 (sign test p≈0.34: direction consistent, not significant alone). CLEAR damage: runs with
   one identical call repeated ≥10× (loops): base 0, s1.0 5, s0.5 6 (up to x51); tool-budget endings only with LoRA.
   High run-to-run variance at T1.0: 33 tasks solved by some variant, only 14 by all → several samples per task in
-  generation. OOD-45 is easy for Gemma (12B base 61%): compare variants, not with dev16/LB. → teacher data dropped;
+  generation. OOD-45 is easy for Gemma (12B base 61%): compare variants, not with dev16/LB.
+  **ROOT CAUSE of the LoRA loops (traces, 2026-10-20): ALL 11 loop runs repeat `submit_patch` (x11-x51)** after a
+  successful submit: the model thinks "Done." and calls submit again instead of ending. Stage B wrote the teacher's
+  final turn as visible text "Patch submitted." WITHOUT thinking, while every other training turn = thinking + tool
+  call → the model learned "after thinking comes a tool call" and never "think, then end". The base ends with a
+  thinking turn and then a final text. LESSON for self-distillation data: keep Gemma's own real ending (thinking +
+  final text after submit_patch) in every sample; the offline verification must check each sample ends that way. → teacher data dropped;
   self-distillation (option B) is the path. 31B OOD baseline postponed (quota).
 - **OPTION B DATA (user decisions 2026-10-20; data must be clean before ANY generation GPU time):** source =
   nebius/SWE-rebench (CC-BY-4.0) tasks, our own build + gate (scripts/datasets/rebench_funnel.py → 2,589 candidates:
