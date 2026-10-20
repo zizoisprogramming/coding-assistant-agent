@@ -1,6 +1,6 @@
 # Gemma 4 Developer Agent — Competition Plan (living doc)
 
-## >>> START HERE (session handoff, updated 2026-10-20 morning) <<<
+## >>> START HERE (session handoff, updated 2026-10-20 evening) <<<
 **User:** beginner to agents/ADK (ML engineer background); wants step-by-step plain explanations, research-backed
 claims (verify, cite), chat before building, decides when planning ends. Rules: one change per arm where possible;
 prompts generic (no dev-task content); competition data never committed (data/ is gitignored, incl. adapters built
@@ -8,6 +8,43 @@ from sample data); Kaggle token only in ~/.kaggle/access_token. Give Kaggle cell
 change cell 4's printed output. **No training data from Claude, GPT or Gemini (user decision, D14).** Each Kaggle
 account runs its OWN notebook copy (a shared notebook made `kaggle kernels output` return only the latest version
 and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly quota is tight → small runs.
+
+### CHECKPOINT 2026-10-20 EVENING (read this first; details in the bullets below it)
+- **Direction (user):** self-distillation on CLEAN data = Gemma 31B's own resolved runs on tasks we build from
+  nebius/SWE-rebench (option B). Teacher-imitation data DROPPED (OOD-45: base 27/44 vs LoRA 23/44 at both scales;
+  LoRA taught 2 habits: repeated submit_patch after a successful submit [final training turn had no thinking] and
+  failing-retry streaks). "Fixed teacher data" = parked idea, maybe later as an add-on for tasks Gemma never solves.
+- **Data pipeline status:** funnel → 2,589 candidates (scripts/datasets/rebench_funnel.py; core ≤130 lines/≤6 files/
+  difficulty ≤2 + large 131-500; nothing >500). Pilot notebook kaggle/cells_rebench_pilot (scripts/datasets/
+  make_rebench_cells.py; CPU, Internet ON, inputs: competition + wheelhouse + OOD-45 dataset; GitHub token in Kaggle
+  secret GITHUB_TOKEN): cells 1, 2, 2b PR texts, 3 build, 4 gate, 5 summary, 6 leakage. Pilot run 1 (output notebook
+  ziad23samer/pilot, results in data/results/2026-10-20_rebench_pilot/): PR texts 40/40, snapshots 40/40, packages
+  36/40, **usable 11/40**; 16 failures = Kaggle's host `typeguard` pytest plugin vs old typing_extensions → FIXED
+  (host-only pytest plugins hidden in the sandbox), 2 = import name for namespace packages → FIXED (patched file's
+  own package), rest genuine (Py3.13 incompatibilities, failing other tests, installs). Kaggle notebooks now run
+  **Python 3.13** (wheel set x86_64-cp313). **NEXT USER STEP: re-run the pilot** with new cell2/cell3/cell4 and the
+  previous pilot output attached as input (cell 2 resumes the build; ~45 min) → expect ~27/40.
+- **Leakage target (OOD-45 checker, pilot cell 6):** public 129 = 34% leaking (fastapi 42%, rich 17%, requests 54%);
+  pilot issue texts 58%, PR texts 30% → choose PR/issue text per task to land at ~34% and the public style share.
+- **User decisions (2026-10-20):** domains 80% matching public (web/API frameworks, terminal/CLI/text rendering,
+  HTTP/networking; via GitHub topics) / 20% other; unfair-test tasks KEPT at ~public share (12%; label
+  `unfair_names`, scripts/datasets/unfair_tests.py); option 2 = real PR texts mixed with issue texts; large tier ~10%.
+  Public splits (data/splits_public.json, scripts/datasets/make_public_splits.py): val 16 (pilot#2 = gemma-val),
+  test 16 (new), dev16 held out, train 52.
+- **Still to build (after the pilot re-run):** full build notebook (several hundred tasks; gate ×3; domain buckets via
+  GitHub topics; PR/issue choice to the leak target; dataset in OOD-45 layout incl. host-plugin wheels) → OFFLINE
+  verification notebook (CPU, internet OFF, attaches only the dataset: re-gate, snapshot future-scan, fake-model
+  end-to-end through real tools + our episode/sample builder; every sample must end with Gemma's thinking + final
+  text) → final dataset PUBLIC (generation runs on the user's OTHER account, 30 h) → generation (31B mix, thinking,
+  2-3 samples/task at T1.0 — high run-to-run variance) → run filters (resolved, honest, located before edit, ≤2 failed
+  calls in a row, near-duplicate calls, ≤~3 reads of one file, same files as gold, re-cap leaky/unfair) → train.
+- **Eval yardsticks:** OOD-45 (12B base 61%: easy; compare variants only) and OOD-hard (24 tasks: 16 the 12B base
+  failed + 8 solved; kaggle/cells_ood45_31b_hard, cells_ood45_12b_hard; `make_ood45_cells.py <31b|12b> hard`).
+  31B OOD baseline postponed (quota). LB is 58 public tasks with ±3-task noise → judge changes locally.
+- **Quota:** user's account ~2.8 h GPU left this week; other account 30 h for generation. CPU notebooks are free.
+- **Cheap no-LoRA ideas (parallel track, from top public configs):** thinking_budget 4096 / max_output 8192 (ours
+  2048/4096), batched independent searches in one command, parallel-implementations rule, git status+diff before
+  submit — test on local sets, not single LB draws.
 
 ### NOW (2026-10-20 morning, read first; the log below is chronological history)
 - **Goal:** win. Best LB so far = mix (31B, no LoRA) 0.17; LB noise ±0.02. Hidden test = ~120 tasks from PRIVATE repos.
