@@ -34,5 +34,5 @@ with open(OUT / 'tasks.jsonl', 'w') as fh:
         fh.write(json.dumps({**{k: r[k] for k in ('instance_id', 'repo', 'base_commit', 'problem_statement', 'patch',
                                                   'test_patch', 'FAIL_TO_PASS', 'PASS_TO_PASS', 'created_at')},
                              'hints_text': '', 'license': r['license_name'], 'source': 'nebius/SWE-rebench (CC-BY-4.0)',
-                             'python_original': r['install_config']['python'], 'gate': g}) + '\n')
+                             'python_original': r['install_config']['python'], 'pr': r.get('pr'), 'gate': g}) + '\n')
 print('wrote', OUT / 'tasks.jsonl')
