@@ -19,7 +19,7 @@ Output /kaggle/working/rebench/ in the OOD-45 layout (tasks.jsonl, snapshots/<id
 wheels/x86_64-cp312/manifest.json mapping task id -> its wheel names), so the same tools load it later.
 
 Pilot choice (seeded): candidates with no FAIL_TO_FAIL / PASS_TO_FAIL (the harness needs every test in the touched
-files to pass), one task per repo, no heavy frameworks, stratified by Nebius's difficulty score.
+files to pass), one task per repo, no heavy frameworks: 36 core tasks stratified by Nebius's difficulty score + 4 large fixes.
 """
 import argparse
 import json
@@ -34,28 +34,31 @@ OUT = ROOT / "kaggle" / "cells_rebench_pilot"
 HEAVY = re.compile(r"^(torch|tensorflow|jax|jaxlib|pyspark|mxnet|paddlepaddle|onnxruntime|cupy|nvidia-)", re.I)
 
 
-def pick(n):
-    """n tasks, one per repo, stratified by Nebius's difficulty score (0: <15 min, 1: <1 h, 2: 1-4 h for a human) in
-    the candidate pool's proportions; no heavy frameworks; no FAIL_TO_FAIL / PASS_TO_FAIL."""
+def pick(n, n_large=4):
+    """n tasks, one per repo: n_large from the large tier (>130 changed lines; the public set has 12/129 such), the
+    rest from the core tier stratified by Nebius's difficulty score (0: <15 min, 1: <1 h, 2: 1-4 h for a human) in
+    the pool's proportions. No heavy frameworks; no FAIL_TO_FAIL / PASS_TO_FAIL."""
     cand = [json.loads(l) for l in open(ROOT / "data/swe_rebench/candidates.jsonl")]
     f2f = {r["instance_id"]: (len(r["FAIL_TO_FAIL"] or []), len(r["PASS_TO_FAIL"] or []))
            for r in pq.read_table(ROOT / "data/swe_rebench/test_f2f.parquet").to_pylist()}
     pool = [r for r in cand if f2f[r["instance_id"]] == (0, 0) and not any(
         HEAVY.match(line.strip()) for line in (r["requirements"] or "").splitlines())]
     diff = lambda r: r["meta"]["llm_score"]["difficulty_score"]  # noqa: E731
-    share = {d: sum(diff(r) == d for r in pool) / len(pool) for d in (0, 1, 2)}
-    want = {d: round(n * share[d]) for d in (0, 1, 2)}
-    want[1] += n - sum(want.values())
+    label = lambda r: "large" if r["tier"] == "large" else f"core d{diff(r)}"  # noqa: E731
+    core = [r for r in pool if r["tier"] == "core"]
+    want = {f"core d{d}": round((n - n_large) * sum(diff(r) == d for r in core) / len(core)) for d in (0, 1, 2)}
+    want["core d1"] += n - n_large - sum(want.values())
+    want["large"] = n_large
     rng = random.Random(20261020)
     rng.shuffle(pool)
     chosen, repos = [], set()
     for r in pool:
-        d = diff(r)
-        if r["repo"] in repos or want[d] <= 0:
+        k = label(r)
+        if r["repo"] in repos or want.get(k, 0) <= 0:
             continue
-        want[d] -= 1
+        want[k] -= 1
         repos.add(r["repo"])
-        chosen.append((r["instance_id"], f"difficulty {d}"))
+        chosen.append((r["instance_id"], k))
     return sorted(chosen)
 
 
@@ -80,7 +83,7 @@ WHEEL_SET = 'x86_64-cp312'
 HOUSE = OUT / 'wheels' / 'house'
 for p in (OUT / 'snapshots', HOUSE, OUT / 'wheels' / WHEEL_SET):
     p.mkdir(parents=True, exist_ok=True)
-PILOT = {chosen!r}  # (instance_id, Nebius difficulty score: 0 <15 min, 1 <1 h, 2 1-4 h for a human)
+PILOT = {chosen!r}  # (instance_id, tier: 'core dN' = <=130 changed lines, Nebius difficulty N (0 <15 min, 1 <1 h, 2 1-4 h); 'large' = 131-400 lines)
 
 
 def _first(*cands, pattern=None):

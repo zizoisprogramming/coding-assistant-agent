@@ -5,7 +5,8 @@
 Input: data/swe_rebench/test_cols.parquet (nebius/SWE-rebench test split, CC-BY-4.0, all columns but `environment`).
 Excludes the public competition repos and the 17 OOD-45 repos (our yardstick). llm_score scales follow SWE-bench
 Verified's annotation (lower = better: 0 = well specified / valid tests / <15 min fix).
-Size caps follow the public 129 tasks (90th percentile: 4 source files, 128 changed lines; user 2026-10-20).
+Size caps follow the public 129 tasks (user 2026-10-20): core tier up to their 90th percentile (128 changed lines),
+plus a large tier (131-400 lines, up to 8 files) for their tail.
 """
 import collections
 import json
@@ -39,6 +40,17 @@ def patch_stats(patch):
     return files, src, added + removed
 
 
+def tier(r):
+    """core: the bulk, sized like the public tasks up to their 90th percentile (128 lines); large: the public tail
+    (12 of 129 public fixes change >130 lines, up to 12,714)."""
+    files, src, n = patch_stats(r["patch"])
+    if n > 130:
+        return "large"
+    if len(src) <= 6 and r["meta"]["llm_score"]["difficulty_score"] <= 2:
+        return "core"
+    return None
+
+
 def main():
     rows = pq.read_table(ROOT / "data/swe_rebench/test_cols.parquet").to_pylist()
     steps = [
@@ -47,10 +59,11 @@ def main():
         ("pytest log parser", lambda r: (r["install_config"] or {}).get("log_parser", "").startswith("parse_log_pytest")),
         ("issue text clear (score<=1)", lambda r: 0 <= r["meta"]["llm_score"]["issue_text_score"] <= 1),
         ("tests valid (score<=1)", lambda r: 0 <= r["meta"]["llm_score"]["test_score"] <= 1),
-        ("difficulty <=2 (<4h for a human)", lambda r: 0 <= r["meta"]["llm_score"]["difficulty_score"] <= 2),
+        ("difficulty <=3 (score 3 only for large fixes)", lambda r: 0 <= r["meta"]["llm_score"]["difficulty_score"] <= 3),
         ("1-20 FAIL_TO_PASS tests", lambda r: 1 <= len(r["FAIL_TO_PASS"] or []) <= 20),
-        ("patch: 1-4 source .py files, no other files", lambda r: (lambda f, s, n: 1 <= len(s) <= 4 and len(f) == len(s))(*patch_stats(r["patch"]))),
-        ("patch: <=130 changed lines", lambda r: patch_stats(r["patch"])[2] <= 130),
+        ("patch: 1-8 source .py files, no other files", lambda r: (lambda f, s, n: 1 <= len(s) <= 8 and len(f) == len(s))(*patch_stats(r["patch"]))),
+        ("patch: <=400 changed lines", lambda r: patch_stats(r["patch"])[2] <= 400),
+        ("tier core (<=130 lines, <=6 files, difficulty<=2) or large (131-400)", lambda r: tier(r) is not None),
         ("python >= 3.8 in install_config", lambda r: tuple(int(x) for x in ((r["install_config"] or {}).get("python") or "0").split(".")[:2]) >= (3, 8)),
     ]
     cur = rows
@@ -67,9 +80,10 @@ def main():
     print("tasks per repo: repos with 1:", sum(v == 1 for v in per_repo.values()), "| 2-4:",
           sum(2 <= v <= 4 for v in per_repo.values()), "| 5+:", sum(v >= 5 for v in per_repo.values()),
           "| top:", per_repo.most_common(12))
+    print("tiers", c(tier(r) for r in cur))
     with open(OUT, "w") as fh:
         for r in cur:
-            fh.write(json.dumps(r) + "\n")
+            fh.write(json.dumps({**r, "tier": tier(r)}) + "\n")
     print("wrote", OUT.relative_to(ROOT), len(cur))
 
 
