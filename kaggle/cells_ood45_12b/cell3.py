@@ -76,7 +76,7 @@ _base = server_instance.base_url.rstrip('/')
 _base = _base if _base.endswith('/v1') else _base + '/v1'
 _served = [m['id'] for m in _json.load(_url.urlopen(_base + '/models'))['data']]
 print('served models:', _served)
-assert {'v2s10', 'v2s05'} <= set(_served), 'vLLM does not serve every adapter: stop and send me this output'
+assert {'v2s05', 'v2s10'} <= set(_served), 'vLLM does not serve every adapter: stop and send me this output'
 def _ask(model):
     body = {'model': model, 'max_tokens': 60, 'temperature': 0, 'messages': [{'role': 'user', 'content':
             'You are fixing a bug in /workspace. What is your first tool call? Answer in one line.'}]}

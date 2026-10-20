@@ -2,6 +2,7 @@
 
     python3 scripts/train/make_ood45_cells.py 31b   -> kaggle/cells_ood45_31b/  (mix on the 31B, as submitted: T0.2)
     python3 scripts/train/make_ood45_cells.py 12b   -> kaggle/cells_ood45_12b/  (12B base + v2 LoRA at scale 1.0 / 0.5)
+    python3 scripts/train/make_ood45_cells.py 31b hard -> kaggle/cells_ood45_31b_hard/  (OOD-hard: 24 tasks, see OOD_HARD)
 
 OOD-45 = Kaggle dataset rodrigospalma/ood45-bugfix-split (45 bug fixes merged 2026-09-18..10-03 in 17 repos the
 public tasks do not use; gold patch resolves 3/3, empty patch fails). Its tools/ood45_harness.py materializes the
@@ -25,8 +26,20 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 EVAL = ROOT / "kaggle" / "cells_eval_12b_sft"
 WHICH = sys.argv[1] if len(sys.argv) > 1 else "31b"
+SUBSET = sys.argv[2] if len(sys.argv) > 2 else "all"  # "all" (44) or "hard" (OOD_HARD, 24)
 SKIP = ["urllib3_5279"]
 
+# OOD-hard (user 2026-10-20: smaller runs, the hard tasks + a sample of solved ones), from the 12B run of 2026-10-20
+# (data/results/2026-10-20_ood45_12b): every task the 12B base did NOT solve (10 never solved by any variant + 6 only
+# an adapter solved) + 4 the base solved but an adapter failed + 4 solved by all three (seeded, one per repo).
+# tox_4109 left out: every variant timed out after <=12 calls (a hanging command, no signal, max time each run).
+OOD_HARD = sorted([
+    'feast_6874', 'great_tables_872', 'great_tables_874', 'great_tables_880', 'kedro_5793', 'pint_2434', 'pint_2437',
+    'pyjanitor_1739', 'tox_4094', 'tox_4097',  # never solved
+    'apprise_1747', 'cachetools_424', 'filesystem_spec_2182', 'kedro_5791', 'py_shiny_2505', 'pyjanitor_1741',  # base failed
+    *['feast_6860', 'filesystem_spec_2191', 'great_tables_867', 'kedro_5790'],  # base solved, an adapter failed
+    *['filesystem_spec_2183', 'kedro_viz_2786', 'polars_29401', 'py_shiny_2510'],  # solved by all three
+])
 SETS = {  # model, base submission, {variant: (adapter name, scale, temperature)}, concurrency, stop new tasks after h
     "31b": ("gemma-4-31b-it-qat-w4a16-ct", "mix", {"mix31_t02": (None, None, 0.2)}, 4, 4.0),
     "12b": ("gemma-4-12b-it-qat-w4a16-ct", "mix_12b", {
@@ -35,7 +48,7 @@ SETS = {  # model, base submission, {variant: (adapter name, scale, temperature)
         "v2s05_t10": ("v2s05", 0.5, 1.0)}, 6, 5.0),
 }
 MODEL, BASE_SUB, VARIANTS, CONCURRENCY, STOP_H = SETS[WHICH]
-OUT = ROOT / "kaggle" / f"cells_ood45_{WHICH}"
+OUT = ROOT / "kaggle" / (f"cells_ood45_{WHICH}" + ("_hard" if SUBSET == "hard" else ""))
 OUT.mkdir(parents=True, exist_ok=True)
 ADAPTERS_USED = sorted({a for a, _, _ in VARIANTS.values() if a})
 
@@ -113,6 +126,7 @@ VARIANTS = {VARIANTS!r}  # name: (adapter, LoRA scale, temperature)
 CONCURRENCY = {CONCURRENCY}  # tasks running at the same time, all variants share one queue
 STOP_NEW_TASKS_AFTER_H = {STOP_H}  # quota guard: no new task starts after this many hours (L4x4 bills 2x)
 SKIP = {set(SKIP)!r}  # does not run on Python 3.12 (dataset README)
+ONLY = {(OOD_HARD if SUBSET == "hard" else None)!r}  # None = every task; else the OOD-hard subset (make_ood45_cells.py)
 EMBEDDED = {json.dumps(embedded, indent=1)}
 
 
@@ -146,7 +160,8 @@ for name, files in EMBEDDED.items():
 sys.path.insert(0, str(OOD_DIR / 'tools'))
 import ood45_harness as ood  # noqa: E402
 OOD_RUN = ood.setup(OOD_DIR)
-RUN_IDS = sorted(i for i in OOD_RUN.tasks if i not in SKIP)
+RUN_IDS = sorted(i for i in OOD_RUN.tasks if i not in SKIP and (ONLY is None or i in ONLY))
+assert ONLY is None or len(RUN_IDS) == len(ONLY), f'subset ids missing from the dataset: {{sorted(set(ONLY) - set(RUN_IDS))}}'
 REPO_OF = {{i: OOD_RUN.meta[i]['repo'] for i in RUN_IDS}}
 ENV_OVERLAY = sorted(i for i in RUN_IDS if OOD_RUN.meta[i]['env_overlay'])
 print(f'OOD-45: {{len(RUN_IDS)}} tasks (skipped {{sorted(SKIP)}}) in {{len(set(REPO_OF.values()))}} repos | wheel set',

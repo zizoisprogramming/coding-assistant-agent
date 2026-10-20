@@ -10,6 +10,7 @@ VARIANTS = {'mix31_t02': (None, None, 0.2)}  # name: (adapter, LoRA scale, tempe
 CONCURRENCY = 4  # tasks running at the same time, all variants share one queue
 STOP_NEW_TASKS_AFTER_H = 4.0  # quota guard: no new task starts after this many hours (L4x4 bills 2x)
 SKIP = {'urllib3_5279'}  # does not run on Python 3.12 (dataset README)
+ONLY = None  # None = every task; else the OOD-hard subset (make_ood45_cells.py)
 EMBEDDED = {
  "mix31_t02": {
   "agent.yaml": "# OOD-45 mix31_t02: mix + no adapter, temperature 0.2.\nname: swe_agent\nmodel: gemma-4-31b-it-qat-w4a16-ct\ninstruction: !include prompts/system.md\ntools:\n  - run_command\n  - read_file\n  - edit_file\n  - write_file\n  - get_status\n  - submit_patch\ngenerate_content_config: !include configs/sampling.yaml\n",
@@ -50,7 +51,8 @@ for name, files in EMBEDDED.items():
 sys.path.insert(0, str(OOD_DIR / 'tools'))
 import ood45_harness as ood  # noqa: E402
 OOD_RUN = ood.setup(OOD_DIR)
-RUN_IDS = sorted(i for i in OOD_RUN.tasks if i not in SKIP)
+RUN_IDS = sorted(i for i in OOD_RUN.tasks if i not in SKIP and (ONLY is None or i in ONLY))
+assert ONLY is None or len(RUN_IDS) == len(ONLY), f'subset ids missing from the dataset: {sorted(set(ONLY) - set(RUN_IDS))}'
 REPO_OF = {i: OOD_RUN.meta[i]['repo'] for i in RUN_IDS}
 ENV_OVERLAY = sorted(i for i in RUN_IDS if OOD_RUN.meta[i]['env_overlay'])
 print(f'OOD-45: {len(RUN_IDS)} tasks (skipped {sorted(SKIP)}) in {len(set(REPO_OF.values()))} repos | wheel set',
