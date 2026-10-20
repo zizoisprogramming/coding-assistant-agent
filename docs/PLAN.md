@@ -40,6 +40,13 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   contributor's 64 merged PRs → 57 with tests → 52 fail-on-base/pass-with-fix 3/3 → 45 pass the harness Docker gate
   (verify_task, net off) on 2 platforms → statements rewritten as user reports (leakage checker) → executed repro
   scripts; per-repo offline wheel sets (2 GB) so it runs in a Kaggle notebook.
+- **OOD-45 12B RESULT (2026-10-20, kaggle/cells_ood45_12b, T1.0, 44 tasks, data/results/2026-10-20_ood45_12b):**
+  base 27/44, v2 LoRA scale 1.0 23/44, scale 0.5 23/44 (scale does not matter). Paired: base-only 7 vs s1.0-only 3,
+  base-only 8 vs s0.5-only 4 (sign test p≈0.34: direction consistent, not significant alone). CLEAR damage: runs with
+  one identical call repeated ≥10× (loops): base 0, s1.0 5, s0.5 6 (up to x51); tool-budget endings only with LoRA.
+  High run-to-run variance at T1.0: 33 tasks solved by some variant, only 14 by all → several samples per task in
+  generation. OOD-45 is easy for Gemma (12B base 61%): compare variants, not with dev16/LB. → teacher data dropped;
+  self-distillation (option B) is the path. 31B OOD baseline postponed (quota).
 - **OPTION B DATA (user decisions 2026-10-20; data must be clean before ANY generation GPU time):** source =
   nebius/SWE-rebench (CC-BY-4.0) tasks, our own build + gate (scripts/datasets/rebench_funnel.py → 2,589 candidates:
   core ≤130 lines/≤6 files/difficulty ≤2 + large 131-500 lines; nothing >500; excludes public + OOD-45 repos).
