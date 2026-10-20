@@ -1,4 +1,4 @@
-"""Unfair-test check (user 2026-10-20: drop them all). A task is unfair when its tests require a name that the fix
+"""Unfair-test check (user 2026-10-20: keep them, at about the public share, and label each task). A task is unfair when its tests require a name that the fix
 creates and that the task text never mentions: nobody could guess it (OOD-45's interface_hint / spec_added cases).
 
 New names = public functions / classes / methods the gold patch defines, parameters it adds to a signature, new

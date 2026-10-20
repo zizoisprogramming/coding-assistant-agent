@@ -48,8 +48,9 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   HTTP/networking) / 20% other ("surprises")** via GitHub topics; task kind; patch shape (already 68/32 vs 66/34);
   size tiers (~10% large); **text = PR title+description vs issue mixed to the public style share, leak share matched
   to the public share** (measured with OOD-45's checker, pilot cell 6) and re-capped after generation (leaky tasks get
-  solved more). **Unfair tests dropped entirely** (tests need a name the fix creates and the text never mentions:
-  scripts/datasets/unfair_tests.py: public 12%, candidates 8%; re-check against the chosen text). Clean-task checks:
+  solved more). **Unfair tests KEPT (user reversed "drop" the same day), at about the public share** (tests need a
+  name the fix creates and the text never mentions: scripts/datasets/unfair_tests.py: public 12%, candidates 8%;
+  measured against the chosen text; label each task `unfair_names` so runs can be analysed / re-capped). Clean-task checks:
   gold PASS/empty FAIL ×3 offline (internet OFF notebook attaching only the dataset), snapshot has nothing after base,
   all wheels incl. host pytest plugins in the dataset, fake-model end-to-end run through the real tools + our
   episode/sample builder. Clean-run checks: resolved, honest (no reads outside /workspace, no test edits), located
