@@ -119,6 +119,17 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   public tasks (and which: non-dev only, to keep dev16 clean)? risk of overfitting the leaderboard? Then design: run the
   31B (mix, several samples per task, T1.0?) on graded tasks, keep only resolved runs (request logger → stage-B-style
   episodes via gemma_runs_to_episodes.py → build_samples), train the 12B, check on dev16 + val_gemma_ok.
+- **Self-distillation research (2026-10-20):** (1) public 129 tasks = official "training set", patches given "for local
+  training" → training on them is allowed. (2) Hidden test (~120) = "curated from a set of PRIVATE repositories" →
+  must generalize; dev16 (fastapi/rich) is a weak proxy. (3) Forum 750713 (icfoer): self-distilled 31B LoRA looped at
+  r16/alpha32 (scale 2.0 = OURS); alpha 16 (1.0) no loops, alpha 8 (0.5) safest interpolation; alpha is applied at
+  inference (adapter_config.json) → re-test our v2 at lower scale without retraining; their data had NO thinking →
+  base 8/11 vs LoRA 7/11. (4) OOD-45 (forum 750573, Kaggle dataset rodrigospalma/ood45-bugfix-split): 45 post-release
+  bug fixes, 17 other repos, swegemma format, Kaggle runner installs deps (gold 44/45), CC-BY/MIT → main yardstick.
+  (5) Forum 748051: nobody has clearly beaten base with LoRA; LB ±0.02 noise.
+  PLAN proposed: 1) OOD-45 baseline 31B mix + 12B base (friend's account, public data); 2) v2 adapter at scale 1.0/0.5
+  on OOD-45; 3) 31B mix with thinking, 2 samples x ~84 gradable non-dev public tasks, T1.0, logged → resolved runs;
+  4) train 12B (scale 1.0, gentler lr, monitor val_gemma_ok); 5) judge on OOD-45; then 31B or submit 12B.
 - **For the FINAL 31B data (user 2026-10-18): drop tasks the model already handles, keep the ones it fails.** We
   cannot run teacher tasks' tests on Kaggle (no Docker, no internet on GPU), so measure difficulty as the BASE 31B's
   loss on the teacher's replies (forward pass only; instruction-following-difficulty / Superfiltering idea, cited
