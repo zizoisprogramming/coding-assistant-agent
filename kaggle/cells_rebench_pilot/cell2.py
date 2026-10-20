@@ -5,7 +5,7 @@ import pyarrow.parquet as pq
 
 WORKING_DIR = Path('/kaggle/working')
 OUT = WORKING_DIR / 'rebench'  # the task set, OOD-45 layout
-WHEEL_SET = 'x86_64-cp312'
+WHEEL_SET = f'{__import__("platform").machine()}-cp{sys.version_info.major}{sys.version_info.minor}'  # Kaggle: x86_64-cp313
 HOUSE = OUT / 'wheels' / 'house'
 for p in (OUT / 'snapshots', HOUSE, OUT / 'wheels' / WHEEL_SET):
     p.mkdir(parents=True, exist_ok=True)

@@ -27,13 +27,24 @@ if _plugins:
 
 
 def import_name(r):
-    """Top-level package the probe imports: first path part of the first patched source file (src/ layout aware)."""
+    """Package the probe imports: the patched one among the snapshot's real packages (cell 3), else the one named like
+    the repo, else the first; without package dirs (single-module projects), the first patched top-level module."""
+    pkgs = (built.get(r['instance_id'], {}).get('snapshot') or {}).get('packages') or []
+    tops = []
     for f in re.findall(r'^diff --git a/(\S+)', r['patch'], re.M):
         parts = f.split('/')
-        if parts[0] in ('src', 'lib') and len(parts) > 2:
-            parts = parts[1:]
-        return parts[0][:-3] if parts[0].endswith('.py') else parts[0]
-    return r['repo'].split('/')[1].lower().replace('-', '_')
+        parts = parts[1:] if parts[0] == 'src' and len(parts) > 1 else parts
+        tops.append(parts[0][:-3] if parts[0].endswith('.py') else parts[0])
+    for t in tops:
+        if t in pkgs:
+            return t
+    norm = r['repo'].split('/')[1].lower().replace('-', '_')
+    for p in pkgs:
+        if p.lower() in (norm, norm.replace('python_', ''), norm.replace('_python', '')):
+            return p
+    if pkgs:
+        return pkgs[0]
+    return next((t for t in tops if t not in ('tests', 'test', 'docs', 'examples', 'scripts')), norm)
 
 
 def as_task(r):
