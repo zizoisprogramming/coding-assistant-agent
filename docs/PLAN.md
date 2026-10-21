@@ -25,6 +25,13 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   leak; unfair_names labels (scripts/datasets/unfair_tests.py); fake-model end-to-end through the real tools + our
   episode builder; write ONE merged dataset, kept PRIVATE and shared with the other account (user 2026-10-21), for generation (30 h).
 
+- **FINAL TASK SET DONE (verify notebook ziad23samer/verification, offline, 2026-10-21): 348 tasks / 248 repos**
+  (385 selected - 37 dropped offline: 16 package not importable, 21 gold fails; causes = network-needing tests
+  (DNS, downloads) and old setup.py installs that fetch build deps; consistent with offline grading). Shares: public-like
+  81%, leak 34%, unfair 12%, PR text 56%, env_partial 9%, large 20. Snapshots 385/385 clean. Offline fail-fast hook
+  (.pth in sandbox venv) + host pytest plugin wheels (wheels/host) ship with it: generation MUST use both. Small files:
+  data/results/2026-10-21_rebench_verify/. User: output -> private dataset, shared with the generation account.
+  NEXT: generation notebook (31B mix, thinking, 2-3 samples/task T1.0, same sandbox setup) + run filters.
 - **Self-distillation training settings (agreed with user 2026-10-21):** round 1 = rank 16, alpha 16 (scale 1.0),
   lr 1e-4 (cosine to 10%, warmup), 1-2 epochs by data size; earlier runs used r16/alpha32 (scale 2) + lr 2e-4 = too
   strong. Round 2 only if round 1 overfits: rank 8 / alpha 8 (keep scale 1). Every sample's final turn must have
