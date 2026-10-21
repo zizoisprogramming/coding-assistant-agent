@@ -279,9 +279,68 @@ print(f"wrote {OUT}: {len(F)} tasks | snapshots {snap_gb:.2f} GB | wheels {len(n
 '''
 
 
+OFFLINE_HOOK = r'''
+# OFFLINE FAIL-FAST (verify run 1, 2026-10-21: with Kaggle's internet off, a connection to the outside HANGS until the
+# TCP timeout instead of failing, so installs (setup.py develop -> easy_install) and network-touching tests took 7-14
+# min per task; ETA 20 h). A .pth hook in each sandbox venv makes every non-local connect / DNS lookup fail at once
+# with "Network is unreachable", as in an offline Docker sandbox (--network none). Loopback stays allowed (local test
+# servers). Applies to every Python process that uses the sandbox venv; the harness itself is not affected.
+OFFLINE_MODULE = """import errno, ipaddress, socket
+_connect, _connect_ex, _getaddrinfo = socket.socket.connect, socket.socket.connect_ex, socket.getaddrinfo
+_LOCAL_NAMES = {'localhost', 'localhost.localdomain', '', None, socket.gethostname()}
+
+
+def _local_host(host):
+    if isinstance(host, bytes):
+        host = host.decode()
+    if host in _LOCAL_NAMES:
+        return True
+    try:
+        ip = ipaddress.ip_address(host.split('%')[0])
+        return ip.is_loopback or ip.is_unspecified
+    except ValueError:
+        return False
+
+
+def _blocked(sock, addr):
+    return sock.family in (socket.AF_INET, socket.AF_INET6) and isinstance(addr, tuple) and not _local_host(addr[0])
+
+
+def connect(self, addr):
+    if _blocked(self, addr):
+        raise OSError(errno.ENETUNREACH, 'Network is unreachable (offline sandbox)')
+    return _connect(self, addr)
+
+
+def connect_ex(self, addr):
+    return errno.ENETUNREACH if _blocked(self, addr) else _connect_ex(self, addr)
+
+
+def getaddrinfo(host, *args, **kwargs):
+    if not _local_host(host):
+        raise socket.gaierror(socket.EAI_NONAME, 'Name or service not known (offline sandbox)')
+    return _getaddrinfo(host, *args, **kwargs)
+
+
+socket.socket.connect, socket.socket.connect_ex, socket.getaddrinfo = connect, connect_ex, getaddrinfo
+"""
+_shadow_plugins = shadow_host_plugins
+
+
+def shadow_host_plugins(site):
+    (site / '_rb_offline.py').write_text(OFFLINE_MODULE)
+    (site / 'zz_rb_offline.pth').write_text('import _rb_offline\n')
+    return _shadow_plugins(site) + ['(offline fail-fast hook)']
+
+
+ood._shadow_host_plugins = shadow_host_plugins
+'''
+
+
 def gate_cell():
-    """The full build's gate cell, adapted: offline (host plugins were installed in cell 3), pilot tasks need gold to
-    pass 3 times (they were gated once), the other tasks once more (they passed 3 times when built)."""
+    """The full build's gate cell, adapted: offline (host plugins were installed in cell 3; network fails fast in the
+    sandbox), pilot tasks need gold to pass 3 times (they were gated once), the other tasks once more (they passed 3
+    times when built)."""
     src = M.CELL4
     i = src.index("_plugins = sorted(")
     j = src.index("def import_name(r):")
@@ -294,6 +353,7 @@ def gate_cell():
          "row['usable'] = row['gold_runs'] == ['PASS'] * N_GOLD[iid] and row.get('empty') == 'FAIL'"),
         ("GATE = OUT / 'gate.json'", "N_GOLD = {i: 3 if SEL[i]['source'] == 'pilot' else 1 for i in SEL}\nGATE = OUT / 'gate.json'"),
         ("if built.get(i, {}).get('snapshot') and i not in gate:", "if i not in SNAP_BAD and i not in gate:"),
+        ("ood._shadow_host_plugins = shadow_host_plugins\n", "ood._shadow_host_plugins = shadow_host_plugins\n" + OFFLINE_HOOK),
     ]
     for old, new in reps:
         assert src.count(old) == 1, old[:60]
