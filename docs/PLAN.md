@@ -23,7 +23,7 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   the names. **NEXT (me):** the OFFLINE verification/assembly notebook (internet off): attach 3 datasets + pilot-2;
   re-gate all once; scan snapshots for commits after base; reclassify domains; 80/20 trim; PR/issue text choice to 34%
   leak; unfair_names labels (scripts/datasets/unfair_tests.py); fake-model end-to-end through the real tools + our
-  episode builder; write ONE merged dataset to publish PUBLIC for generation (other account, 30 h).
+  episode builder; write ONE merged dataset, kept PRIVATE and shared with the other account (user 2026-10-21), for generation (30 h).
 
 ### CHECKPOINT 2026-10-20 EVENING (read this first; details in the bullets below it)
 - **Direction (user):** self-distillation on CLEAN data = Gemma 31B's own resolved runs on tasks we build from
@@ -51,7 +51,7 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   GitHub topics; PR/issue choice to the leak target; dataset in OOD-45 layout incl. host-plugin wheels) → OFFLINE
   verification notebook (CPU, internet OFF, attaches only the dataset: re-gate, snapshot future-scan, fake-model
   end-to-end through real tools + our episode/sample builder; every sample must end with Gemma's thinking + final
-  text) → final dataset PUBLIC (generation runs on the user's OTHER account, 30 h) → generation (31B mix, thinking,
+  text) → final dataset PRIVATE, shared with the user's OTHER account (user 2026-10-21; generation there, 30 h) → generation (31B mix, thinking,
   2-3 samples/task at T1.0 — high run-to-run variance) → run filters (resolved, honest, located before edit, ≤2 failed
   calls in a row, near-duplicate calls, ≤~3 reads of one file, same files as gold, re-cap leaky/unfair) → train.
 - **Eval yardsticks:** OOD-45 (12B base 61%: easy; compare variants only) and OOD-hard (24 tasks: 16 the 12B base
@@ -141,7 +141,7 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   all wheels incl. host pytest plugins in the dataset, fake-model end-to-end run through the real tools + our
   episode/sample builder. Clean-run checks: resolved, honest (no reads outside /workspace, no test edits), located
   before editing, no loops / repeated failed calls, thinking every step (selection v2 rules), same files as gold and
-  similar size, ≤2 distinct runs/task. Generation on the user's other account (30 h) → final dataset must be PUBLIC.
+  similar size, ≤2 distinct runs/task. Generation on the user's other account (30 h) → final dataset private, shared with that account (user 2026-10-21).
   Pilot (40 tasks, CPU, cells kaggle/cells_rebench_pilot, scripts/datasets/make_rebench_cells.py) running 2026-10-20.
 - **Tooling ready:** stage B (scripts/datasets/stage_b.py, --rewrite-reads), episode features/selection v1/v2,
   build_samples.py, train_sft.py (data parallel 2x2 GPUs, --extra-val, --score-adapter, --monitor, --evals,

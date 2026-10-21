@@ -1,5 +1,5 @@
 # 6. FINISH: the dataset. tasks.jsonl = tasks that passed the snapshot check and the offline re-gate; README.md;
-#    everything else pruned. Then: Output -> New Dataset -> make it PUBLIC (generation runs on the other account).
+#    everything else pruned. Then: Output -> New Dataset (private) -> share it with the generation account (user 2026-10-21: not public).
 final = [i for i in sorted(ROWS) if i not in SNAP_BAD and gate.get(i, {}).get('usable')]
 dropped = {i: ('snapshot: ' + '; '.join(SNAP_BAD[i]) if i in SNAP_BAD else 'not gated (deadline)' if i not in gate else
                'gate: ' + (gate[i].get('why') or f"gold {'/'.join(gate[i].get('gold_runs', []))} empty {gate[i].get('empty')}"))[:160]
