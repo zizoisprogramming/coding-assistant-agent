@@ -42,7 +42,7 @@ def submission():
     # undo that slowdown; tool calls (28, the binding budget) and turns stay as submitted.
     old = "  max_time_minutes: 8\n"
     assert files["eval_config.yaml"].count(old) == 1
-    files["eval_config.yaml"] = files["eval_config.yaml"].replace(old, "  max_time_minutes: 12\n")
+    files["eval_config.yaml"] = files["eval_config.yaml"].replace(old, "  max_time_minutes: 15\n")
     return files
 
 
