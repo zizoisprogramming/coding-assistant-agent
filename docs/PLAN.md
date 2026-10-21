@@ -40,6 +40,12 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   env_partial 32 -> 193 on 3.12 (older pip falls back to `setup.py develop`, which fails; tests still pass from the repo
   root; per-task value in gate.env_partial). Small files: data/results/2026-10-21_rebench_cp312/. Generation runs in a
   pinned copy of an old GPU notebook on the other account (fatmazenhom/ood-12b) with dataset rebench-final-cp312.
+- **GENERATION RUNNING (2026-10-21 night):** Kaggle notebook engziadsamer/trial-gpu (Python 3.12 image, L4x4, internet
+  off), kaggle/cells_gen MODE 'full', concurrency 6, mix at T1.0, 15-min time limit (gen only; trial showed 6-at-once
+  slowdown cut 7/12 runs at 8 min), 28 tool calls. Trial (20 tasks, data/results/2026-10-21_gen_trial/, its request log
+  in ziad23samer/getting-started-gemma-4-developer-agent-new output) = 7/20; its rows are embedded in cell 2. Full run at
+  38/327: 15 solved, ~32 attempts/h, ETA ~10 h total. NEXT: fetch output (small files + requests.jsonl ~0.5 GB? check
+  size first), then MODE 'retry' (attempt 2 on unsolved), then run filters + build samples + train (r16/alpha16, lr 1e-4).
 - **Self-distillation training settings (agreed with user 2026-10-21):** round 1 = rank 16, alpha 16 (scale 1.0),
   lr 1e-4 (cosine to 10%, warmup), 1-2 epochs by data size; earlier runs used r16/alpha32 (scale 2) + lr 2e-4 = too
   strong. Round 2 only if round 1 overfits: rank 8 / alpha 8 (keep scale 1). Every sample's final turn must have
