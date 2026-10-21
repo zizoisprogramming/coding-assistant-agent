@@ -38,7 +38,7 @@ def submission():
     files["configs/sampling.yaml"] = files["configs/sampling.yaml"].replace(
         old, "temperature: 1.0  # generation (user 2026-10-21): varied runs; the submission uses 0.2\n")
     # Trial (2026-10-21, data/results/2026-10-21_gen_trial): 6 runs at once share the GPU, so each one decodes slower and
-    # 7/12 hit the 8-min clock (1/8 at 4 at once): time cuts that the scorer would not make. Generation gets 12 min to
+    # 7/12 hit the 8-min clock (1/8 at 4 at once): time cuts that the scorer would not make. Generation gets 15 min (user: margin) to
     # undo that slowdown; tool calls (28, the binding budget) and turns stay as submitted.
     old = "  max_time_minutes: 8\n"
     assert files["eval_config.yaml"].count(old) == 1
