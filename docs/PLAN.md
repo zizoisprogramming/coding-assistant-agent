@@ -25,6 +25,11 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   leak; unfair_names labels (scripts/datasets/unfair_tests.py); fake-model end-to-end through the real tools + our
   episode builder; write ONE merged dataset, kept PRIVATE and shared with the other account (user 2026-10-21), for generation (30 h).
 
+- **Self-distillation training settings (agreed with user 2026-10-21):** round 1 = rank 16, alpha 16 (scale 1.0),
+  lr 1e-4 (cosine to 10%, warmup), 1-2 epochs by data size; earlier runs used r16/alpha32 (scale 2) + lr 2e-4 = too
+  strong. Round 2 only if round 1 overfits: rank 8 / alpha 8 (keep scale 1). Every sample's final turn must have
+  thinking (submit_patch loop fix). Judge on gemma-val, our test split, OOD-hard; not loss alone.
+
 ### CHECKPOINT 2026-10-20 EVENING (read this first; details in the bullets below it)
 - **Direction (user):** self-distillation on CLEAN data = Gemma 31B's own resolved runs on tasks we build from
   nebius/SWE-rebench (option B). Teacher-imitation data DROPPED (OOD-45: base 27/44 vs LoRA 23/44 at both scales;
