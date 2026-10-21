@@ -37,6 +37,12 @@ def submission():
     assert files["configs/sampling.yaml"].count(old) == 1
     files["configs/sampling.yaml"] = files["configs/sampling.yaml"].replace(
         old, "temperature: 1.0  # generation (user 2026-10-21): varied runs; the submission uses 0.2\n")
+    # Trial (2026-10-21, data/results/2026-10-21_gen_trial): 6 runs at once share the GPU, so each one decodes slower and
+    # 7/12 hit the 8-min clock (1/8 at 4 at once): time cuts that the scorer would not make. Generation gets 12 min to
+    # undo that slowdown; tool calls (28, the binding budget) and turns stay as submitted.
+    old = "  max_time_minutes: 8\n"
+    assert files["eval_config.yaml"].count(old) == 1
+    files["eval_config.yaml"] = files["eval_config.yaml"].replace(old, "  max_time_minutes: 12\n")
     return files
 
 
@@ -57,9 +63,9 @@ from collections import Counter
 
 assert sys.version_info[:2] == (3, 12), (f'Python {{sys.version.split()[0]}}: generation needs Python 3.12 + torch 2.10 '
     '(vLLM 0.19.1): Copy & Edit an old GPU notebook and set Environment -> Pin to original environment')
-MODE = 'trial'  # 'trial' -> 'full' -> 'retry' (one session each; attach the earlier sessions' outputs)
+MODE = 'full'  # 'trial' (done 2026-10-21) -> 'full' -> 'retry' (one session each; attach the earlier sessions' outputs)
 TRIAL_PHASES = [(4, 8), (6, 12)]  # trial: (concurrency, tasks): measured throughput decides CONCURRENCY below
-CONCURRENCY = 4  # full / retry: set from the trial's result
+CONCURRENCY = 6  # full / retry: trial 2026-10-21: 40.9 attempts/h at 6 vs 31.4 at 4
 STOP_NEW_TASKS_AFTER_H = 10.5  # Kaggle ends GPU sessions at 12 h; a task takes <= ~10 min
 T_START = time.time()
 WORKING_DIR = Path('/kaggle/working')
