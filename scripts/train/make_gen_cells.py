@@ -121,6 +121,10 @@ RESULTS.mkdir(parents=True, exist_ok=True)
 PREV = []
 for p in sorted(glob.glob('/kaggle/input/**/results/gen_per_task.jsonl', recursive=True)) + ([str(PER_TASK)] if PER_TASK.exists() else []):
     PREV += [json.loads(l) for l in open(p)]
+# Trial rows embedded (2026-10-21): attaching the trial notebook's output from another account hung on 'Preparing to
+# download'. Its request log stays in that output; these rows only make this session skip what the trial did.
+EMBEDDED_PREV = {embedded_prev!r}
+PREV += [r for r in EMBEDDED_PREV if (r['instance_id'], r['attempt']) not in {{(x['instance_id'], x['attempt']) for x in PREV}}]
 DONE_JOBS = {{(r['instance_id'], r['attempt']) for r in PREV if r['end'] != 'runner'}}
 SOLVED = {{r['instance_id'] for r in PREV if r['resolved']}}
 print(f'earlier runs: {{len(PREV)}} ({{len(DONE_JOBS)}} done jobs, {{len(SOLVED)}} tasks solved) | mode {{MODE}}')
@@ -368,7 +372,11 @@ print('request log:', f'{req.stat().st_size / 1e6:.0f} MB, {sum(1 for _ in open(
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "cell1.py").write_text((SRC31 / "cell1.py").read_text())
-    (OUT / "cell2.py").write_text(CELL2.format(submission=submission()) + "\n" + sandbox_env())
+    trial = [json.loads(l) for l in open(ROOT / "data/results/2026-10-21_gen_trial/gen_per_task.jsonl")]
+    keep = ('instance_id', 'attempt', 'mode', 'phase', 'concurrency', 'repo', 'level', 'domain', 'text_kind', 'leak', 'unfair',
+            'env_partial', 'resolved', 'wall_s', 'agent_s', 'tool_calls', 'llm_calls', 'patch_chars', 'submitted', 'end')
+    trial = [{k: r[k] for k in keep} for r in trial]
+    (OUT / "cell2.py").write_text(CELL2.format(submission=submission(), embedded_prev=trial) + "\n" + sandbox_env())
     (OUT / "cell3.py").write_text((SRC31 / "cell3.py").read_text())
     logger = (SRC31 / "cell3b_request_logger.py").read_text()
     old = "print('Recording model requests to', REQUEST_LOG, '(diagnostics only: OOD-45 is our yardstick, never training data)')"
