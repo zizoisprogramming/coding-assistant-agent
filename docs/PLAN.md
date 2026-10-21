@@ -32,6 +32,14 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   (.pth in sandbox venv) + host pytest plugin wheels (wheels/host) ship with it: generation MUST use both. Small files:
   data/results/2026-10-21_rebench_verify/. User: output -> private dataset, shared with the generation account.
   NEXT: generation notebook (31B mix, thinking, 2-3 samples/task T1.0, same sandbox setup) + run filters.
+- **PYTHON 3.12 SWITCH (2026-10-21):** new Kaggle notebooks = Python 3.13 + torch 2.11 -> the wheelhouse's vLLM 0.19.1
+  (needs torch 2.10, cp312 helper wheels) cannot run. Old notebooks copied + "Pin to original environment" keep
+  Python 3.12 + torch 2.10 (GPU and CPU). Kaggle has no Docker, so the sandbox runs tests on the notebook's Python ->
+  task set re-targeted to 3.12 (kaggle/cells_rebench_cp312, run ziad23samer/getting-started-gemma-4-developer-agent-new):
+  176 wheels converted (155 downloaded, 21 built), re-gated on 3.12: **347 tasks** (lark-parser-1013 dropped).
+  env_partial 32 -> 193 on 3.12 (older pip falls back to `setup.py develop`, which fails; tests still pass from the repo
+  root; per-task value in gate.env_partial). Small files: data/results/2026-10-21_rebench_cp312/. Generation runs in a
+  pinned copy of an old GPU notebook on the other account (fatmazenhom/ood-12b) with dataset rebench-final-cp312.
 - **Self-distillation training settings (agreed with user 2026-10-21):** round 1 = rank 16, alpha 16 (scale 1.0),
   lr 1e-4 (cosine to 10%, warmup), 1-2 epochs by data size; earlier runs used r16/alpha32 (scale 2) + lr 2e-4 = too
   strong. Round 2 only if round 1 overfits: rank 8 / alpha 8 (keep scale 1). Every sample's final turn must have
