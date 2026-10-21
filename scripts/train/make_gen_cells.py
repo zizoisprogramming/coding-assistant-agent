@@ -55,6 +55,8 @@ CELL2 = '''# 2. GENERATION setup (scripts/train/make_gen_cells.py): mode, the ta
 import collections, json, random, re, tarfile, time
 from collections import Counter
 
+assert sys.version_info[:2] == (3, 12), (f'Python {{sys.version.split()[0]}}: generation needs Python 3.12 + torch 2.10 '
+    '(vLLM 0.19.1): Copy & Edit an old GPU notebook and set Environment -> Pin to original environment')
 MODE = 'trial'  # 'trial' -> 'full' -> 'retry' (one session each; attach the earlier sessions' outputs)
 TRIAL_PHASES = [(4, 8), (6, 12)]  # trial: (concurrency, tasks): measured throughput decides CONCURRENCY below
 CONCURRENCY = 4  # full / retry: set from the trial's result
