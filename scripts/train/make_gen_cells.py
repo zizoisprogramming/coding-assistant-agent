@@ -63,7 +63,7 @@ from collections import Counter
 
 assert sys.version_info[:2] == (3, 12), (f'Python {{sys.version.split()[0]}}: generation needs Python 3.12 + torch 2.10 '
     '(vLLM 0.19.1): Copy & Edit an old GPU notebook and set Environment -> Pin to original environment')
-MODE = 'full'  # 'trial' (done 2026-10-21) -> 'full' -> 'retry' (one session each; attach the earlier sessions' outputs)
+MODE = 'retry'  # 'trial' (done 2026-10-21) -> 'full' (done 2026-10-22: 160/347 tasks solved) -> 'retry' (one session each; attach the earlier sessions' outputs)
 TRIAL_PHASES = [(4, 8), (6, 12)]  # trial: (concurrency, tasks): measured throughput decides CONCURRENCY below
 CONCURRENCY = 6  # full / retry: trial 2026-10-21: 40.9 attempts/h at 6 vs 31.4 at 4
 STOP_NEW_TASKS_AFTER_H = 10.5  # Kaggle ends GPU sessions at 12 h; a task takes <= ~10 min
@@ -372,7 +372,9 @@ print('request log:', f'{req.stat().st_size / 1e6:.0f} MB, {sum(1 for _ in open(
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "cell1.py").write_text((SRC31 / "cell1.py").read_text())
-    trial = [json.loads(l) for l in open(ROOT / "data/results/2026-10-21_gen_trial/gen_per_task.jsonl")]
+    trial = [json.loads(l) for p in ("data/results/2026-10-21_gen_trial/gen_per_task.jsonl",  # trial: 20 tasks
+                                     "data/results/2026-10-22_gen_full/gen_per_task.jsonl")  # full: 327 tasks, 153 solved
+             for l in open(ROOT / p)]
     keep = ('instance_id', 'attempt', 'mode', 'phase', 'concurrency', 'repo', 'level', 'domain', 'text_kind', 'leak', 'unfair',
             'env_partial', 'resolved', 'wall_s', 'agent_s', 'tool_calls', 'llm_calls', 'patch_chars', 'submitted', 'end')
     trial = [{k: r[k] for k in keep} for r in trial]
