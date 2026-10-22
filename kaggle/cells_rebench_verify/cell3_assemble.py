@@ -33,7 +33,7 @@ for k, iid in enumerate(sorted(SEL), 1):
                  'problem_statement_original': issue,  # field name ood45_harness.load_tasks expects
                  'pr': t.get('pr'), 'leak': s['leak'], 'unfair_names': s['unfair_names'], 'domain': s['domain'],
                  'topics': s['topics'], 'level': s['level'], 'difficulty': s['difficulty'], 'env_partial': s['env_partial'],
-                 'build_part': part, 'requirements': '',
+                 'build_part': part, 'requirements': '', 'split': s.get('split', 'train'),
                  'source': 'nebius/SWE-rebench (CC-BY-4.0); PR texts from GitHub'}
     TASKS.append((iid, s['level']))
     LEVEL[iid] = s['level']

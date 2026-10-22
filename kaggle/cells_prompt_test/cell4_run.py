@@ -136,6 +136,7 @@ async def run_phase(conc, jobs, phase_no):
                 row = {'instance_id': iid, 'attempt': attempt, 'mode': MODE, 'phase': phase_no, 'concurrency': conc,
                        'repo': r['repo'], 'level': r['level'], 'domain': r['domain'], 'text_kind': r['text_kind'],
                        'leak': r['leak'], 'unfair': bool(r['unfair_names']), 'env_partial': r['env_partial'],
+                       'split': r.get('split', 'train'),  # 'test' = a test repo's task: the base model's test score
                        'resolved': bool(res.resolved), 'wall_s': round(time.time() - w0, 1),
                        'agent_s': round(getattr(ctx, 'agent_elapsed_seconds', 0) or 0, 1),
                        'tool_calls': getattr(ctx, 'tool_calls_used', None), 'llm_calls': getattr(ctx, 'llm_calls_used', None),

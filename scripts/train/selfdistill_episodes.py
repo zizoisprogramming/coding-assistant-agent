@@ -212,7 +212,8 @@ def analyse(records, row, task, patch):
 
 def verdict(m, a):
     """First failed rule, or 'keep'."""
-    rules = [("not resolved", not m["resolved"]), ("no submit", not m["submitted"]),
+    rules = [("test task", m.get("split") == "test"),  # a test repo's run: the base model's test score, never training
+             ("not resolved", not m["resolved"]), ("no submit", not m["submitted"]),
              ("misses the fixed files", not m["gold_file_hit"]), ("edits tests", bool(m["test_files_edited"])),
              ("leaves scratch files", bool(m["scratch_files"])),
              ("edits before looking", m["looks_before_edit"] < a.min_looks), ("fail streak", m["max_fail_streak"] > a.max_fail_streak),
@@ -276,6 +277,7 @@ def main():
                 why["no records"] += 1
                 continue
             m, kept = analyse(rs, row, tasks[key[0]], patches.get(key, ""))
+            m["split"] = tasks[key[0]].get("split", "train")
             v = verdict(m, a)
             why[v] += 1
             t = tasks[key[0]]

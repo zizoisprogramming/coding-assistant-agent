@@ -70,15 +70,17 @@ def repo_infos(repos):
     return info
 
 
-def load():
+def load(sources=None):
+    sources = sources or SOURCES
     cand = {json.loads(l)["instance_id"]: json.loads(l) for l in open(ROOT / "data/swe_rebench/candidates.jsonl")}
-    pilot_leak = json.load(open(SOURCES["pilot"] / "leakage.json"))
-    pilot_env = collections.defaultdict(bool)
-    for l in open(SOURCES["pilot"] / "gate_env_install.jsonl"):
-        r = json.loads(l)
-        pilot_env[r["repo"]] |= bool(r["editable"]) and r["editable"][-1]["exit"] != 0
+    pilot_leak, pilot_env = {"issue": {}, "pr": {}}, collections.defaultdict(bool)
+    if "pilot" in sources:
+        pilot_leak = json.load(open(SOURCES["pilot"] / "leakage.json"))
+        for l in open(SOURCES["pilot"] / "gate_env_install.jsonl"):
+            r = json.loads(l)
+            pilot_env[r["repo"]] |= bool(r["editable"]) and r["editable"][-1]["exit"] != 0
     rows = []
-    for src, d in SOURCES.items():
+    for src, d in sources.items():
         if src != "pilot":
             assert str(json.load(open(d / "rebench/part.json"))["part"]) == src, (src, d)
         for l in open(d / "rebench/tasks.jsonl"):
@@ -172,7 +174,57 @@ OOD45_REPOS = {"apache/iceberg-python", "caronc/apprise", "feast-dev/feast", "fs
                "tox-dev/tox", "wntrblm/nox", "urllib3/urllib3"}
 
 
+TEST_REPO_SHARE = 0.15  # parts 3/4: share of the new build's repos that become TEST repos (user 2026-10-22)
+
+
+def main_new():
+    """Parts 3 and 4 (user 2026-10-22): EVERY usable task is kept and Gemma runs on all of them. Before any run, by
+    repo: TEST_REPO_SHARE of the build's repos -- drawn only from repos with no task in any training source (the 347,
+    the 55 extra, OOD-45, public) -- are TEST repos; all their tasks get split 'test' (their generation runs are the
+    base model's test score; never training data); every other task is 'train'. Texts are chosen per split to the
+    public shares. -> data/rebench_new/selection.json
+        assemble_rebench.py --new <part 3 output dir> <part 4 output dir>   (dirs holding rebench/tasks.jsonl ...)"""
+    i = sys.argv.index("--new")
+    sources = {"3": Path(sys.argv[i + 1]), "4": Path(sys.argv[i + 2])}
+    rng = random.Random(SEED + 34)
+    pub = [json.loads(l) for l in open(ROOT / "data/tasks.jsonl")]
+    TARGET["short"] = sum(is_short(t["problem_statement"]) for t in pub) / len(pub)
+    rows = load(sources)
+    info = repo_infos({r["repo"] for r in rows})
+    for r in rows:
+        r["domain"] = domain_of(info.get(r["repo"]), r["repo"])[0]
+        r["topics"] = (info.get(r["repo"]) or {}).get("topics") or []
+    trained = ({json.loads(l)["repo"] for l in open(RES / "2026-10-21_rebench_verify/rebench/tasks.jsonl")}
+               | {s["repo"] for s in json.load(open(ROOT / "data/rebench_test/selection.json"))}  # the 62 -> 55 extra
+               | OOD45_REPOS | {t["repo"] for t in pub})
+    repos = sorted({r["repo"] for r in rows})
+    fresh = [x for x in repos if x not in trained]
+    rng.shuffle(fresh)
+    test_repos = set(fresh[:round(TEST_REPO_SHARE * len(repos))])
+    out = []
+    for split in ("train", "test"):
+        sel = sorted((r for r in rows if (r["repo"] in test_repos) == (split == "test")), key=lambda r: r["id"])
+        got, want = choose_texts(sel, rng)
+        n = max(len(sel), 1)
+        print(f"{split.upper()}: {len(sel)} tasks from {len({r['repo'] for r in sel})} repos | domain "
+              f"{dict(collections.Counter(r['domain'] for r in sel))} | level {dict(sorted(collections.Counter(r['level'] for r in sel).items()))}"
+              f" | leak {got['leak']} ({100 * got['leak'] / n:.0f}%) PR {got['pr']} ({100 * got['pr'] / n:.0f}%) unfair "
+              f"{got['unfair']} ({100 * got['unfair'] / n:.0f}%) short {got['short']} ({100 * got['short'] / n:.0f}%) | targets {want}")
+        out += [{"id": r["id"], "source": r["source"], "repo": r["repo"], "text": r["opts"][r["pick"]]["kind"],
+                 "leak": r["opts"][r["pick"]]["leak"], "short": r["opts"][r["pick"]]["short"],
+                 "unfair_names": r["opts"][r["pick"]]["unfair"], "domain": r["domain"], "topics": r["topics"],
+                 "level": r["level"], "difficulty": r["difficulty"], "env_partial": r["env_partial"], "split": split}
+                for r in sel]
+    print(f"repos: {len(repos)} built, {len(fresh)} with no training task, {len(test_repos)} test")
+    d = ROOT / "data/rebench_new"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "selection.json").write_text(json.dumps(out, indent=0))
+    print("wrote", (d / "selection.json").relative_to(ROOT), len(out))
+
+
 def main():
+    if "--new" in sys.argv:
+        return main_new()
     test = "--test" in sys.argv
     out_dir = ROOT / "data/rebench_test" if test else OUT
     rng = random.Random(SEED)

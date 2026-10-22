@@ -122,7 +122,7 @@ for k, iid in enumerate(sorted(SEL), 1):
                  'problem_statement_original': issue,  # field name ood45_harness.load_tasks expects
                  'pr': t.get('pr'), 'leak': s['leak'], 'unfair_names': s['unfair_names'], 'domain': s['domain'],
                  'topics': s['topics'], 'level': s['level'], 'difficulty': s['difficulty'], 'env_partial': s['env_partial'],
-                 'build_part': part, 'requirements': '',
+                 'build_part': part, 'requirements': '', 'split': s.get('split', 'train'),
                  'source': 'nebius/SWE-rebench (CC-BY-4.0); PR texts from GitHub'}
     TASKS.append((iid, s['level']))
     LEVEL[iid] = s['level']
@@ -368,9 +368,16 @@ def main():
     test = "--test" in sys.argv
     sel = json.load(open(ROOT / ("data/rebench_test" if test else "data/rebench_final") / "selection.json"))
     out = ROOT / "kaggle/cells_rebench_test_verify" if test else OUT_DIR
+    expect = EXPECT_USABLE
+    if "--new" in sys.argv:  # parts 3/4 (assemble_rebench.py --new <p3> <p4> first): their usable counts from the outputs
+        i = sys.argv.index("--new")
+        sel = json.load(open(ROOT / "data/rebench_new/selection.json"))
+        out = ROOT / "kaggle/cells_rebench_new_verify"
+        expect = {part: sum(1 for l in open(Path(d) / "rebench/tasks.jsonl") if json.loads(l)["gate"].get("usable"))
+                  for part, d in (("3", sys.argv[i + 1]), ("4", sys.argv[i + 2]))}
     out.mkdir(parents=True, exist_ok=True)
     (out / "cell1.py").write_text((ROOT / "kaggle/cells_rebench_pilot/cell1.py").read_text())
-    (out / "cell2.py").write_text(CELL2.format(expect=EXPECT_USABLE, selection=repr(sel)))
+    (out / "cell2.py").write_text(CELL2.format(expect=expect, selection=repr(sel)))
     (out / "cell3_assemble.py").write_text(CELL3)
     (out / "cell4_snapshots.py").write_text(CELL4_SNAP)
     (out / "cell5_gate.py").write_text(gate_cell())
