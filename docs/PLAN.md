@@ -9,7 +9,29 @@ change cell 4's printed output. **No training data from Claude, GPT or Gemini (u
 account runs its OWN notebook copy (a shared notebook made `kaggle kernels output` return only the latest version
 and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly quota is tight → small runs.
 
-### CHECKPOINT 2026-10-22 (NEWEST — read first; 10-21 block below has the build history)
+### DATA SPLIT (user decision 2026-10-22, evening; supersedes "OOD-45 is the yardstick, never training data")
+| Set | Contents | Use |
+|---|---|---|
+| Train | clean resolved runs from: rebench 347 (+ retry), ALL of OOD-45, the public 129 tasks (share capped: 4 repos) | LoRA |
+| Val | ~10% of those runs, split by task hash | val loss only (fit check, not agent quality) |
+| Test | NEW SWE-rebench set, ~50-60 tasks, repos in NO training source (not our 248, not OOD's 17, not fastapi/requests/rich/httpx) | base vs adapter, full scored runs |
+| Final | one LB submission | LB = 58 of the ~120 hidden tasks (private repos); the public 129 are NOT on it |
+- Logic: a test set's tasks AND repos never appear in training and it is fixed before any result; never choose test
+  tasks by outcome (e.g. "tasks the base failed" -> the base scores 0 by construction, the adapter wins by noise).
+  A held-back OOD slice was rejected: OOD has only 17 repos -> same repos as the trained OOD part.
+- Accepted cost: the test comes from the same pipeline as most training data -> may flatter the adapter a little;
+  repo-disjoint + the LB check cover the rest.
+- To build: (1) test-set build + offline verify (CPU, make_rebench_full_cells.py / make_rebench_verify_cells.py /
+  cp312 cells, excluding all training repos); (2) generation on OOD-45 (~1.5-2 h GPU) and on the gradable public
+  tasks (~84, ~2-3 h GPU), request logger on; (3) the samples notebook must accept their task files (it reads the
+  gold files from the rebench tasks.jsonl today); (4) samples on each output; merge + caps at training.
+- Samples re-run (a9afcf5 rules) on the full run: **88/153 kept** (strict 65), 123 segments, train 81 runs 1.25M
+  tokens (0.43M trained), val 7 runs; median 11.5k, max 17.4k tokens; leaky 45%. Retry at 9/75 solved (2026-10-22).
+- Prompt test first launch failed: vLLM stuck at "Loading safetensors 0/1" for the whole 20-min startup limit (fresh
+  account, lazy model input) -> cell 3 now reads the weights first with progress lines, limit 60 min (2c8145e).
+  Relaunched; at 40/100: mix2 15 vs mix 14 on the same tasks (noise).
+
+### CHECKPOINT 2026-10-22 (read next; 10-21 block below has the build history)
 **Pipeline state (self-distillation of the 31B mix agent on our SWE-rebench tasks):**
 - Task set: **347 tasks on Python 3.12** = Kaggle dataset https://www.kaggle.com/datasets/engziadsamer/rebench-final-cp312
   (3.13 original: ziad23samer/rebench-final, 348). Why 3.12: vLLM 0.19.1 needs Python 3.12 + torch 2.10 = images of
