@@ -48,6 +48,13 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
 - **Retry done (engziadsamer/trial-2-gpu, data/results/2026-10-22_gen_retry):** 22/187 solved -> 182/347 tasks (52%).
   Samples: full run 88 kept (1.25M train tokens), retry 11 kept (0.21M) -> **99 runs, ~1.46M train tokens (0.50M
   trained), val 9 runs**; leaky ~42% (cap toward 34% at training).
+- **Extra run DONE (ziadsamer/generation-all-shards-gpu, data/results/2026-10-22_gen_extra):** 63/99 solved (OOD 37/44 =
+  84%, ours 26/55); weights read 43 min on a first-time account; 2.7 h of tasks at 36.9/h. Samples
+  (ziad23samer/cell-samples-on-shards-cpu): **39 kept (25 OOD + 14 ours), 0.56M train tokens**; doubt words equal again.
+  **TOTAL NOW: 138 kept runs (88 + 11 + 39), ~2.0M train tokens (~0.69M trained), val 13.** The 4-part attempt (parts
+  2/4 ran on the wrong set: 391 = 347 + OOD; 17 solved, mostly repeats) is skipped.
+- **User decision 2026-10-22:** wait for build parts 3/4, then ONE GPU run for parts 3/4 + the 84 public tasks
+  (cells_gen_public is ready; the combined notebook must reconcile the two sandbox setups).
 - Extra generation (cells_gen_extra) in 4 parts on 4 accounts (~2 h quota each, PART=(k,4), no new task after 0.6 h);
   each part's output -> private dataset gen-extra-pK shared with engziadsamer -> one samples notebook there.
 
