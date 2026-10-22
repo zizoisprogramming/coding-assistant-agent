@@ -106,6 +106,18 @@ def diff_files(diff):
     return set(re.findall(r"^diff --git a/(\S+)", diff or "", re.M))
 
 
+# Doubt words in the thinking (arXiv 2603.24472, "epistemic verbalization": self-distillation that keeps only confident,
+# short reasoning made models worse on new problems). Same 10 markers as the paper; rate per 1,000 words of thinking.
+DOUBT = re.compile(r"\b(wait|hmm|perhaps|maybe|actually|alternatively|seems|might|likely|check)\b", re.I)
+
+
+def doubt_rate(records):
+    text = " ".join((reply_of(r).get("reasoning_content") or reply_of(r).get("reasoning") or "")
+                    for r in records if r["request"].get("tools"))
+    words = len(text.split())
+    return round(1000 * len(DOUBT.findall(text)) / words, 2) if words else None, words
+
+
 def analyse(records, row, task, patch):
     """Metrics, the cut (records kept) and the filter verdict for one episode. records: time order, tools-bearing and
     summary calls mixed (summary calls have no tools; they stay, build_samples skips them)."""
@@ -193,6 +205,8 @@ def analyse(records, row, task, patch):
         "gold_file_hit": bool(agent_files & gold_files), "test_files_edited": sorted(f for f in agent_files if TEST_PATH.search(f)),
         "records_total": len(records), "records_kept": len(kept),
     }
+    # thinking up to and including the first submit (the trained part), else the whole run
+    m["doubt_per_1k"], m["think_words"] = doubt_rate(records[:cut_at + 1] if cut_at is not None else records)
     return m, kept
 
 
@@ -297,6 +311,15 @@ def main():
           f"leaky text {100 * sum(m['leak'] for m in K) / n:.0f}% (public 34%) | unfair {100 * sum(m['unfair'] for m in K) / n:.0f}% "
           f"(public 12%) | final turn {dict(collections.Counter(m['final_turn'] for m in K))} | level {dict(collections.Counter(m['level'] for m in K))} "
           f"| domain {dict(collections.Counter(m['domain'] for m in K))}")
+    kept_ids = {(m["instance_id"], m["attempt"]) for m in K}
+    groups = {"kept": [m for m in metrics if (m["instance_id"], m["attempt"]) in kept_ids],
+              "solved, rejected": [m for m in metrics if m["resolved"] and (m["instance_id"], m["attempt"]) not in kept_ids],
+              "not solved": [m for m in metrics if not m["resolved"]]}
+    med = lambda xs: sorted(xs)[len(xs) // 2] if xs else None  # noqa: E731
+    print("DOUBT WORDS per 1k thinking words (arXiv 2603.24472; median | mean, thinking words median): " + " | ".join(
+        f"{g} n={len(v)}: {med([m['doubt_per_1k'] for m in v if m['doubt_per_1k'] is not None])} | "
+        f"{sum(m['doubt_per_1k'] or 0 for m in v) / max(len(v), 1):.1f}, {med([m['think_words'] for m in v])} words"
+        for g, v in groups.items()))
 
 
 if __name__ == "__main__":
