@@ -13,7 +13,7 @@ no tool call, no channel markup, no junk); everything after is dropped.
 Filter (defaults, decided 2026-10-20/22; every threshold is an argument; all counted up to the cut): resolved;
 submitted; the final diff touches at least one file of the reference fix, no test file and adds no scratch file; read
 or searched before the first edit (scratch scripts are not edits); at most 3 failed calls in a row; at most 2 repeats
-(the same call again with no edit since its last use); a file read at most 4 times; at most 1 text-only turn before the submit;
+(the same call again with no edit since its last use); at most 2 rereads of lines already read (no edit since); at most 1 text-only turn before the submit;
 no junk text (runs of '*', long blank runs, channel markup) in any kept reply.
 """
 import argparse
@@ -164,6 +164,21 @@ def analyse(records, row, task, patch):
         last_seen[key] = edits
         edits += is_edit(name, args)
     reads = collections.Counter(str(a.get("filepath") or a.get("path")) for n, _, a, _ in calls if n == "read_file")
+    # a true reread: lines already read in that file, with no edit to the file since (reading a long file in several
+    # different chunks is normal: 52 of 153 resolved full-run attempts read one file 5-17 times, mostly new ranges)
+    seen, rereads = collections.defaultdict(list), 0
+    for n, _, a, _ in calls:
+        path = str(a.get("filepath") or a.get("path") or "")
+        if n == "read_file":
+            try:
+                lo, hi = int(a.get("start_line") or 1), int(a.get("end_line") or 10 ** 9)
+            except (TypeError, ValueError):
+                lo, hi = 1, 10 ** 9
+            if any(min(hi, h) - max(lo, l) >= 0.5 * max(1, min(hi - lo, h - l)) for l, h in seen[path]):
+                rereads += 1
+            seen[path].append((lo, hi))
+        elif is_edit(n, a):
+            seen.pop(path, None)  # after an edit to this file, reading it again is checking the edit
     first_edit = next((i for i, (n, _, a, _) in enumerate(calls) if is_edit(n, a)), None)
     looks_before = sum(is_look(n, a) for n, _, a, _ in calls[:first_edit]) if first_edit is not None else 0
     agent_files, gold_files = diff_files(patch), diff_files(task["patch"])
@@ -171,7 +186,7 @@ def analyse(records, row, task, patch):
         "resolved": bool(row["resolved"]), "submitted": cut_at is not None,
         "final_turn": "own" if final_ok else "synthetic" if synthetic else "none",
         "calls": len(calls), "text_turns": text_turns, "max_fail_streak": worst,
-        "repeats": repeats, "max_reads_one_file": max(reads.values(), default=0),
+        "repeats": repeats, "max_reads_one_file": max(reads.values(), default=0), "rereads": rereads,
         "scratch_files": sorted(f for f in re.findall(r"^diff --git a/(\S+) b/\S+\nnew file mode", patch or "", re.M)
                                 if f not in gold_files),
         "looks_before_edit": looks_before, "edited": first_edit is not None, "junk_replies": junk,
@@ -187,7 +202,7 @@ def verdict(m, a):
              ("misses the fixed files", not m["gold_file_hit"]), ("edits tests", bool(m["test_files_edited"])),
              ("leaves scratch files", bool(m["scratch_files"])),
              ("edits before looking", m["looks_before_edit"] < a.min_looks), ("fail streak", m["max_fail_streak"] > a.max_fail_streak),
-             ("repeats calls", m["repeats"] > a.max_repeats), ("rereads a file", m["max_reads_one_file"] > a.max_reads),
+             ("repeats calls", m["repeats"] > a.max_repeats), ("rereads lines", m["rereads"] > a.max_rereads),
              ("text-only turns", m["text_turns"] > a.max_text_turns), ("junk text", m["junk_replies"] > 0)]
     return next((why for why, bad in rules if bad), "keep")
 
@@ -230,7 +245,7 @@ def main():
     ap.add_argument("--min-looks", type=int, default=1)
     ap.add_argument("--max-fail-streak", type=int, default=3)
     ap.add_argument("--max-repeats", type=int, default=2)
-    ap.add_argument("--max-reads", type=int, default=4)
+    ap.add_argument("--max-rereads", type=int, default=2, help="reads of lines already read, no edit since")
     ap.add_argument("--max-text-turns", type=int, default=1)
     ap.add_argument("--val-share", type=float, default=0.1, help="share of tasks held out (by task id hash)")
     a = ap.parse_args()
@@ -255,7 +270,7 @@ def main():
             metrics.append(m)
             if row["resolved"]:
                 print(f"  {key[0][:44]:44} a{key[1]} {v:22} calls={m['calls']:2} fail_streak={m['max_fail_streak']} "
-                      f"repeats={m['repeats']} reads1={m['max_reads_one_file']} looks={m['looks_before_edit']} "
+                      f"repeats={m['repeats']} rereads={m['rereads']} reads1={m['max_reads_one_file']} looks={m['looks_before_edit']} "
                       f"text={m['text_turns']} final_turn={m['final_turn']!s:5} kept {m['records_kept']}/{m['records_total']} records",
                       flush=True)
             if v == "keep":
