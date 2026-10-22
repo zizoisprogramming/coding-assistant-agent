@@ -43,6 +43,8 @@ elif MODE == 'full':
     PHASES = [(CONCURRENCY, [(i, 1) for i in ORDER if (i, 1) not in DONE_JOBS])]
 elif MODE == 'retry':
     PHASES = [(CONCURRENCY, [(i, 2) for i in ORDER if i not in SOLVED and (i, 2) not in DONE_JOBS])]
+elif MODE == 'prompt':  # the prompt experiment: the new prompt on a fixed sample, compared with mix's attempt 1
+    PHASES = [(CONCURRENCY, [(i, 1) for i in ORDER if i in SAMPLE and (i, 1) not in DONE_JOBS])]
 else:
     raise SystemExit(f'unknown MODE {MODE!r}')
 N_JOBS = sum(len(j) for _, j in PHASES)

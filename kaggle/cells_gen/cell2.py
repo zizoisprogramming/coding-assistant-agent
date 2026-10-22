@@ -6,6 +6,7 @@ from collections import Counter
 assert sys.version_info[:2] == (3, 12), (f'Python {sys.version.split()[0]}: generation needs Python 3.12 + torch 2.10 '
     '(vLLM 0.19.1): Copy & Edit an old GPU notebook and set Environment -> Pin to original environment')
 MODE = 'retry'  # 'trial' (done 2026-10-21) -> 'full' (done 2026-10-22: 160/347 tasks solved) -> 'retry' (one session each; attach the earlier sessions' outputs)
+SAMPLE = []  # MODE 'prompt': the fixed task sample of the prompt experiment
 TRIAL_PHASES = [(4, 8), (6, 12)]  # trial: (concurrency, tasks): measured throughput decides CONCURRENCY below
 CONCURRENCY = 6  # full / retry: trial 2026-10-21: 40.9 attempts/h at 6 vs 31.4 at 4
 STOP_NEW_TASKS_AFTER_H = 10.5  # Kaggle ends GPU sessions at 12 h; a task takes <= ~10 min

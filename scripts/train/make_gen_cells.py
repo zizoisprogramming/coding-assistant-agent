@@ -30,9 +30,9 @@ OUT = ROOT / "kaggle/cells_gen"
 SRC31 = ROOT / "kaggle/cells_ood45_31b"
 
 
-def submission():
-    files = {str(p.relative_to(ROOT / "submissions/mix")): p.read_text() for p in sorted((ROOT / "submissions/mix").rglob("*"))
-             if p.is_file()}
+def submission(name="mix"):
+    files = {str(p.relative_to(ROOT / "submissions" / name)): p.read_text()
+             for p in sorted((ROOT / "submissions" / name).rglob("*")) if p.is_file()}
     old = "temperature: 0.2\n"
     assert files["configs/sampling.yaml"].count(old) == 1
     files["configs/sampling.yaml"] = files["configs/sampling.yaml"].replace(
@@ -64,6 +64,7 @@ from collections import Counter
 assert sys.version_info[:2] == (3, 12), (f'Python {{sys.version.split()[0]}}: generation needs Python 3.12 + torch 2.10 '
     '(vLLM 0.19.1): Copy & Edit an old GPU notebook and set Environment -> Pin to original environment')
 MODE = 'retry'  # 'trial' (done 2026-10-21) -> 'full' (done 2026-10-22: 160/347 tasks solved) -> 'retry' (one session each; attach the earlier sessions' outputs)
+SAMPLE = {sample!r}  # MODE 'prompt': the fixed task sample of the prompt experiment
 TRIAL_PHASES = [(4, 8), (6, 12)]  # trial: (concurrency, tasks): measured throughput decides CONCURRENCY below
 CONCURRENCY = 6  # full / retry: trial 2026-10-21: 40.9 attempts/h at 6 vs 31.4 at 4
 STOP_NEW_TASKS_AFTER_H = 10.5  # Kaggle ends GPU sessions at 12 h; a task takes <= ~10 min
@@ -114,7 +115,7 @@ shutil.rmtree(SUB_DIR, ignore_errors=True)
 for rel, text in SUBMISSION.items():
     (SUB_DIR / rel).parent.mkdir(parents=True, exist_ok=True)
     (SUB_DIR / rel).write_text(text, encoding='utf-8')
-print('agent: submissions/mix with', [l for l in SUBMISSION['configs/sampling.yaml'].splitlines() if l.startswith('temperature')])
+print('agent: submissions/{sub_name} with', [l for l in SUBMISSION['configs/sampling.yaml'].splitlines() if l.startswith('temperature')])
 
 # Resume: every earlier session's rows (attached outputs) + this session's own (a re-run of this notebook).
 RESULTS.mkdir(parents=True, exist_ok=True)
@@ -189,6 +190,8 @@ elif MODE == 'full':
     PHASES = [(CONCURRENCY, [(i, 1) for i in ORDER if (i, 1) not in DONE_JOBS])]
 elif MODE == 'retry':
     PHASES = [(CONCURRENCY, [(i, 2) for i in ORDER if i not in SOLVED and (i, 2) not in DONE_JOBS])]
+elif MODE == 'prompt':  # the prompt experiment: the new prompt on a fixed sample, compared with mix's attempt 1
+    PHASES = [(CONCURRENCY, [(i, 1) for i in ORDER if i in SAMPLE and (i, 1) not in DONE_JOBS])]
 else:
     raise SystemExit(f'unknown MODE {MODE!r}')
 N_JOBS = sum(len(j) for _, j in PHASES)
@@ -377,7 +380,8 @@ def main():
     keep = ('instance_id', 'attempt', 'mode', 'phase', 'concurrency', 'repo', 'level', 'domain', 'text_kind', 'leak', 'unfair',
             'env_partial', 'resolved', 'wall_s', 'agent_s', 'tool_calls', 'llm_calls', 'patch_chars', 'submitted', 'end')
     trial = [{k: r[k] for k in keep} for r in trial]
-    (OUT / "cell2.py").write_text(CELL2.format(submission=submission(), embedded_prev=trial) + "\n" + sandbox_env())
+    (OUT / "cell2.py").write_text(CELL2.format(submission=submission(), embedded_prev=trial, sample=[], sub_name="mix")
+                                  + "\n" + sandbox_env())
     (OUT / "cell3.py").write_text((SRC31 / "cell3.py").read_text())
     logger = (SRC31 / "cell3b_request_logger.py").read_text()
     old = "print('Recording model requests to', REQUEST_LOG, '(diagnostics only: OOD-45 is our yardstick, never training data)')"
@@ -387,6 +391,33 @@ def main():
     (OUT / "cell4_run.py").write_text(CELL4)
     (OUT / "cell5_summary.py").write_text(CELL5)
     print("wrote", OUT.relative_to(ROOT), sorted(p.name for p in OUT.iterdir()))
+    # The prompt experiment (user 2026-10-22: new prompt only, mix's full run is the baseline): same settings as the
+    # generation run (T1.0, 15 min, 28 calls, 6 at once) on a fixed 100-task sample, stratified by mix's attempt-1
+    # result (keeps its 46% solve rate) and by level.
+    import collections
+    import random
+    rng = random.Random(20261022)
+    by = collections.defaultdict(list)
+    for r in trial:
+        if r["attempt"] == 1:
+            by[(r["resolved"], r["level"])].append(r["instance_id"])
+    n_all = sum(len(v) for v in by.values())
+    sample = []
+    for key in sorted(by, key=str):
+        ids = sorted(by[key])
+        rng.shuffle(ids)
+        sample += ids[:round(100 * len(ids) / n_all)]
+    sample = sorted(sample)
+    pt = ROOT / "kaggle/cells_prompt_test"
+    pt.mkdir(parents=True, exist_ok=True)
+    for f in ("cell1.py", "cell3.py", "cell3b_request_logger.py", "cell4_run.py", "cell5_summary.py"):
+        (pt / f).write_text((OUT / f).read_text())
+    c2 = CELL2.format(submission=submission("mix2"), embedded_prev=[], sample=sample, sub_name="mix2")
+    mode_line = next(l for l in c2.splitlines() if l.startswith("MODE = "))
+    c2 = c2.replace(mode_line, "MODE = 'prompt'  # the prompt experiment: submissions/mix2 on SAMPLE (one session)")
+    (pt / "cell2.py").write_text(c2 + "\n" + sandbox_env())
+    print("wrote", pt.relative_to(ROOT), f"| sample {len(sample)} tasks, mix attempt 1 solved",
+          sum(1 for r in trial if r["attempt"] == 1 and r["instance_id"] in sample and r["resolved"]))
 
 
 if __name__ == "__main__":
