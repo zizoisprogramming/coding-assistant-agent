@@ -1,6 +1,6 @@
 # Gemma 4 Developer Agent — Competition Plan (living doc)
 
-## >>> START HERE (session handoff, updated 2026-10-21) <<<
+## >>> START HERE (session handoff, updated 2026-10-22) <<<
 **User:** beginner to agents/ADK (ML engineer background); wants step-by-step plain explanations, research-backed
 claims (verify, cite), chat before building, decides when planning ends. Rules: one change per arm where possible;
 prompts generic (no dev-task content); competition data never committed (data/ is gitignored, incl. adapters built
@@ -8,6 +8,45 @@ from sample data); Kaggle token only in ~/.kaggle/access_token. Give Kaggle cell
 change cell 4's printed output. **No training data from Claude, GPT or Gemini (user decision, D14).** Each Kaggle
 account runs its OWN notebook copy (a shared notebook made `kaggle kernels output` return only the latest version
 and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly quota is tight → small runs.
+
+### CHECKPOINT 2026-10-22 (NEWEST — read first; 10-21 block below has the build history)
+**Pipeline state (self-distillation of the 31B mix agent on our SWE-rebench tasks):**
+- Task set: **347 tasks on Python 3.12** = Kaggle dataset https://www.kaggle.com/datasets/engziadsamer/rebench-final-cp312
+  (3.13 original: ziad23samer/rebench-final, 348). Why 3.12: vLLM 0.19.1 needs Python 3.12 + torch 2.10 = images of
+  notebooks created before ~Oct 20, kept via Copy & Edit + "Pin to original environment"; new notebooks = 3.13 +
+  torch 2.11 (vLLM cannot run). Kaggle has no Docker -> sandbox tests run on the notebook's Python.
+- Generation (kaggle/cells_gen, mix at T1.0, 15-min time limit gen-only, 28 calls, 6 at once, offline):
+  trial 7/20 + full 153/327 => **160/347 tasks solved (46%)**; results data/results/2026-10-21_gen_trial,
+  2026-10-22_gen_full (gen_per_task.jsonl; request logs stay on Kaggle: full run = output of engziadsamer/trial-gpu,
+  537 MB; trial = ziad23samer/getting-started-gemma-4-developer-agent-new). Failures: wrong fix ~117/187, 28-call budget
+  used up 88, 80-turn limit 39, time 12. **RETRY RUNNING** (MODE 'retry', attempt 2 on the 187 unsolved; in a Copy &
+  Edit of trial-gpu; 3/21 solved at 40 min, ETA ~5 h more; user keeps it, training will be on another account).
+- Samples (kaggle/cells_samples, CPU, scripts/train/selfdistill_episodes.py + build_samples.py --split-on-break):
+  first pass on the full run kept **69/153** solves (0.32M trained tokens). Rule fix (true rereads, not reads per file:
+  52 solves were rejected only for reading a long file in chunks) committed a9afcf5; **user is re-running** the notebook
+  engziadsamer/clean-self-distillation-cpu (public, so its output can be fetched with scripts/kaggle_api.py). Expect
+  ~100-120 kept. Then run it again on the retry output (separate samples file; merge at training).
+- KEY FINDINGS baked into the samples: (1) the base model loops after submitting (submit_patch dozens of times,
+  'Bye.'/'End.') -> every episode is CUT at the first successful submit; (2) **Gemma's chat template drops the thinking
+  of a final (tool-free) turn** (chat_template.jinja line ~239: thinking only before tool calls) = the old stage-B loop
+  bug -> final turn appended RAW (`<|channel>thought\n...\n<channel|>text<turn|>`), model's own clean final reply when
+  available, else a fixed one with thinking; (3) mix's prompt lines "never end a turn with plain prose" + "submit can be
+  re-issued" drive that loop.
+- Filter: resolved, hits the reference fix's files, no test edits, no scratch files, looks before first edit, fail
+  streak <=3, repeats (same call, no edit since) <=2, rereads of same lines <=2, text-only turns <=1, no junk text.
+  Kept-set skew: leaky texts 48% (public 34%) -> CAP AT TRAINING TIME; unfair 0% (expected).
+- **Prompt experiment RUNNING** on a friend's account (user's decision, warned it is against the private-sharing rule;
+  user will add him to the team with 0% split if results reach the leaderboard, BEFORE the team merger deadline):
+  submissions/mix2 (mix prompt rewritten from scratch from the run habits) on a fixed 100-task sample (mix att-1 solved
+  46) at the SAME generation settings (kaggle/cells_prompt_test, MODE 'prompt'). Compare paired vs mix attempt 1;
+  ~100 tasks only detects ~+10 pts.
+- **Training (to discuss when data is in; user's other account):** 31B int4-LoRA trainer speed ~60 tok/s (probe
+  2026-10-18) -> ~1.8M tokens = ~8-9 h wall = ~17-18 h quota for ONE epoch; + ~4 h quota for a check (OOD-hard or a
+  30-task sample). Settings agreed: r16 alpha16 (scale 1), lr 1e-4 cosine, max-len 16384 (24k OOMs on 31B), 1 epoch.
+- Kaggle access: scripts/kaggle_api.py reads only PUBLIC notebooks of other accounts (403 on private). Cross-account
+  notebook-output inputs hang on "Preparing to download" -> embed small results in cells instead.
+- User preferences added: always give input URLs; describe notebooks by required property, never guessed names; keep
+  replies short.
 
 ### CHECKPOINT 2026-10-21 (newest; the 10-20 evening block below is the background)
 - **Task builds DONE (CPU, scripts/datasets/make_rebench_full_cells.py):** pilot-2 23/40 usable; part 1 172/350
