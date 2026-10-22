@@ -2,6 +2,7 @@
 
     .venv/bin/python scripts/datasets/assemble_rebench.py        # decisions -> data/rebench_final/selection.json
     .venv/bin/python scripts/datasets/make_rebench_verify_cells.py
+    .venv/bin/python scripts/datasets/make_rebench_verify_cells.py --test   # the test set (assemble_rebench.py --test)
 
 CPU, INTERNET OFF (on purpose: proves the set is self-contained and drops tests that need the network; the scoring
 sandbox is offline too). Inputs: the competition, the wheelhouse, rodrigospalma/ood45-bugfix-split, and the four
@@ -362,15 +363,19 @@ def gate_cell():
 
 
 def main():
-    sel = json.load(open(ROOT / "data/rebench_final/selection.json"))
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    (OUT_DIR / "cell1.py").write_text((ROOT / "kaggle/cells_rebench_pilot/cell1.py").read_text())
-    (OUT_DIR / "cell2.py").write_text(CELL2.format(expect=EXPECT_USABLE, selection=repr(sel)))
-    (OUT_DIR / "cell3_assemble.py").write_text(CELL3)
-    (OUT_DIR / "cell4_snapshots.py").write_text(CELL4_SNAP)
-    (OUT_DIR / "cell5_gate.py").write_text(gate_cell())
-    (OUT_DIR / "cell6_finish.py").write_text(CELL6)
-    print("wrote", OUT_DIR.relative_to(ROOT), sorted(p.name for p in OUT_DIR.iterdir()), len(sel), "tasks")
+    # --test: the TEST set (assemble_rebench.py --test, repos in no training source) -> kaggle/cells_rebench_test_verify;
+    # same inputs and cells, only the embedded selection differs.
+    test = "--test" in sys.argv
+    sel = json.load(open(ROOT / ("data/rebench_test" if test else "data/rebench_final") / "selection.json"))
+    out = ROOT / "kaggle/cells_rebench_test_verify" if test else OUT_DIR
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "cell1.py").write_text((ROOT / "kaggle/cells_rebench_pilot/cell1.py").read_text())
+    (out / "cell2.py").write_text(CELL2.format(expect=EXPECT_USABLE, selection=repr(sel)))
+    (out / "cell3_assemble.py").write_text(CELL3)
+    (out / "cell4_snapshots.py").write_text(CELL4_SNAP)
+    (out / "cell5_gate.py").write_text(gate_cell())
+    (out / "cell6_finish.py").write_text(CELL6)
+    print("wrote", out.relative_to(ROOT), sorted(p.name for p in out.iterdir()), len(sel), "tasks")
 
 
 if __name__ == "__main__":

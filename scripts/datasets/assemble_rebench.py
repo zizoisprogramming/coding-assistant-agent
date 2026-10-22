@@ -2,7 +2,8 @@
 any Kaggle time): which tasks, which text each one shows, and their labels. Writes data/rebench_final/selection.json,
 which the offline verification notebook (make_rebench_verify_cells.py) embeds and applies.
 
-    .venv/bin/python scripts/datasets/assemble_rebench.py
+    .venv/bin/python scripts/datasets/assemble_rebench.py           # training set -> data/rebench_final/
+    .venv/bin/python scripts/datasets/assemble_rebench.py --test    # test set (repos in no training source) -> data/rebench_test/
 
 Sources (usable = gold PASS + empty FAIL; the full builds also need gold to pass 3 times): pilot 2, full part 1,
 part 1b, part 2. Decisions (user 2026-10-20):
@@ -154,7 +155,26 @@ def choose_texts(sel, rng):
     return cur, want
 
 
+def test_rows(rows, pub):
+    """The TEST set (user 2026-10-22): every usable built task whose repo is in no training source: not in the final
+    training set (data/results/2026-10-21_rebench_verify), not OOD-45's 17 repos, not the public tasks' 4. Tasks the
+    offline verification already dropped (network tests, failed installs) stay out. No domain trim: all of them."""
+    final = [json.loads(l) for l in open(RES / "2026-10-21_rebench_verify/rebench/tasks.jsonl")]
+    dropped = json.load(open(RES / "2026-10-21_rebench_verify/rebench/dropped.json"))
+    banned = {t["repo"] for t in final} | OOD45_REPOS | {t["repo"] for t in pub}
+    return [r for r in rows if r["repo"] not in banned and r["id"] not in dropped]
+
+
+# OOD-45's repos (rodrigospalma/ood45-bugfix-split; urllib3 is its 17th, skipped by our runner), training data now.
+OOD45_REPOS = {"apache/iceberg-python", "caronc/apprise", "feast-dev/feast", "fsspec/filesystem_spec", "has2k1/plotnine",
+               "hgrecco/pint", "kedro-org/kedro", "kedro-org/kedro-viz", "pdm-project/pdm", "pola-rs/polars",
+               "posit-dev/great-tables", "posit-dev/py-shiny", "pyjanitor-devs/pyjanitor", "tkem/cachetools",
+               "tox-dev/tox", "wntrblm/nox", "urllib3/urllib3"}
+
+
 def main():
+    test = "--test" in sys.argv
+    out_dir = ROOT / "data/rebench_test" if test else OUT
     rng = random.Random(SEED)
     pub = [json.loads(l) for l in open(ROOT / "data/tasks.jsonl")]
     TARGET["short"] = sum(is_short(t["problem_statement"]) for t in pub) / len(pub)
@@ -163,9 +183,11 @@ def main():
     for r in rows:
         r["domain"] = domain_of(info.get(r["repo"]), r["repo"])[0]
         r["topics"] = (info.get(r["repo"]) or {}).get("topics") or []
+    if test:
+        rows = test_rows(rows, pub)
     match = [r for r in rows if r["domain"] != "other"]
     other = [r for r in rows if r["domain"] == "other"]
-    n_other = round(len(match) / 4)
+    n_other = len(other) if test else round(len(match) / 4)
     rng.shuffle(other)
     nth, seen = {}, collections.Counter()
     for r in other:
@@ -188,13 +210,13 @@ def main():
           f"({100 * got['unfair'] / len(sel):.0f}%, target {want['unfair']}) | short (<{SHORT_CHARS} chars of substance) "
           f"{got['short']} ({100 * got['short'] / len(sel):.0f}%, target {want['short']})")
     print(f"text length median: ours {med(chosen_len)} chars | public {med([len(t['problem_statement']) for t in pub])} chars")
-    OUT.mkdir(parents=True, exist_ok=True)
+    out_dir.mkdir(parents=True, exist_ok=True)
     out = [{"id": r["id"], "source": r["source"], "repo": r["repo"], "text": r["opts"][r["pick"]]["kind"],
             "leak": r["opts"][r["pick"]]["leak"], "short": r["opts"][r["pick"]]["short"], "unfair_names": r["opts"][r["pick"]]["unfair"], "domain": r["domain"],
             "topics": r["topics"], "level": r["level"], "difficulty": r["difficulty"], "env_partial": r["env_partial"]}
            for r in sel]
-    (OUT / "selection.json").write_text(json.dumps(out, indent=0))
-    print("wrote", (OUT / "selection.json").relative_to(ROOT), len(out))
+    (out_dir / "selection.json").write_text(json.dumps(out, indent=0))
+    print("wrote", (out_dir / "selection.json").relative_to(ROOT), len(out))
 
 
 if __name__ == "__main__":
