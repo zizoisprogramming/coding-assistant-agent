@@ -40,8 +40,10 @@ def reply_message(rec):
     return out
 
 
-def episode_segments(records, tmpl, bos, problems):
-    """[(text, [(start, end) char spans of replies])] for one episode's records (time order)."""
+def episode_segments(records, tmpl, bos, problems, split_on_break=False):
+    """[(text, [(start, end) char spans of replies])] for one episode's records (time order). split_on_break: when a
+    prompt does not extend the previous one without a compaction (the harness sometimes drops earlier thoughts from
+    the history), start a new segment there (what the model saw) instead of dropping the episode."""
     segs, cur, summary_seen = [], None, False
     for rec in records:
         if not rec["request"].get("tools"):  # ADK compaction summary
@@ -49,7 +51,11 @@ def episode_segments(records, tmpl, bos, problems):
             continue
         msgs, tools, think = request_to_template_inputs(rec)
         prompt = render(tmpl, bos, msgs, tools, enable_thinking=think)
-        full = render(tmpl, bos, msgs + [reply_message(rec)], tools, enable_thinking=think, add_generation_prompt=False)
+        raw = ((rec.get("reply") or {}).get("message") or {}).get("raw")
+        if raw is not None:  # a final answer given as the model generates it (selfdistill_episodes.final_reply): the
+            full = prompt + raw + "<turn|>\n"  # template would drop its thinking (rendered only before tool calls)
+        else:
+            full = render(tmpl, bos, msgs + [reply_message(rec)], tools, enable_thinking=think, add_generation_prompt=False)
         if not full.startswith(prompt):
             problems["reply does not extend the prompt"] += 1
             return None
@@ -59,7 +65,8 @@ def episode_segments(records, tmpl, bos, problems):
         else:
             if cur is not None and not summary_seen:
                 problems["new segment without a compaction"] += 1
-                return None
+                if not split_on_break:
+                    return None
             cur = {"text": full, "spans": [(len(prompt), end)]}
             segs.append(cur)
         summary_seen = False
@@ -86,6 +93,7 @@ def main():
     ap.add_argument("--tokenizer-dir", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--max-len", type=int, default=32768)
+    ap.add_argument("--split-on-break", action="store_true", help="self-distillation: new segment instead of a dropped episode")
     a = ap.parse_args()
     import torch
     from tokenizers import Tokenizer
@@ -113,7 +121,7 @@ def main():
         rs.sort(key=lambda r: r["t"])
         meta = ok[key]
         try:  # one odd episode is skipped and counted, never stops the build
-            segs = episode_segments(rs, tmpl, bos, problems)
+            segs = episode_segments(rs, tmpl, bos, problems, a.split_on_break)
             tokenized = None if segs is None else [tokenize_segment(tok, text, spans) for text, spans in segs]
         except Exception as e:  # noqa: BLE001
             problems[f"error {type(e).__name__}"] += 1
