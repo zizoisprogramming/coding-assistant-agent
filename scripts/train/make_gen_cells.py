@@ -449,6 +449,9 @@ OOD_BLOCK = '''
 # (the released, rewritten one), as in our OOD-45 runs. results/tasks_used.jsonl = every task of this run with its
 # labels: the samples notebook reads reference patches from it.
 OOD_SKIP = {'urllib3_5279'}
+# the task set must be rebench-extra-cp312 (<= 55 tasks), not the 347-task training set (a part ran on it, 2026-10-22)
+assert len(ROWS) <= 55, (f'the attached task set has {len(ROWS)} tasks: attach rebench-extra-cp312 (<= 55), not '
+                         f'rebench-final-cp312 (347); found {OUT}')
 OOD_TASKS, OOD_META = ood.load_tasks(OOD_DIR)
 assert len(OOD_TASKS) == 45, f'OOD-45 has {len(OOD_TASKS)} tasks'
 OOD_WHEELS = Path('/tmp/ood_wheels') / WHEEL_SET
