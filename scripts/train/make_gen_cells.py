@@ -441,6 +441,7 @@ print(f'weights read in {time.time() - _t0:.0f} s', flush=True)
     print("wrote", pt.relative_to(ROOT), f"| sample {len(sample)} tasks, mix attempt 1 solved",
           sum(1 for r in trial if r["attempt"] == 1 and r["instance_id"] in sample and r["resolved"]))
     write_extra()
+    write_public()
 
 
 OOD_BLOCK = '''
@@ -514,6 +515,112 @@ def write_extra():
         c4 = c4.replace(old, new)
     (out / "cell4_run.py").write_text(c4)
     print("wrote", out.relative_to(ROOT), sorted(p.name for p in out.iterdir()))
+
+
+
+PUBLIC_CELL2 = r'''# 2. GENERATION on the PUBLIC competition tasks (scripts/train/make_gen_cells.py, write_public): the 84 tasks our
+#    gold check graded correctly in the Kaggle sandbox (data/results/2026-10-17_gold_check_v5; requests/httpx tasks are
+#    not gradable there). Same agent and budgets as cells_gen; the sandbox is the competition's own setup (its wheels,
+#    + test deps cell 2b and per-task pins cell 2c, as datagen pilot 2: 7/16 on Python 3.12). GPU L4x4, INTERNET OFF.
+import collections, contextvars, json, random, re, time
+from collections import Counter
+
+assert sys.version_info[:2] == (3, 12), (f'Python {{sys.version.split()[0]}}: generation needs Python 3.12 + torch 2.10 '
+    '(vLLM 0.19.1): Copy & Edit an old GPU notebook and set Environment -> Pin to original environment')
+MODE = 'full'
+PART = (1, 1)  # part k of N: every N-th task of the shared order, from the k-th (several accounts); (1, 1) = all
+CONCURRENCY = 6
+STOP_NEW_TASKS_AFTER_H = 2.6  # = (this account's GPU quota in hours) / 2 - 0.4: L4x4 bills 2x, a task ends within 15 min
+T_START = time.time()
+WORKING_DIR = Path('/kaggle/working')
+SUB_DIR = WORKING_DIR / 'submission'
+RESULTS = WORKING_DIR / 'results'
+PER_TASK = RESULTS / 'gen_per_task.jsonl'
+SUBMISSION = {submission!r}
+GRADABLE = {gradable!r}
+
+try:
+    __import__('urllib.request').request.urlopen('https://pypi.org/simple/pip/', timeout=10)
+    raise SystemExit('INTERNET IS ON: turn Settings -> Internet OFF (generation runs offline, as grading), then re-run')
+except SystemExit:
+    raise
+except Exception:
+    print('internet: off (good)')
+DATA_DIR = Path('/kaggle/input/competitions/gemma-4-developer-agent')
+assert DATA_DIR.exists(), 'attach the competition data'
+ROWS = {{}}
+for l in open(DATA_DIR / 'tasks.jsonl'):
+    r = json.loads(l)
+    if r['instance_id'] in GRADABLE:
+        ROWS[r['instance_id']] = {{**r, 'src': 'public', 'level': 'public', 'domain': 'public', 'text_kind': 'public',
+                                   'leak': False, 'unfair_names': [], 'env_partial': False}}
+assert len(ROWS) == len(GRADABLE), f'{{len(GRADABLE) - len(ROWS)}} gradable tasks missing from tasks.jsonl'
+RESULTS.mkdir(parents=True, exist_ok=True)
+with open(RESULTS / 'tasks_used.jsonl', 'w') as _fh:  # the samples notebook reads reference patches from here
+    for _r in ROWS.values():
+        _fh.write(json.dumps(_r) + '\n')
+print(f"this run: {{len(ROWS)}} public tasks | repos", dict(Counter(r['repo'] for r in ROWS.values())))
+
+shutil.rmtree(SUB_DIR, ignore_errors=True)
+for rel, text in SUBMISSION.items():
+    (SUB_DIR / rel).parent.mkdir(parents=True, exist_ok=True)
+    (SUB_DIR / rel).write_text(text, encoding='utf-8')
+print('agent: submissions/mix with', [l for l in SUBMISSION['configs/sampling.yaml'].splitlines() if l.startswith('temperature')])
+
+PREV = []
+for p in sorted(glob.glob('/kaggle/input/**/results/gen_per_task.jsonl', recursive=True)) + ([str(PER_TASK)] if PER_TASK.exists() else []):
+    PREV += [json.loads(l) for l in open(p) if json.loads(l)['instance_id'] in ROWS]
+DONE_JOBS = {{(r['instance_id'], r['attempt']) for r in PREV if r['end'] != 'runner'}}
+SOLVED = {{r['instance_id'] for r in PREV if r['resolved']}}
+print(f'earlier runs: {{len(PREV)}} ({{len(DONE_JOBS)}} done jobs, {{len(SOLVED)}} tasks solved) | mode {{MODE}}')
+
+# Names cell 4 shares with the rebench generation (its sandbox extras are not used here: no per-repo install step).
+CUR_TASK = contextvars.ContextVar('gen_task', default=None)
+RUNNING, ENV_BY_TASK = {{}}, collections.defaultdict(list)
+
+
+def clean_tmp():
+    pass
+'''
+
+
+def write_public():
+    """kaggle/cells_gen_public: generation on the 84 gradable public tasks (user 2026-10-22: public runs go to training,
+    share capped at training time)."""
+    src, out = ROOT / "kaggle/cells_gen", ROOT / "kaggle/cells_gen_public"
+    out.mkdir(parents=True, exist_ok=True)
+    for f in ("cell1.py", "cell3.py", "cell3b_request_logger.py", "cell5_summary.py"):
+        (out / f).write_text((src / f).read_text())
+    gold = json.load(open(ROOT / "data/results/2026-10-17_gold_check_v5/gold_check.json"))
+    gradable = sorted(i for i, v in gold.items() if v.get("usable"))
+    (out / "cell2.py").write_text(PUBLIC_CELL2.format(submission=submission(), gradable=gradable))
+    pilot = ROOT / "kaggle/cells_datagen_pilot"
+    (out / "cell2b_test_deps.py").write_text((pilot / "cell2b_test_deps.py").read_text())
+    (out / "cell2c_pin_task_deps.py").write_text((pilot / "cell2c_pin_task_deps.py").read_text())
+    c4 = CELL4
+    for old, new in (
+        ("        snapshots_dir=OUT / 'snapshots', wheels_dir=WHEEL_ROOT / WHEEL_SET / iid,\n",
+         "        snapshots_dir=DATA_DIR / 'snapshots', wheels_dir=DATA_DIR / 'wheels',  # the competition's own\n"),
+        ("def as_task(r):\n    return Task(instance_id=r['instance_id'], repo=r['repo'], base_commit=r['base_commit'],\n"
+         "                problem_statement=r['problem_statement'], patch=r['patch'], test_patch=r['test_patch'],\n"
+         "                hints_text='', created_at=r['created_at'], FAIL_TO_PASS=tuple(r['FAIL_TO_PASS']),\n"
+         "                PASS_TO_PASS=tuple(r['PASS_TO_PASS']))\n",
+         "def as_task(r):  # public rows have no FAIL_TO_PASS / PASS_TO_PASS (the grader runs the tests test_patch touches)\n"
+         "    return Task(instance_id=r['instance_id'], repo=r['repo'], base_commit=r['base_commit'],\n"
+         "                problem_statement=r['problem_statement'], patch=r['patch'], test_patch=r['test_patch'],\n"
+         "                hints_text='', created_at=r['created_at'], FAIL_TO_PASS=tuple(r.get('FAIL_TO_PASS') or ()),\n"
+         "                PASS_TO_PASS=tuple(r.get('PASS_TO_PASS') or ()))\n"),
+        ("        async with repo_locks[r['repo']]:  # the install step's import name is per repo: one task of a repo at a time\n",
+         "        async with repo_locks[iid]:  # public tasks: no per-repo install step, a repo's tasks may run at once\n"),
+        ("                ood.IMPORT_NAMES[r['repo']] = import_name(r)\n", ""),
+        ("    PHASES = [(CONCURRENCY, [(i, 1) for i in ORDER if (i, 1) not in DONE_JOBS])]\n",
+         "    PHASES = [(CONCURRENCY, [(i, 1) for k, i in enumerate(ORDER) if k % PART[1] == PART[0] - 1 and (i, 1) not in DONE_JOBS])]\n"
+         "    print(f'part {PART[0]} of {PART[1]}: {len(PHASES[0][1])} of {len(ORDER)} tasks', flush=True)\n"),
+    ):
+        assert c4.count(old) == 1, old[:60]
+        c4 = c4.replace(old, new)
+    (out / "cell4_run.py").write_text(c4)
+    print("wrote", out.relative_to(ROOT), sorted(p.name for p in out.iterdir()), len(gradable), "tasks")
 
 
 if __name__ == "__main__":
