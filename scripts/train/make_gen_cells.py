@@ -382,7 +382,29 @@ def main():
     trial = [{k: r[k] for k in keep} for r in trial]
     (OUT / "cell2.py").write_text(CELL2.format(submission=submission(), embedded_prev=trial, sample=[], sub_name="mix")
                                   + "\n" + sandbox_env())
-    (OUT / "cell3.py").write_text((SRC31 / "cell3.py").read_text())
+    # A fresh account's model input is fetched lazily on first read: the prompt test (2026-10-22) sat at "Loading
+    # safetensors 0/1" for the whole 20 min startup limit with no output. Read the weights once first, with progress
+    # lines (a stuck read shows at once and warms the page cache for vLLM), and allow 60 min for startup.
+    cell3 = (SRC31 / "cell3.py").read_text()
+    old_cfg, old_to = "vllm_cfg = VllmConfig(\n", "    startup_timeout=60 * 20,\n"
+    assert cell3.count(old_cfg) == 1 and cell3.count(old_to) == 1
+    prewarm = '''import time
+_files = sorted(MODEL_PATH.glob('*.safetensors'))
+_total, _done, _t0, _next = sum(f.stat().st_size for f in _files), 0, time.time(), 0
+print(f'reading model weights once ({len(_files)} files, {_total / 1e9:.1f} GB) before vLLM starts', flush=True)
+for _f in _files:
+    with open(_f, 'rb', buffering=0) as _fh:
+        while _chunk := _fh.read(64 << 20):
+            _done += len(_chunk)
+            if _done >= _next:
+                _el = time.time() - _t0
+                print(f'  {_done / 1e9:5.1f}/{_total / 1e9:.1f} GB | {_done / 1e6 / max(_el, 1e-3):6.0f} MB/s | {_el:5.0f} s', flush=True)
+                _next += 2 << 30
+print(f'weights read in {time.time() - _t0:.0f} s', flush=True)
+
+'''
+    cell3 = cell3.replace(old_cfg, prewarm + old_cfg).replace(old_to, "    startup_timeout=60 * 60,\n")
+    (OUT / "cell3.py").write_text(cell3)
     logger = (SRC31 / "cell3b_request_logger.py").read_text()
     old = "print('Recording model requests to', REQUEST_LOG, '(diagnostics only: OOD-45 is our yardstick, never training data)')"
     assert logger.count(old) == 1

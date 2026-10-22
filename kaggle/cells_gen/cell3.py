@@ -37,6 +37,20 @@ if TARGET_MODEL_NAME == 'gemma-4-12b-it-qat-w4a16-ct':
 gpu_count = torch.cuda.device_count() if torch.cuda.is_available() else 1
 tp_size = 4 if gpu_count >= 4 else (2 if gpu_count >= 2 else 1)
 
+import time
+_files = sorted(MODEL_PATH.glob('*.safetensors'))
+_total, _done, _t0, _next = sum(f.stat().st_size for f in _files), 0, time.time(), 0
+print(f'reading model weights once ({len(_files)} files, {_total / 1e9:.1f} GB) before vLLM starts', flush=True)
+for _f in _files:
+    with open(_f, 'rb', buffering=0) as _fh:
+        while _chunk := _fh.read(64 << 20):
+            _done += len(_chunk)
+            if _done >= _next:
+                _el = time.time() - _t0
+                print(f'  {_done / 1e9:5.1f}/{_total / 1e9:.1f} GB | {_done / 1e6 / max(_el, 1e-3):6.0f} MB/s | {_el:5.0f} s', flush=True)
+                _next += 2 << 30
+print(f'weights read in {time.time() - _t0:.0f} s', flush=True)
+
 vllm_cfg = VllmConfig(
     model=str(MODEL_PATH),
     port=8000,
@@ -51,7 +65,7 @@ vllm_cfg = VllmConfig(
     max_loras=8,
     max_lora_rank=128,
     tensor_parallel_size=tp_size,
-    startup_timeout=60 * 20,
+    startup_timeout=60 * 60,
     extra_args=list(MODEL_VLLM_EXTRA_ARGS.get(TARGET_MODEL_NAME, ())),
 )
 ADAPTERS = None  # no adapter in this notebook
