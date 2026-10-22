@@ -26,6 +26,7 @@ import collections
 import json
 import random
 import re
+import sys
 import zlib
 from pathlib import Path
 
@@ -704,26 +705,58 @@ def pool_1b():
     return [(i, lv) for i, lv in pool_of(1) if i not in done and dom.get(repo[i], "other") != "other"]
 
 
+def attempted():
+    """Every task an earlier build already tried (selected and built/gated), usable or not."""
+    out = {json.loads(l)["instance_id"] for l in open(PILOT_DIR)}
+    for d in ("2026-10-21_rebench_full_new-data", "2026-10-21_rebench_full_p1b", "2026-10-21_rebench_full_p2"):
+        out |= {json.loads(l)["id"] for l in open(ROOT / "data/results" / d / "rebench/gated_all.jsonl")}
+    return out
+
+
+def pool_new(half):
+    """Parts 3 and 4 (user 2026-10-22): the never-attempted candidates, split by the same repo halves as parts 1/2,
+    minus OOD-45's and the public tasks' repos. Gemma runs on all of them; the TEST repos are chosen at assembly
+    (repos with no training task, by repo, before any run) and their runs are the base model's test score."""
+    sys.path.insert(0, str(ROOT / "scripts/datasets"))
+    from assemble_rebench import OOD45_REPOS
+    banned = OOD45_REPOS | {json.loads(l)["repo"] for l in open(ROOT / "data/tasks.jsonl")}
+    repo = {json.loads(l)["instance_id"]: json.loads(l)["repo"] for l in open(ROOT / "data/swe_rebench/candidates.jsonl")}
+    done = attempted()
+    return [(i, lv) for i, lv in pool_of(half) if i not in done and repo[i] not in banned]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--n", type=int, default=350)
+    ap.add_argument("--new", action="store_true", help="write parts 3 and 4 (never-attempted candidates) only")
     args = ap.parse_args()
     cell3 = build_cell()
+    if args.new:
+        for part, half, seed in ((3, 1, 20261031), (4, 2, 20261041)):
+            pool = pool_new(half)
+            repo_n = collections.Counter(i.rsplit("-", 1)[0] for i, _ in pool)
+            n = sum(min(3, v) for v in repo_n.values())  # every repo, at most 3 tasks each
+            write_part(part, pool, n, 0.8, 3, seed, cell3)
+        return
     pb = pool_1b()
     # Part 1 already ran (2026-10-21, commit 9335570's cells, first classifier): its cells are not regenerated.
     for part, pool, n, share, cap, seed in ((2, pool_of(2), args.n, 0.8, 3, 20261023), ("1b", pb, len(pb), 1.0, 6, 20261121)):
-        out = ROOT / f"kaggle/cells_rebench_full_p{part}"
-        out.mkdir(parents=True, exist_ok=True)
-        (out / "cell1.py").write_text((ROOT / "kaggle/cells_rebench_pilot/cell1.py").read_text())
-        (out / "cell2.py").write_text(CELL2.format(part=part, n=n, pool=pool, match_share=share, cap=cap, seed=seed))
-        (out / "cell2b_select.py").write_text(CELL2B)
-        (out / "cell3_build.py").write_text(cell3)
-        (out / "cell4_gate.py").write_text(CELL4)
-        (out / "cell5_leakage.py").write_text(CELL5)
-        (out / "cell6_finish.py").write_text(CELL6)
-        lv = collections.Counter(x for _, x in pool)
-        print(f"part {part}: pool {len(pool)} tasks, {len({i.rsplit('-', 1)[0] for i, _ in pool})} repos, levels "
-              f"{dict(sorted(lv.items()))} -> {out.relative_to(ROOT)}")
+        write_part(part, pool, n, share, cap, seed, cell3)
+
+
+def write_part(part, pool, n, share, cap, seed, cell3):
+    out = ROOT / f"kaggle/cells_rebench_full_p{part}"
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "cell1.py").write_text((ROOT / "kaggle/cells_rebench_pilot/cell1.py").read_text())
+    (out / "cell2.py").write_text(CELL2.format(part=part, n=n, pool=pool, match_share=share, cap=cap, seed=seed))
+    (out / "cell2b_select.py").write_text(CELL2B)
+    (out / "cell3_build.py").write_text(cell3)
+    (out / "cell4_gate.py").write_text(CELL4)
+    (out / "cell5_leakage.py").write_text(CELL5)
+    (out / "cell6_finish.py").write_text(CELL6)
+    lv = collections.Counter(x for _, x in pool)
+    print(f"part {part}: pool {len(pool)} tasks, {len({i.rsplit('-', 1)[0] for i, _ in pool})} repos, levels "
+          f"{dict(sorted(lv.items()))}, target {n} -> {out.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":
