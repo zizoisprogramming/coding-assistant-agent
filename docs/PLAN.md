@@ -42,7 +42,14 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
     SFT on 800 correct UNGUIDED own runs (= ours) ~neutral (AIME24 54.8->51.0, AIME25 37.9->40.0); fewer training
     problems -> worse on new ones. -> gold-guided runs REJECTED; repo-disjoint test + LB check stay essential;
     selfdistill_episodes.py now prints doubt words per 1k thinking words for kept / solved-rejected / failed runs.
-    Trial (n=3/4/13): 23 / 29 / 27 (too few to judge); full run = next samples notebook run.
+    Trial (n=3/4/13): 23 / 29 / 27 (too few to judge). **Full run + retry (engziadsamer/filtration-cpu): kept 24.2,
+    solved-rejected 23.6, failed 24.5 (median per 1k words) = NO difference -> the filter does not select confident
+    runs; kept runs are shorter (median 1,386 vs 2,304 thinking words) but doubt at the same rate.**
+- **Retry done (engziadsamer/trial-2-gpu, data/results/2026-10-22_gen_retry):** 22/187 solved -> 182/347 tasks (52%).
+  Samples: full run 88 kept (1.25M train tokens), retry 11 kept (0.21M) -> **99 runs, ~1.46M train tokens (0.50M
+  trained), val 9 runs**; leaky ~42% (cap toward 34% at training).
+- Extra generation (cells_gen_extra) in 4 parts on 4 accounts (~2 h quota each, PART=(k,4), no new task after 0.6 h);
+  each part's output -> private dataset gen-extra-pK shared with engziadsamer -> one samples notebook there.
 
 ### CHECKPOINT 2026-10-22 (read next; 10-21 block below has the build history)
 **Pipeline state (self-distillation of the 31B mix agent on our SWE-rebench tasks):**
