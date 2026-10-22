@@ -1,5 +1,5 @@
 # 4. RUN: one line per finished attempt. results/gen_per_task.jsonl gets a row each; traces/patches under results/gen;
-#    every model call in requests/requests.jsonl (tagged task#attempt). Zipped every 20 attempts and at the end.
+#    every model call in requests/requests.jsonl (tagged task#attempt). Everything is written as it goes (no zip).
 import asyncio, concurrent.futures, traceback, yaml
 from adk_submission import discover_adapters
 from google.adk.agents.context_cache_config import ContextCacheConfig
@@ -157,8 +157,6 @@ async def run_phase(conc, jobs, phase_no):
                   f"{el / 60:.0f} min, ETA {eta / 60:.0f} min"
                   + (f"\n      err: {row['error'][:200]!r}" if row['end'] not in ('ok', 'time', 'tool_budget') else ''),
                   flush=True)
-            if len(DONE) % 20 == 0:
-                shutil.make_archive(str(WORKING_DIR / 'results'), 'zip', RESULTS)
 
     await asyncio.gather(*(one(i, a) for i, a in jobs))
     rows = DONE[n0:]
@@ -190,6 +188,7 @@ try:
     run_sync(run_all)
 finally:
     (RESULTS / 'phases.json').write_text(json.dumps(PHASE_STATS, indent=1))
-    shutil.make_archive(str(WORKING_DIR / 'results'), 'zip', RESULTS)
+    # no results.zip (2026-10-22): Kaggle unzips zips when an output becomes a dataset, and results.zip -> results/
+    # collided with the results/ folder ("results already exists").
 print(f'==> {MODE}: solved {TALLY[0]}/{TALLY[1]} | ends {dict(ENDS)} | {(time.time() - T_START) / 60:.1f} min; '
       f'not started (time guard): {N_JOBS - len(DONE)}')
