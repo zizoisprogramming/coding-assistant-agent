@@ -5,11 +5,15 @@ from collections import Counter
 
 assert sys.version_info[:2] == (3, 12), (f'Python {sys.version.split()[0]}: generation needs Python 3.12 + torch 2.10 '
     '(vLLM 0.19.1): Copy & Edit an old GPU notebook and set Environment -> Pin to original environment')
-MODE = 'full'  # extra set: our 62 left-out tasks + OOD-45 -> 'full', then 'retry' (attach the full run's output)
+MODE = 'full'  # extra set: our 55 left-out tasks + OOD-45
+# PART k of N (user 2026-10-22: 4 accounts with ~2 h GPU quota each): this session runs every N-th task of
+# the shared order, starting at the k-th, so each part gets a mix of both sets. Set k per account: 1, 2, 3, 4.
+PART = (1, 4)
 SAMPLE = []  # MODE 'prompt': the fixed task sample of the prompt experiment
 TRIAL_PHASES = [(4, 8), (6, 12)]  # trial: (concurrency, tasks): measured throughput decides CONCURRENCY below
 CONCURRENCY = 6  # full / retry: trial 2026-10-21: 40.9 attempts/h at 6 vs 31.4 at 4
-STOP_NEW_TASKS_AFTER_H = 10.5  # Kaggle ends GPU sessions at 12 h; a task takes <= ~10 min
+STOP_NEW_TASKS_AFTER_H = 0.6  # 2 h quota = ~1 h wall on L4x4 (billed 2x): ~15 min startup, new tasks until 36 min,
+# a running task ends within 15 min -> the session ends before the quota runs out (a killed run loses its output)
 T_START = time.time()
 WORKING_DIR = Path('/kaggle/working')
 SUB_DIR = WORKING_DIR / 'submission'

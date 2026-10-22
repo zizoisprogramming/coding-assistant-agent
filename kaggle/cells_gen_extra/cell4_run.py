@@ -40,7 +40,8 @@ if MODE == 'trial':
         PHASES.append((conc, todo[k:k + n]))
         k += n
 elif MODE == 'full':
-    PHASES = [(CONCURRENCY, [(i, 1) for i in ORDER if (i, 1) not in DONE_JOBS])]
+    PHASES = [(CONCURRENCY, [(i, 1) for k, i in enumerate(ORDER) if k % PART[1] == PART[0] - 1 and (i, 1) not in DONE_JOBS])]
+    print(f'part {PART[0]} of {PART[1]}: {len(PHASES[0][1])} of {len(ORDER)} tasks', flush=True)
 elif MODE == 'retry':
     PHASES = [(CONCURRENCY, [(i, 2) for i in ORDER if i not in SOLVED and (i, 2) not in DONE_JOBS])]
 elif MODE == 'prompt':  # the prompt experiment: the new prompt on a fixed sample, compared with mix's attempt 1

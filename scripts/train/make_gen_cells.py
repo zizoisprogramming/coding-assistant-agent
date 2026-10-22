@@ -481,7 +481,14 @@ def write_extra():
         (out / f).write_text((src / f).read_text())
     c2 = CELL2.format(submission=submission(), embedded_prev=[], sample=[], sub_name="mix")
     mode_line = next(l for l in c2.splitlines() if l.startswith("MODE = "))
-    c2 = c2.replace(mode_line, "MODE = 'full'  # extra set: our 62 left-out tasks + OOD-45 -> 'full', then 'retry' (attach the full run's output)")
+    c2 = c2.replace(mode_line, "MODE = 'full'  # extra set: our 55 left-out tasks + OOD-45\n"
+                    "# PART k of N (user 2026-10-22: 4 accounts with ~2 h GPU quota each): this session runs every N-th task of\n"
+                    "# the shared order, starting at the k-th, so each part gets a mix of both sets. Set k per account: 1, 2, 3, 4.\n"
+                    "PART = (1, 4)")
+    old = "STOP_NEW_TASKS_AFTER_H = 10.5  # Kaggle ends GPU sessions at 12 h; a task takes <= ~10 min\n"
+    assert c2.count(old) == 1
+    c2 = c2.replace(old, "STOP_NEW_TASKS_AFTER_H = 0.6  # 2 h quota = ~1 h wall on L4x4 (billed 2x): ~15 min startup, new tasks until 36 min,\n"
+                         "# a running task ends within 15 min -> the session ends before the quota runs out (a killed run loses its output)\n")
     old = "print('host pytest plugins:', [Path(p).name for p in _host], '-> exit', _r.returncode, _r.stderr[-200:])\n"
     assert c2.count(old) == 1
     (out / "cell2.py").write_text(c2.replace(old, old + OOD_BLOCK) + "\n" + sandbox_env())
@@ -493,6 +500,9 @@ def write_extra():
          "                    else WHEEL_ROOT / WHEEL_SET / iid),\n"),
         ("def as_task(r):\n",
          "def as_task(r):\n    if r.get('src') == 'ood':\n        return OOD_TASKS[r['instance_id']]['g1']  # OOD-45's own Task\n"),
+        ("    PHASES = [(CONCURRENCY, [(i, 1) for i in ORDER if (i, 1) not in DONE_JOBS])]\n",
+         "    PHASES = [(CONCURRENCY, [(i, 1) for k, i in enumerate(ORDER) if k % PART[1] == PART[0] - 1 and (i, 1) not in DONE_JOBS])]\n"
+         "    print(f'part {PART[0]} of {PART[1]}: {len(PHASES[0][1])} of {len(ORDER)} tasks', flush=True)\n"),
         ("                ood.IMPORT_NAMES[r['repo']] = import_name(r)\n",
          "                if r.get('src') != 'ood':  # OOD-45's repos: the harness's own IMPORT_NAMES\n"
          "                    ood.IMPORT_NAMES[r['repo']] = import_name(r)\n"),
