@@ -440,6 +440,67 @@ print(f'weights read in {time.time() - _t0:.0f} s', flush=True)
     (pt / "cell2.py").write_text(c2 + "\n" + sandbox_env())
     print("wrote", pt.relative_to(ROOT), f"| sample {len(sample)} tasks, mix attempt 1 solved",
           sum(1 for r in trial if r["attempt"] == 1 and r["instance_id"] in sample and r["resolved"]))
+    write_extra()
+
+
+OOD_BLOCK = '''
+# OOD-45 joins the run (user 2026-10-22: training data now; the test set is a separate build). Its 44 tasks
+# (urllib3_5279 does not run on Python 3.12) keep their own snapshots and per-repo wheel sets, and the statement is g1
+# (the released, rewritten one), as in our OOD-45 runs. results/tasks_used.jsonl = every task of this run with its
+# labels: the samples notebook reads reference patches from it.
+OOD_SKIP = {'urllib3_5279'}
+OOD_TASKS, OOD_META = ood.load_tasks(OOD_DIR)
+assert len(OOD_TASKS) == 45, f'OOD-45 has {len(OOD_TASKS)} tasks'
+OOD_WHEELS = Path('/tmp/ood_wheels') / WHEEL_SET
+ood.materialize_wheels(OOD_DIR, WHEEL_SET, OOD_WHEELS)
+for _iid in sorted(set(OOD_TASKS) - OOD_SKIP):
+    _t = OOD_TASKS[_iid]['g1']
+    assert _iid not in ROWS, f'{_iid} is in both task sets'
+    assert (OOD_DIR / 'snapshots' / f'{_iid}.tgz').exists() and (OOD_WHEELS / _t.repo.split('/', 1)[1]).exists(), _iid
+    ROWS[_iid] = {'instance_id': _iid, 'repo': _t.repo, 'base_commit': _t.base_commit, 'problem_statement': _t.problem_statement,
+                  'patch': _t.patch, 'test_patch': _t.test_patch, 'created_at': _t.created_at,
+                  'FAIL_TO_PASS': list(_t.FAIL_TO_PASS), 'PASS_TO_PASS': list(_t.PASS_TO_PASS), 'src': 'ood',
+                  'level': 'ood', 'domain': 'ood', 'text_kind': 'ood', 'leak': False, 'unfair_names': [],
+                  'env_partial': bool(OOD_META[_iid].get('env_overlay'))}
+with open(RESULTS / 'tasks_used.jsonl', 'w') as _fh:
+    for _r in ROWS.values():
+        _fh.write(json.dumps(_r) + '\\n')
+print(f"this run: {len(ROWS)} tasks = {sum(r.get('src') != 'ood' for r in ROWS.values())} ours + "
+      f"{sum(r.get('src') == 'ood' for r in ROWS.values())} OOD-45 (skipped {sorted(OOD_SKIP)}) from "
+      f"{len({r['repo'] for r in ROWS.values()})} repos | wheel sets {WHEEL_SET}")
+'''
+
+
+def write_extra():
+    """kaggle/cells_gen_extra: generation on the extra training tasks (user 2026-10-22): our 62 built tasks left out
+    of the 347 (task set rebench-extra-cp312) + OOD-45. Same agent, settings and sandbox as cells_gen; per task, the
+    snapshot folder, the wheel folder and the import name come from the task's own set."""
+    src, out = ROOT / "kaggle/cells_gen", ROOT / "kaggle/cells_gen_extra"
+    out.mkdir(parents=True, exist_ok=True)
+    for f in ("cell1.py", "cell3.py", "cell3b_request_logger.py", "cell5_summary.py"):
+        (out / f).write_text((src / f).read_text())
+    c2 = CELL2.format(submission=submission(), embedded_prev=[], sample=[], sub_name="mix")
+    mode_line = next(l for l in c2.splitlines() if l.startswith("MODE = "))
+    c2 = c2.replace(mode_line, "MODE = 'full'  # extra set: our 62 left-out tasks + OOD-45 -> 'full', then 'retry' (attach the full run's output)")
+    old = "print('host pytest plugins:', [Path(p).name for p in _host], '-> exit', _r.returncode, _r.stderr[-200:])\n"
+    assert c2.count(old) == 1
+    (out / "cell2.py").write_text(c2.replace(old, old + OOD_BLOCK) + "\n" + sandbox_env())
+    c4 = CELL4
+    for old, new in (
+        ("        snapshots_dir=OUT / 'snapshots', wheels_dir=WHEEL_ROOT / WHEEL_SET / iid,\n",
+         "        snapshots_dir=(OOD_DIR if ROWS[iid].get('src') == 'ood' else OUT) / 'snapshots',\n"
+         "        wheels_dir=(OOD_WHEELS / ROWS[iid]['repo'].split('/', 1)[1] if ROWS[iid].get('src') == 'ood'\n"
+         "                    else WHEEL_ROOT / WHEEL_SET / iid),\n"),
+        ("def as_task(r):\n",
+         "def as_task(r):\n    if r.get('src') == 'ood':\n        return OOD_TASKS[r['instance_id']]['g1']  # OOD-45's own Task\n"),
+        ("                ood.IMPORT_NAMES[r['repo']] = import_name(r)\n",
+         "                if r.get('src') != 'ood':  # OOD-45's repos: the harness's own IMPORT_NAMES\n"
+         "                    ood.IMPORT_NAMES[r['repo']] = import_name(r)\n"),
+    ):
+        assert c4.count(old) == 1, old[:50]
+        c4 = c4.replace(old, new)
+    (out / "cell4_run.py").write_text(c4)
+    print("wrote", out.relative_to(ROOT), sorted(p.name for p in out.iterdir()))
 
 
 if __name__ == "__main__":
