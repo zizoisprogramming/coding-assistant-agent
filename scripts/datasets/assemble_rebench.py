@@ -174,7 +174,7 @@ OOD45_REPOS = {"apache/iceberg-python", "caronc/apprise", "feast-dev/feast", "fs
                "tox-dev/tox", "wntrblm/nox", "urllib3/urllib3"}
 
 
-TEST_REPO_SHARE = 0.15  # parts 3/4: share of the new build's repos that become TEST repos (user 2026-10-22)
+TEST_REPO_SHARE = 0.25  # parts 3/4: share of the build's repos that become TEST repos (0.15 gave 39 tasks: too few to separate base and adapter; ~60 wanted)
 
 
 def main_new():
