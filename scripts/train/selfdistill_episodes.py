@@ -103,7 +103,12 @@ def clean_text(s):
 
 
 def diff_files(diff):
-    return set(re.findall(r"^diff --git a/(\S+)", diff or "", re.M))
+    """Files a diff touches: 'diff --git a/X' headers, or '+++ b/X' lines (the public tasks' patches have no git
+    headers; /dev/null = a deleted file, its '--- a/X' side is the file)."""
+    files = set(re.findall(r"^diff --git a/(\S+)", diff or "", re.M))
+    files |= {f for f in re.findall(r"^\+\+\+ b/(\S+)", diff or "", re.M)}
+    files |= set(re.findall(r"^--- a/(\S+)\n\+\+\+ /dev/null", diff or "", re.M))
+    return files
 
 
 # Doubt words in the thinking (arXiv 2603.24472, "epistemic verbalization": self-distillation that keeps only confident,
