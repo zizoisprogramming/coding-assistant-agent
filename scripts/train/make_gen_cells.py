@@ -443,6 +443,7 @@ print(f'weights read in {time.time() - _t0:.0f} s', flush=True)
           sum(1 for r in trial if r["attempt"] == 1 and r["instance_id"] in sample and r["resolved"]))
     write_extra()
     write_public()
+    write_combined()
 
 
 OOD_BLOCK = '''
@@ -622,6 +623,136 @@ def write_public():
         c4 = c4.replace(old, new)
     (out / "cell4_run.py").write_text(c4)
     print("wrote", out.relative_to(ROOT), sorted(p.name for p in out.iterdir()), len(gradable), "tasks")
+
+
+
+COMBINED_PUBLIC_BLOCK = """
+# The 84 gold-gradable PUBLIC tasks join this run (user 2026-10-23: one GPU run for build parts 3/4 + public). They keep
+# the competition's own sandbox setup (cell 2c routes them; our tasks keep the verified one above).
+GRADABLE = {gradable!r}
+_n_ours = len(ROWS)
+assert 200 <= _n_ours <= 269, (f'the attached task set has {{_n_ours}} tasks: attach the parts 3/4 set (269 tasks after '
+                               f'the 3.12 step), not rebench-final-cp312 (347) or rebench-extra-cp312 (55); found {{OUT}}')
+for l in open(DATA_DIR / 'tasks.jsonl'):
+    r = json.loads(l)
+    if r['instance_id'] in GRADABLE:
+        assert r['instance_id'] not in ROWS
+        ROWS[r['instance_id']] = {{**r, 'src': 'public', 'level': 'public', 'domain': 'public', 'text_kind': 'public',
+                                   'leak': False, 'unfair_names': [], 'env_partial': False, 'split': 'train'}}
+with open(RESULTS / 'tasks_used.jsonl', 'w') as _fh:  # the samples notebook reads reference patches (and split) here
+    for _r in ROWS.values():
+        _fh.write(json.dumps(_r) + '\\n')
+print(f"this run: {{len(ROWS)}} tasks = {{_n_ours}} ours (test {{sum(r.get('split') == 'test' for r in ROWS.values())}}) + "
+      f"{{len(ROWS) - _n_ours}} public | wheel set {{WHEEL_SET}}")
+"""
+
+_PILOT_2C = (ROOT / "kaggle/cells_datagen_pilot/cell2c_pin_task_deps.py").read_text()
+PIN_FUNCS = _PILOT_2C[_PILOT_2C.index("_WHEELS = {}"):_PILOT_2C.index("_orig_install = ")]  # pins (datagen pilot 2)
+
+COMBINED_CELL2C = r"""# 2c. Per-task sandbox setup. OUR tasks: the verified setup (ood45_harness install, offline hook, host plugins hidden).
+#     PUBLIC tasks: the harness's own install (its wheel filter), then, inside THAT task's sandbox only, the newest
+#     competition wheel each pyproject requirement allows (Starlette 1.x broke 42 fastapi tasks) and the test packages
+#     the public wheels miss (dirty-equals, inline-snapshot, ...; from the gold-check output). Nothing is added to the
+#     notebook's own Python, so our tasks are graded exactly as verified.
+import glob, importlib.metadata as _md, subprocess, tomllib
+from packaging.requirements import Requirement
+from packaging.utils import canonicalize_name, parse_wheel_filename
+import swegemma.harness.container_setup as _cs
+
+_dirs = glob.glob('/kaggle/input/**/test_deps_wheels', recursive=True)
+assert _dirs, 'test_deps_wheels not found: attach the gold-check output (ziad23samer/test-gemma-comp, or its dataset)'
+TEST_DEPS_DIR = Path(_dirs[0])
+TEST_DEPS = (TEST_DEPS_DIR.parent / 'test_deps.txt').read_text().split()
+print('public test deps (per sandbox):', TEST_DEPS, 'from', TEST_DEPS_DIR)
+""" + PIN_FUNCS + r"""
+
+def _install_test_deps(docker, cid):
+    # --no-deps: their own dependencies (pytest, ...) are already visible in the sandbox (it sees the notebook's Python)
+    r = subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', '--no-index', '--no-deps', '--find-links',
+                        str(TEST_DEPS_DIR), '--target', str(_venv_site(docker, cid)), *TEST_DEPS], capture_output=True, text=True)
+    if r.returncode != 0:
+        print('   [test deps] FAILED', r.stderr[-300:], flush=True)
+
+
+def _is_public():
+    return ROWS.get(CUR_TASK.get() or '', {}).get('src') == 'public'
+
+
+def _install_dispatch(docker, container_id, repo='', **kw):
+    if _is_public():
+        _HARNESS_INSTALL(docker, container_id, repo, **kw)
+        pin_task_deps(docker, container_id)
+        _install_test_deps(docker, container_id)
+        return None
+    return _OOD_INSTALL(docker, container_id, repo, **kw)
+
+
+def _compat_dispatch(filename):
+    return (_HARNESS_COMPAT if _is_public() else _OOD_COMPAT)(filename)
+
+
+_OOD_INSTALL, _OOD_COMPAT = _cs.install_test_dependencies, _cs._is_wheel_compatible_py313
+_n = 0
+for _name in ('swegemma.harness.container_setup', 'swegemma.harness.verification', 'swegemma.harness.agent_runner',
+              'swegemma.evaluate'):
+    _mod = importlib.import_module(_name)
+    if getattr(_mod, 'install_test_dependencies', None) is _OOD_INSTALL:
+        _mod.install_test_dependencies = _install_dispatch
+        _n += 1
+_cs._is_wheel_compatible_py313 = _compat_dispatch
+print(f'per-task setup: install routed in {_n} modules | public pins: {sum(len(v) for v in _WHEELS.values())} wheels indexed')
+"""
+
+
+def write_combined():
+    """kaggle/cells_gen_combined: generation on build parts 3/4 (rebench-new-cp312: 245 train + 24 test tasks) + the 84
+    gradable public tasks, one session (user 2026-10-23). Test tasks' runs are the base model's test score."""
+    src, out = ROOT / "kaggle/cells_gen", ROOT / "kaggle/cells_gen_combined"
+    out.mkdir(parents=True, exist_ok=True)
+    for f in ("cell1.py", "cell3.py", "cell3b_request_logger.py", "cell5_summary.py"):
+        (out / f).write_text((src / f).read_text())
+    gold = json.load(open(ROOT / "data/results/2026-10-17_gold_check_v5/gold_check.json"))
+    gradable = sorted(i for i, v in gold.items() if v.get("usable"))
+    c2 = CELL2.format(submission=submission(), embedded_prev=[], sample=[], sub_name="mix")
+    mode_line = next(l for l in c2.splitlines() if l.startswith("MODE = "))
+    c2 = c2.replace(mode_line, "MODE = 'full'  # build parts 3/4 (train + test tasks) + public tasks\n"
+                    "PART = (1, 1)  # part k of N (several accounts): every N-th task of the shared order, from the k-th")
+    old = "STOP_NEW_TASKS_AFTER_H = 10.5  # Kaggle ends GPU sessions at 12 h; a task takes <= ~10 min\n"
+    assert c2.count(old) == 1
+    c2 = c2.replace(old, "STOP_NEW_TASKS_AFTER_H = 10.5  # = min(10.5, this account's GPU quota in hours / 2 - 0.4): L4x4 bills 2x,\n"
+                         "# a task ends within 15 min, Kaggle ends sessions at 12 h; a killed run loses its output\n")
+    old = "ood.patch_harness()\n"
+    assert c2.count(old) == 1
+    c2 = c2.replace(old, "from swegemma.harness import container_setup as _cs0\n"
+                         "_HARNESS_INSTALL, _HARNESS_COMPAT = _cs0.install_test_dependencies, _cs0._is_wheel_compatible_py313  # public tasks\n"
+                         + old)
+    old = "print('host pytest plugins:', [Path(p).name for p in _host], '-> exit', _r.returncode, _r.stderr[-200:])\n"
+    assert c2.count(old) == 1
+    c2 = c2.replace(old, old + COMBINED_PUBLIC_BLOCK.format(gradable=gradable))
+    (out / "cell2.py").write_text(c2 + "\n" + sandbox_env())
+    (out / "cell2c_public_setup.py").write_text(COMBINED_CELL2C)
+    c4 = CELL4
+    pub = "ROWS[iid].get('src') == 'public'"
+    for old, new in (
+        ("        snapshots_dir=OUT / 'snapshots', wheels_dir=WHEEL_ROOT / WHEEL_SET / iid,\n",
+         f"        snapshots_dir=(DATA_DIR if {pub} else OUT) / 'snapshots',\n"
+         f"        wheels_dir=DATA_DIR / 'wheels' if {pub} else WHEEL_ROOT / WHEEL_SET / iid,\n"),
+        ("FAIL_TO_PASS=tuple(r['FAIL_TO_PASS']),\n                PASS_TO_PASS=tuple(r['PASS_TO_PASS']))\n",
+         "FAIL_TO_PASS=tuple(r.get('FAIL_TO_PASS') or ()),\n"
+         "                PASS_TO_PASS=tuple(r.get('PASS_TO_PASS') or ()))  # public rows have none\n"),
+        ("        async with repo_locks[r['repo']]:  # the install step's import name is per repo: one task of a repo at a time\n",
+         "        async with repo_locks[iid if r.get('src') == 'public' else r['repo']]:  # our tasks: the install step's\n"
+         "            # import name is per repo -> one task of a repo at a time; public tasks have no such step\n"),
+        ("                ood.IMPORT_NAMES[r['repo']] = import_name(r)\n",
+         "                if r.get('src') != 'public':\n                    ood.IMPORT_NAMES[r['repo']] = import_name(r)\n"),
+        ("    PHASES = [(CONCURRENCY, [(i, 1) for i in ORDER if (i, 1) not in DONE_JOBS])]\n",
+         "    PHASES = [(CONCURRENCY, [(i, 1) for k, i in enumerate(ORDER) if k % PART[1] == PART[0] - 1 and (i, 1) not in DONE_JOBS])]\n"
+         "    print(f'part {PART[0]} of {PART[1]}: {len(PHASES[0][1])} of {len(ORDER)} tasks', flush=True)\n"),
+    ):
+        assert c4.count(old) == 1, old[:60]
+        c4 = c4.replace(old, new)
+    (out / "cell4_run.py").write_text(c4)
+    print("wrote", out.relative_to(ROOT), sorted(p.name for p in out.iterdir()), f"+ {len(gradable)} public tasks")
 
 
 if __name__ == "__main__":
