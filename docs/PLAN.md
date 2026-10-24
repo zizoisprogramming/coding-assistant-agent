@@ -1,6 +1,6 @@
 # Gemma 4 Developer Agent — Competition Plan (living doc)
 
-## >>> START HERE (session handoff, updated 2026-10-22) <<<
+## >>> START HERE (session handoff, updated 2026-10-24) <<<
 **User:** beginner to agents/ADK (ML engineer background); wants step-by-step plain explanations, research-backed
 claims (verify, cite), chat before building, decides when planning ends. Rules: one change per arm where possible;
 prompts generic (no dev-task content); competition data never committed (data/ is gitignored, incl. adapters built
@@ -8,6 +8,40 @@ from sample data); Kaggle token only in ~/.kaggle/access_token. Give Kaggle cell
 change cell 4's printed output. **No training data from Claude, GPT or Gemini (user decision, D14).** Each Kaggle
 account runs its OWN notebook copy (a shared notebook made `kaggle kernels output` return only the latest version
 and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly quota is tight → small runs.
+
+### CHECKPOINT 2026-10-24 (NEWEST — read first)
+**NOW: 31B LoRA training SESSION 1 is RUNNING** (user started it 2026-10-24; GPU L4x4, pinned Python 3.12 notebook,
+cells kaggle/cells_train_31b, commit 3bfc406). Inputs: wheelhouse, model gemma-4-31b-it-qat-w4a16-ct, dataset
+`merged-samples` (the merge's samples.pt uploaded by the user; report.json not needed).
+- **Training data (merge, kaggle/cells_merge, run interactively on engziadsamer):** 226 tasks, one run each (fewest
+  replies), 0 test tasks, 7 segments > 16384 dropped, leak 33% (cap 34%, 0 dropped). TRAIN 210 runs / 303 segments /
+  3.43M tokens (1.14M trained): d0 93, d1 62, d2 8, large 2, OOD 23, public 22. VAL 16 runs / 28 segments / 0.29M.
+  Sources: full run 88 + retry 11 (engziadsamer/filtration-cpu), extra run 39 (gen-extra-all v1 via kagglehub),
+  combined run 88 (dataset ziad23samer/cell-samples).
+- **Settings (agreed):** LoRA r16 alpha16 (scale 1.0), lr 1e-4, warmup 8, cosine -> 10%, 1 epoch, 2 segments/step
+  (~152 steps), clip 1.0, max 16384 tokens, 6 mid-run val on 8 segments + full at start/end. ~60 tok/s -> ~16 h real
+  = ~32 h quota. **Two sessions (decision A):** session 1 PAUSES at 10.8 h (`--session-hours`, keeps the full
+  schedule; prints `PAUSED at step N/152`); then its OUTPUT -> private dataset -> attach to the SAME notebook as session
+  2 (cell 2 prints `RESUMING from ...`) on an account with ~12 h quota. CPU tiny-model test of pause/resume passed.
+  Expected first lines: `train 303 segments 3.43M tokens`, `VAL [start]` (~20-30 min), steps ~400 s each.
+- **Serve check PASS** (fatmazenhom/serving-check): our trainer's 31B adapter served by the scorer's vLLM setup.
+- **NEXT TO BUILD (not built yet):** (1) TEST notebook: the 24 test tasks (rebench-new-cp312, split 'test', 21 repos)
+  with base mix @T0.2, adapter @T0.2, adapter @~0.7 (Apple SSD paper: best eval temp rises after self-distillation);
+  base's existing T1.0 generation runs on them are NOT comparable. Reuse cells_gen (task set rebench-new-cp312,
+  SAMPLE = test ids, submission with adapters/<name> + `adapter:` line, temperature per arm). Watch ASCENT's failure
+  signs (loops, tool errors, longer replies); fallback = serve alpha 8 (scale 0.5) by editing adapter_config.json.
+  (2) Submission packaging with the adapter (scripts/pack.py; adapters/ folder). (3) One LB submission of the winner.
+- **Later data ideas (if the adapter helps):** looser filter (~80 solves rejected for rereads; measure on CPU),
+  second runs on solved tasks (~70% solve), bigger SWE-rebench build (funnel 2,589 = small slice), weekly quota.
+- **Kaggle lessons this round:** notebook outputs across accounts hang -> datasets; a notebook linked to a dataset only
+  offers "new version" -> attach its output directly on the same account or download+upload; dataset versions the input
+  panel can't pick -> kagglehub.dataset_download('owner/name/versions/N') with internet ON; interactive sessions keep no
+  output (commit or download); first model load on an account can take 43 min (weights read) vs 2-3 min when cached;
+  public tasks: never install pytest-httpbin --no-deps into sandboxes (crashed every public test: 0/84; re-graded 32/84);
+  public reference patches lack `diff --git` headers (selfdistill diff_files fixed).
+- **Accounts:** ziad23samer (my API token; builds/verify/cp312/regrade/samples), engziadsamer (filtration-cpu, merge),
+  ziadsamer (generation-all-shards-gpu: extra + combined runs; datasets gen-extra-all v1/v2), fatmazenhom (serve check).
+  Rules caveat on extra accounts stands (see 10-22 block): add helpers to the team before the merger deadline if LB.
 
 ### DATA SPLIT (user decision 2026-10-22, evening; supersedes "OOD-45 is the yardstick, never training data")
 | Set | Contents | Use |
