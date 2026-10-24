@@ -53,6 +53,16 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   (ziad23samer/cell-samples-on-shards-cpu): **39 kept (25 OOD + 14 ours), 0.56M train tokens**; doubt words equal again.
   **TOTAL NOW: 138 kept runs (88 + 11 + 39), ~2.0M train tokens (~0.69M trained), val 13.** The 4-part attempt (parts
   2/4 ran on the wrong set: 391 = 347 + OOD; 17 solved, mostly repeats) is skipped.
+- **2026-10-24: combined run (parts 3/4 + public):** ours 121/269, public 0/84 = grading bug (pytest-httpbin installed
+  --no-deps in public sandboxes; fixed) -> CPU re-grade 32/84 (ziad23samer/regrade-cpu). Samples: 88 kept (24 public).
+  **Training data: ~226 runs, ~3.25M train tokens.** Decisions: (1) A = all data, two sessions with pause/resume
+  (train_sft.py --session-hours); (2) **SERVE CHECK PASS** (fatmazenhom/serving-check, data/results/2026-10-24_serve_check):
+  our trainer's 31B adapter (r16 alpha16) served by the scorer's vLLM setup via submission adapters/ + agent.yaml
+  adapter: -> PINEAPPLE-42 learned in 9 steps, base unaffected, math intact, thinking on/off; model load 174 s;
+  (3) test = base T0.2 vs adapter T0.2 / ~0.7 on the 24 test tasks, then one LB. Pipeline: kaggle/cells_merge (CPU,
+  kagglehub for gen-extra-all v1) -> kaggle/cells_train_31b (2 sessions). Papers: ASCENT (arXiv 2610.05303) = plain
+  SFT on own verified runs (RFT) can drift/degrade; watch loops / tool errors / reply length; fallback = serve at
+  alpha 8 (scale 0.5).
 - **User decision 2026-10-22:** wait for build parts 3/4, then ONE GPU run for parts 3/4 + the 84 public tasks
   (cells_gen_public is ready; the combined notebook must reconcile the two sandbox setups).
 - Extra generation (cells_gen_extra) in 4 parts on 4 accounts (~2 h quota each, PART=(k,4), no new task after 0.6 h);
