@@ -9,7 +9,23 @@ change cell 4's printed output. **No training data from Claude, GPT or Gemini (u
 account runs its OWN notebook copy (a shared notebook made `kaggle kernels output` return only the latest version
 and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly quota is tight → small runs.
 
-### CHECKPOINT 2026-10-24 (NEWEST — read first)
+### UPDATE 2026-10-25 (read first, then the 10-24 checkpoint below)
+- **Training:** session 1 PAUSED at step 93/152 after 10.48 h (fatmazenhom/finetuning-shard-1). Val (8-segment
+  subset) 0.1797 @21 → 0.1742 @42 → 0.1725 @63 → 0.1714 @84 (full val @start 0.1932); train avg 0.163; peak 18.4 GiB.
+  Session 2 RUNNING (resumed at 93; ~7 h real). Then: final val on all 28 vs 0.1932, then the TEST notebook (not built).
+- **Failure triage DONE (Plan B: scripts/triage.py + kaggle/cells_triage; data/results/2026-10-25_triage):** 965 mix
+  generation runs (T1.0, 15-min cap, 28 calls; submission = T0.2, 8 min), 391 resolved (41%). Buckets: right files but
+  wrong fix 41% (tested 286 + untested 111), no edit before the 28-call budget 7.7%, edit refused by budget 3.7%, wrong
+  files 5.1%. Wrong-fix patches are ~0.55x the gold size and miss a gold file 33-41% (resolved: 0.99x, 12%); public tasks
+  0.40-0.49x, 44-53%. Caveat: bigger gold = harder task, so size ratio is partly difficulty. mix prompt line 1 says
+  "fast and minimally" → suspected cause of incomplete fixes. Waste: 278 runs (29%) call submit_patch >=3x (median 49);
+  1,042 compactions in 741 runs (77%); first edit by call 8 → 58% solved vs call 25+ → 20%. Kaggle note: a kagglehub
+  version download mounts at the SAME path as the attached latest version (replaces it in that session).
+- **NEXT (proposed, awaiting user go):** one prompt change: full rewrite where "minimal" no longer means "stop at the
+  first spot" (check all places the bug lives: callers, siblings, sync/async twins, other files using the name) + a clean
+  ending (no submit loops); measure on the swing set (tasks mix solves sometimes), base vs change, same tasks.
+
+### CHECKPOINT 2026-10-24
 **NOW: 31B LoRA training SESSION 1 is RUNNING** (user started it 2026-10-24; GPU L4x4, pinned Python 3.12 notebook,
 cells kaggle/cells_train_31b, commit 3bfc406). Inputs: wheelhouse, model gemma-4-31b-it-qat-w4a16-ct, dataset
 `merged-samples` (the merge's samples.pt uploaded by the user; report.json not needed).
