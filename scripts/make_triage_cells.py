@@ -18,7 +18,9 @@ from pathlib import Path
 CODE = Path('/kaggle/working/code')
 CODE.mkdir(parents=True, exist_ok=True)
 (CODE / 'triage.py').write_text({triage!r})
-# dataset VERSIONS the input panel cannot pick: gen-extra-all version 1 = the extra run (55 ours + 44 OOD-45)
+# dataset VERSIONS the input panel cannot pick: gen-extra-all version 1 = the extra run (55 ours + 44 OOD-45).
+# Kaggle mounts the download AT THE SAME PATH as the attached latest version (it replaces it in this session), so the
+# combined run (latest version, 353 runs) needs a second, fresh session with DOWNLOAD = [] and only that dataset.
 DOWNLOAD = ['ziadsamer/gen-extra-all/versions/1']
 roots = ['/kaggle/input']
 for ref in DOWNLOAD:
