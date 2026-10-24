@@ -23,6 +23,18 @@ import make_samples_cells as S  # noqa: E402
 
 OUT = ROOT / "kaggle/cells_merge"
 
+CELL1B = r'''# 1b. Dataset VERSIONS the input panel cannot pick (Kaggle attaches only a dataset's latest version): downloaded with
+#     kagglehub (needs Settings -> Internet ON). gen-extra-all version 1 = the extra run (55 ours + 44 OOD-45); its
+#     samples output was replaced by the combined run's, so its samples are rebuilt here.
+DOWNLOAD = ['ziadsamer/gen-extra-all/versions/1']
+DOWNLOADED = []
+if DOWNLOAD:
+    import kagglehub
+    for ref in DOWNLOAD:
+        DOWNLOADED.append(kagglehub.dataset_download(ref))
+        print('downloaded', ref, '->', DOWNLOADED[-1], sorted(p.name for p in Path(DOWNLOADED[-1]).rglob('*') if p.is_file())[:6], flush=True)
+'''
+
 CELL3 = r'''# 3. MERGE every source into one training file. Prints what each rule removes and the final totals.
 import hashlib, random
 import torch
@@ -105,9 +117,15 @@ def main():
     old = "assert GENS, 'attach the generation notebook output (it has results/gen_per_task.jsonl and requests/requests.jsonl)'\n"
     assert c2.count(old) == 1
     c2 = c2.replace(old, "# (merge: generation outputs are optional, attached samples outputs are used as they are)\n")
+    old = "GENS = sorted({Path(p).parent.parent for p in glob.glob('/kaggle/input/**/results/gen_per_task.jsonl', recursive=True)})\n"
+    assert c2.count(old) == 1
+    c2 = c2.replace(old, "GENS = sorted({Path(p).parent.parent for p in glob.glob('/kaggle/input/**/results/gen_per_task.jsonl', recursive=True)}\n"
+                         "              | {Path(p).parent.parent for d in DOWNLOADED for p in glob.glob(f'{d}/**/results/gen_per_task.jsonl', recursive=True)})\n")
+    (OUT / "cell1b_download.py").write_text(CELL1B)
     (OUT / "cell2.py").write_text(c2)
     (OUT / "cell2b_samples.py").write_text((ROOT / "kaggle/cells_samples/cell3_samples.py").read_text().replace(
-        "# 3. Episodes -> cut", "# 2b. (only for attached GENERATION outputs) Episodes -> cut", 1))
+        "# 3. Episodes -> cut", "# 2b. (only for attached GENERATION outputs) Episodes -> cut", 1).replace(
+        "str(g.relative_to('/kaggle/input'))", "str(g).replace('/kaggle/input/', '')", 1))  # downloaded ones live elsewhere
     (OUT / "cell3_merge.py").write_text(CELL3)
     print("wrote", OUT.relative_to(ROOT), sorted(p.name for p in OUT.iterdir()))
 

@@ -184,6 +184,9 @@ def main():
                     "training (e.g. v1), then training starts from a fresh LoRA")
     ap.add_argument("--probe", action="store_true", help="one rank: fwd+bwd on the longest train segment, report memory")
     ap.add_argument("--max-steps", type=int, default=0, help="tests: stop after this many steps")
+    ap.add_argument("--session-hours", type=float, default=0, help="PAUSE (save a resumable checkpoint, keep the full "
+                    "schedule) once this much time has passed, so the next session continues (31B: an epoch is longer "
+                    "than one 12 h Kaggle session); unlike --max-hours, the plan is not shortened")
     args = ap.parse_args()
     t_start = time.time()
     rank, world = setup()
@@ -335,6 +338,10 @@ def main():
         mine = [train[j] for j in all_batches[step][rank]]
         my_lab = sum(int(s["labels_mask"].sum()) for s in mine)
         g_lab = all_sum(my_lab, dev)
+        if g_lab == 0:  # no model-written token in this batch: 0/0 would put NaN into the LoRA weights
+            step += 1
+            log(f"step {step:4}/{plan['total']} | skipped: no trained tokens in this batch", 0, rank)
+            continue
         for g in gpus:
             torch.cuda.reset_peak_memory_stats(g)
         tot = 0.0
@@ -409,6 +416,16 @@ def main():
                 break
         elif step % args.save_every == 0:
             save_state()
+        if args.session_hours and step < plan["total"] and \
+                time.time() - t_start + 2 * avg_step + 600 > args.session_hours * 3600:  # next step + saving must fit
+            save_state()
+            if rank == 0:
+                (out / "history.json").write_text(json.dumps(history, indent=1))
+            log(f"PAUSED at step {step}/{plan['total']} after {(time.time() - t_start) / 3600:.2f}h: attach this output "
+                f"to the next session, which resumes here (same samples, same settings)", 0, rank)
+            if dist.is_initialized():
+                dist.destroy_process_group()
+            return
     if val:
         run_eval("final")
     run_extra("final")

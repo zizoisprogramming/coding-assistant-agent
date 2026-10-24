@@ -12,7 +12,7 @@ def run(cmd):
 
 
 for g in GENS:
-    name = re.sub(r'[^A-Za-z0-9_-]+', '_', str(g.relative_to('/kaggle/input')))[-60:]
+    name = re.sub(r'[^A-Za-z0-9_-]+', '_', str(g).replace('/kaggle/input/', ''))[-60:]
     out = WORK / name
     t0 = time.time()
     strict = run([sys.executable, CODE / 'selfdistill_episodes.py', '--gen', g, '--tasks', TASKS_OF[g], '--out', f'/tmp/strict_{name}',

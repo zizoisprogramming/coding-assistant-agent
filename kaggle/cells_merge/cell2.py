@@ -1,5 +1,6 @@
 # 2. Inputs: every generation output, the task set, the tokenizer.
-GENS = sorted({Path(p).parent.parent for p in glob.glob('/kaggle/input/**/results/gen_per_task.jsonl', recursive=True)})
+GENS = sorted({Path(p).parent.parent for p in glob.glob('/kaggle/input/**/results/gen_per_task.jsonl', recursive=True)}
+              | {Path(p).parent.parent for d in DOWNLOADED for p in glob.glob(f'{d}/**/results/gen_per_task.jsonl', recursive=True)})
 # (merge: generation outputs are optional, attached samples outputs are used as they are)
 for g in GENS:
     req = g / 'requests' / 'requests.jsonl'
