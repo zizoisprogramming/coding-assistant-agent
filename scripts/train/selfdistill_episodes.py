@@ -261,6 +261,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--gen", nargs="+", required=True, help="generation output dir(s) (results/ + requests/ inside)")
     ap.add_argument("--tasks", required=True, help="the task set's tasks.jsonl (reference patches, labels)")
+    ap.add_argument("--override", help="gen_per_task.jsonl rows whose 'resolved' replaces the generation's (re-grade)")
     ap.add_argument("--out", required=True, help="stage-B layout for build_samples.py + metrics.jsonl")
     ap.add_argument("--min-looks", type=int, default=1)
     ap.add_argument("--max-fail-streak", type=int, default=3)
@@ -275,6 +276,11 @@ def main():
     metrics, why, kept_eps = [], collections.Counter(), []
     for d in a.gen:
         rows, recs, patches = load_gen(d)
+        if a.override:  # re-graded rows (kaggle/cells_regrade_public): their 'resolved' wins
+            fixed = {(r["instance_id"], r["attempt"]): r for r in map(json.loads, open(a.override)) if r.get("regraded")}
+            for key in set(rows) & set(fixed):
+                rows[key] = dict(rows[key], resolved=fixed[key]["resolved"])
+            print(f"override: {len(set(rows) & set(fixed))} rows re-graded, {sum(fixed[k]['resolved'] for k in set(rows) & set(fixed))} solved")
         print(f"{d}: {len(rows)} attempts, {len(recs)} with records, {sum(r['resolved'] for r in rows.values())} resolved", flush=True)
         for key in sorted(rows):
             row, rs = rows[key], recs.get(key, [])

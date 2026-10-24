@@ -47,7 +47,10 @@ _tok = sorted(p for p in glob.glob('/kaggle/input/models/google/gemma-4/**/gemma
               if Path(p, 'tokenizer.json').exists() and Path(p, 'chat_template.jinja').exists())
 assert _tok, 'attach the model google/gemma-4 -> gemma-4-31b-it-qat-w4a16-ct (its tokenizer and chat template are used)'
 TOK_DIR = Path(_tok[-1])
-print('tasks per output:', {str(g): str(t) for g, t in TASKS_OF.items()}, '| tokenizer:', TOK_DIR)
+# Re-graded rows (kaggle/cells_regrade_public output): applied to the generation output they came from.
+OVERRIDE = sorted(glob.glob('/kaggle/input/**/results/regrade/gen_per_task.jsonl', recursive=True))
+assert len(OVERRIDE) <= 1, f'attach at most one re-grade output; found {OVERRIDE}'
+print('tasks per output:', {str(g): str(t) for g, t in TASKS_OF.items()}, '| tokenizer:', TOK_DIR, '| re-grade:', OVERRIDE)
 '''
 
 CELL3 = r'''# 3. Episodes -> cut -> filter -> samples, per generation output. Prints one line per resolved attempt (verdict and
@@ -68,10 +71,11 @@ for g in GENS:
     out = WORK / name
     t0 = time.time()
     strict = run([sys.executable, CODE / 'selfdistill_episodes.py', '--gen', g, '--tasks', TASKS_OF[g], '--out', f'/tmp/strict_{name}',
-                  '--max-fail-streak', 2, '--max-repeats', 1, '--max-rereads', 1])
+                  '--max-fail-streak', 2, '--max-repeats', 1, '--max-rereads', 1] + (['--override', OVERRIDE[0]] if OVERRIDE else []))
     strict = next(l for l in strict.splitlines() if l.startswith('KEPT'))  # the KEPT line (the DOUBT line comes after it)
     print('STRICT FILTER (2 failed in a row, 1 repeat, 1 reread) would keep:', strict, flush=True)
-    run([sys.executable, CODE / 'selfdistill_episodes.py', '--gen', g, '--tasks', TASKS_OF[g], '--out', out])
+    run([sys.executable, CODE / 'selfdistill_episodes.py', '--gen', g, '--tasks', TASKS_OF[g], '--out', out]
+        + (['--override', OVERRIDE[0]] if OVERRIDE else []))
     run([sys.executable, CODE / 'build_samples.py', '--stage-b', out, '--tokenizer-dir', TOK_DIR,
          '--out', out / 'samples.pt', '--split-on-break', '--max-len', 32768])
     print(f'==> {name}: {(time.time() - t0) / 60:.1f} min, files', sorted(p.name for p in out.iterdir()), flush=True)

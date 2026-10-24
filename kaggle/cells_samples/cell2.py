@@ -16,4 +16,7 @@ _tok = sorted(p for p in glob.glob('/kaggle/input/models/google/gemma-4/**/gemma
               if Path(p, 'tokenizer.json').exists() and Path(p, 'chat_template.jinja').exists())
 assert _tok, 'attach the model google/gemma-4 -> gemma-4-31b-it-qat-w4a16-ct (its tokenizer and chat template are used)'
 TOK_DIR = Path(_tok[-1])
-print('tasks per output:', {str(g): str(t) for g, t in TASKS_OF.items()}, '| tokenizer:', TOK_DIR)
+# Re-graded rows (kaggle/cells_regrade_public output): applied to the generation output they came from.
+OVERRIDE = sorted(glob.glob('/kaggle/input/**/results/regrade/gen_per_task.jsonl', recursive=True))
+assert len(OVERRIDE) <= 1, f'attach at most one re-grade output; found {OVERRIDE}'
+print('tasks per output:', {str(g): str(t) for g, t in TASKS_OF.items()}, '| tokenizer:', TOK_DIR, '| re-grade:', OVERRIDE)

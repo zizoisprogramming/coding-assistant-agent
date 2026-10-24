@@ -16,10 +16,11 @@ for g in GENS:
     out = WORK / name
     t0 = time.time()
     strict = run([sys.executable, CODE / 'selfdistill_episodes.py', '--gen', g, '--tasks', TASKS_OF[g], '--out', f'/tmp/strict_{name}',
-                  '--max-fail-streak', 2, '--max-repeats', 1, '--max-rereads', 1])
+                  '--max-fail-streak', 2, '--max-repeats', 1, '--max-rereads', 1] + (['--override', OVERRIDE[0]] if OVERRIDE else []))
     strict = next(l for l in strict.splitlines() if l.startswith('KEPT'))  # the KEPT line (the DOUBT line comes after it)
     print('STRICT FILTER (2 failed in a row, 1 repeat, 1 reread) would keep:', strict, flush=True)
-    run([sys.executable, CODE / 'selfdistill_episodes.py', '--gen', g, '--tasks', TASKS_OF[g], '--out', out])
+    run([sys.executable, CODE / 'selfdistill_episodes.py', '--gen', g, '--tasks', TASKS_OF[g], '--out', out]
+        + (['--override', OVERRIDE[0]] if OVERRIDE else []))
     run([sys.executable, CODE / 'build_samples.py', '--stage-b', out, '--tokenizer-dir', TOK_DIR,
          '--out', out / 'samples.pt', '--split-on-break', '--max-len', 32768])
     print(f'==> {name}: {(time.time() - t0) / 60:.1f} min, files', sorted(p.name for p in out.iterdir()), flush=True)

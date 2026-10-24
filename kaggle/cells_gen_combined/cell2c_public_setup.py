@@ -11,7 +11,9 @@ import swegemma.harness.container_setup as _cs
 _dirs = glob.glob('/kaggle/input/**/test_deps_wheels', recursive=True)
 assert _dirs, 'test_deps_wheels not found: attach the gold-check output (ziad23samer/test-gemma-comp, or its dataset)'
 TEST_DEPS_DIR = Path(_dirs[0])
-TEST_DEPS = (TEST_DEPS_DIR.parent / 'test_deps.txt').read_text().split()
+# pytest-httpbin is a plugin EVERY pytest run loads and needs httpbin/flask; installed --no-deps it crashed every public
+# test run (combined run 2026-10-24: 0/84). Only the (excluded) requests tasks use it.
+TEST_DEPS = [n for n in (TEST_DEPS_DIR.parent / 'test_deps.txt').read_text().split() if n != 'pytest-httpbin']
 print('public test deps (per sandbox):', TEST_DEPS, 'from', TEST_DEPS_DIR)
 _WHEELS = {}  # canonical name -> [(version, path)]
 for _w in glob.glob(str(DATA_DIR / 'wheels' / '*.whl')):
