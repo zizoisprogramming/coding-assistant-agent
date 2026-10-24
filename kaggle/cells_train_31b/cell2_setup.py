@@ -14,10 +14,11 @@ _m = sorted(p for p in glob.glob('/kaggle/input/models/google/gemma-4/**/gemma-4
             if Path(p, 'config.json').exists())
 assert _m, 'attach the model google/gemma-4 -> gemma-4-31b-it-qat-w4a16-ct'
 MODEL_PATH = Path(_m[-1])
-_s = sorted(glob.glob('/kaggle/input/**/merged/samples.pt', recursive=True))
-assert len(_s) == 1, f'attach exactly one merge output (merged/samples.pt); found {_s}'
+_s = sorted(glob.glob('/kaggle/input/**/samples.pt', recursive=True))
+assert len(_s) == 1, f'attach exactly one merged samples.pt (the merge output, or a dataset holding just that file); found {_s}'
 SAMPLES = Path(_s[0])
-print('model', MODEL_PATH, '| samples', SAMPLES, '| merge report:', json.loads((SAMPLES.parent / 'report.json').read_text()).get('estimate'))
+_rep = SAMPLES.parent / 'report.json'
+print('model', MODEL_PATH, '| samples', SAMPLES, '| merge report:', json.loads(_rep.read_text()).get('estimate') if _rep.exists() else '-')
 TRAIN_OUT = WORKING_DIR / 'adapter_31b'
 _prev = sorted(glob.glob('/kaggle/input/**/adapter_31b/last/trainer_state.pt', recursive=True))
 if _prev and not (TRAIN_OUT / 'last' / 'trainer_state.pt').exists():  # session 2: continue session 1
