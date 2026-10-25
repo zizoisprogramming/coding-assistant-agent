@@ -10,6 +10,20 @@ change cell 4's printed output. **No training data from Claude, GPT or Gemini (u
 account runs its OWN notebook copy (a shared notebook made `kaggle kernels output` return only the latest version
 and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly quota is tight → small runs.
 
+### sk_a vs sk_ad RESULT (2026-10-25 late, NEWEST — read first)
+- engziadsamer/arms-again (kaggle/cells_skill_ad), pass 1 only (early stop worked, outputs saved:
+  data/results/2026-10-25_skill_ad incl. requests.jsonl 36 MB): **sk_a 2/16 (7 no patch), sk_ad 3/16 (9 no patch)**;
+  mix 3.67 / 5.0. Both below mix.
+- **Bug found in ALL skill arms (also the first run):** only 17/32 first calls were the skill install. 5 runs ran
+  `python3 -m pip install .` ("I'll install the agent tool") = 202 s lost (internet off), all fastapi -> explains the
+  slow fastapi_14419 etc.; others copied the usage template literally (`find "exact text" wher...`) or ran
+  `python3 scripts/install.py`. Fix the install wording (+ never pip) before judging the memory idea.
+- Other digest findings: first edit at call >= 26 in 12/32 runs (6 refused past call 28 -> no patch); note/pin
+  ~0.1 per run (ignored); NOT SHOWN AGAIN costs 2-3 calls per run; 2 commands hung 240 s (rich_3882 repro.py under
+  sk_ad, a python heredoc test on fastapi_14258); D's repro advice spreads to long issues.
+- Candidate fixes (not built): unambiguous install + no pip; "NO EDIT YET" banner in a.py output after ~18 calls
+  without a diff; re-show (short) instead of refusing; drop note/pin and D; `timeout 30` on repro/test commands.
+
 ### SKILL ARMS RESULT + NEXT RUN (2026-10-25 night, NEWEST — read first)
 - **Adapter test (cells_test_31b) stopped:** at 15 min, base_t02 3/7 dev16 vs sd_t02/sd_t07 0/7 (4 no-patch).
   Fine-tuning parked.
