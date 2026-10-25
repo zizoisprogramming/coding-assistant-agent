@@ -1,0 +1,14 @@
+# sk_a: mix + the agent's reading tool (.git/agent/a.py, installed by the skill) - scripts/make_skill_arms.py
+name: swe_agent
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/system.md
+tools:
+  - run_command
+  - read_file  # declared only so a habitual call never ends the task (the task message names it); the prompt says not to use it
+  - edit_file
+  - write_file
+  - get_status
+  - submit_patch
+skills:
+  - skills/agent
+generate_content_config: !include configs/sampling.yaml
