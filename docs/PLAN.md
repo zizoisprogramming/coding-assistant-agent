@@ -10,6 +10,24 @@ change cell 4's printed output. **No training data from Claude, GPT or Gemini (u
 account runs its OWN notebook copy (a shared notebook made `kaggle kernels output` return only the latest version
 and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly quota is tight → small runs.
 
+### WRONG-EDIT ANALYSIS (2026-10-26, NEWEST — read first)
+All 30 edited-but-failed runs of sk_a2 / sk_ad2, each patch read against the gold patch and the hidden test
+(no test output was saved; judged from test_patch):
+- **A. Hidden exact text / value (10):** 14258 x4 (test wants AssertionError + exact message; neighbours use assert),
+  14487 x3 (exact output "Validation errors:" / "Field: (...)"), rich_3468 x3 (exit code 1, model used 0: near miss,
+  Python's SIGPIPE docs use 1).
+- **B. Large feature / rewrite (9):** 15800 x3 (654 lines, 8 files), 14306 x3 (137), 15280 x2 (`@app.vibe()`),
+  rich_3180 x1 (127-line wrap rewrite).
+- **C. Wrong place (7):** 13920 x4 (patched _compat helpers; fix belongs in analyze_param where the annotation is
+  first read), 11194 x1 (get_body_field instead of _extract_form_body), rich_4079 x1 (added an unused Table param
+  instead of markdown.py), rich_3934 x1 (live_render only; gold also live.py stop()).
+- **D. Right place, wrong / partial logic (4):** rich_3521 x1, fastapi_14419 x1 (partial of 62 lines), 15589 x2
+  (one = a left-over DEBUG print as the whole patch; the only debug-print patch in 64 runs).
+- A + B = 19/30 are out of reach for prompt changes. C + D = 11/30 are reachable, and 4 of those tasks (11194, 15589,
+  4079, 3521) were solved by another run: the remaining gap is mostly run-to-run variance on ~7 winnable tasks
+  (ever solved by any arm or mix: 11194, 15589, 3882, 4079, 3470, 14419, 3521). sk_a2 per task: 11194 2/2,
+  3882 2/2, 15589 1/2, 4079 1/2, 3521 1/2, 14419 0/2, 3470 0/2.
+
 ### sk_a2 vs sk_ad2 RESULT (2026-10-26, NEWEST — read first)
 - engziadsamer/arms-again (new version, kaggle/cells_skill_a2), both passes completed (64 runs; outputs in
   data/results/2026-10-26_skill_a2, request log 77 MB not downloaded yet).
