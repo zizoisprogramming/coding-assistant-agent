@@ -22,10 +22,13 @@ CODE.mkdir(parents=True, exist_ok=True)
 (CODE / 'export_failed.py').write_text({code!r})
 DOWNLOAD = ['ziadsamer/gen-extra-all/versions/1']
 roots = ['/kaggle/input']
-for ref in DOWNLOAD:
-    import kagglehub
-    roots.append(kagglehub.dataset_download(ref))
-    print('downloaded', ref, '->', roots[-1], flush=True)
+for ref in DOWNLOAD:  # Kaggle allows this only in an INTERACTIVE session (a committed run refuses a new version)
+    try:
+        import kagglehub
+        roots.append(kagglehub.dataset_download(ref))
+        print('downloaded', ref, '->', roots[-1], flush=True)
+    except Exception as e:  # noqa: BLE001
+        print(f'WARNING: could not download {{ref}} ({{str(e)[:160]}}): continuing without it', flush=True)
 GENS, seen = [], set()
 for root in roots:
     for p in sorted(glob.glob(f'{{root}}/**/results/gen_per_task.jsonl', recursive=True)):
