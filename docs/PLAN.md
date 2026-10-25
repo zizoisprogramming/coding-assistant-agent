@@ -21,6 +21,11 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   "fast and minimally" → suspected cause of incomplete fixes. Waste: 278 runs (29%) call submit_patch >=3x (median 49);
   1,042 compactions in 741 runs (77%); first edit by call 8 → 58% solved vs call 25+ → 20%. Kaggle note: a kagglehub
   version download mounts at the SAME path as the attached latest version (replaces it in that session).
+- **Training DONE (engziadsamer/finetuning-shard-2):** 152/152 steps, full val 0.1932 → **0.1605** (subset 0.1693 @147);
+  one grad spike 6386 @88 (clipped, loss/val unaffected); adapter_31b/final = r16/alpha16 (files in
+  data/results/2026-10-25_train31). **TEST notebook BUILT (kaggle/cells_test_31b, commit 87f2160):** base_t02 / sd_t02
+  / sd_t07 on 24 test tasks + dev16 (never generated on → clean; same repos as trained public tasks → reported apart),
+  2 runs each = 240 runs ≈ 6 h at 41/h ≈ 13 h quota. Sim passed (data/sim/testsim.py).
 - **NEXT (proposed, awaiting user go):** one prompt change: full rewrite where "minimal" no longer means "stop at the
   first spot" (check all places the bug lives: callers, siblings, sync/async twins, other files using the name) + a clean
   ending (no submit loops); measure on the swing set (tasks mix solves sometimes), base vs change, same tasks.
