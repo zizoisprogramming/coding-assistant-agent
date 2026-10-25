@@ -1,12 +1,14 @@
 """Writes the three skill arms (user 2026-10-25, from the failure analysis of dev16 / val16 / public / rebench runs):
 
-    python3 scripts/make_skill_arms.py   -> submissions/sk_a, submissions/sk_abc, submissions/sk_abcd
+    python3 scripts/make_skill_arms.py   -> submissions/sk_a, sk_abc, sk_abcd, sk_ad
 
   sk_a     memory: all reading through .git/agent/a.py (find / outline / show / note / pin); every output starts with
            the MEMORY header (reads, notes, pinned lines) that survives compaction; repeats of recent reads are refused
   sk_abc   + impact (other places using what the edit changed, and the edit's siblings) + check (.git/agent/repro.py, the
            nearest existing tests, git status with scratch-file flags), in the flow after the first edit
   sk_abcd  + decoding a short / title-only issue (tests + git log first, one-sentence hypothesis, .git/agent/repro.py)
+  sk_ad    sk_a + the short-issue section of sk_abcd, without impact / check (user 2026-10-25, after pass 1: abc 2/16,
+           a 3/16, abcd 4/16)
 
 Each prompt is a full rewrite of mix's (same contract, decision rule, edit mechanics, hygiene, budgets, sampling).
 read_file stays declared: the harness task message names it, and an undeclared tool call ends the task.
@@ -18,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SKILL_SRC = ROOT / "scripts/agent_skill"
 MIX = ROOT / "submissions/mix"
 ARMS = {"sk_a": "find outline show note pin", "sk_abc": "find outline show note pin impact check",
-        "sk_abcd": "find outline show note pin impact check"}
+        "sk_abcd": "find outline show note pin impact check", "sk_ad": "find outline show note pin"}
 
 AGENT_YAML = """# {arm}: mix + the agent's reading tool (.git/agent/a.py, installed by the skill) - scripts/make_skill_arms.py
 name: swe_agent
@@ -168,7 +170,7 @@ def prompt(arm):
     extra = ("  python3 .git/agent/a.py impact                    after an edit: other places that use what you changed\n"
              "  python3 .git/agent/a.py check                     after an edit: .git/agent/repro.py + nearest tests + git status\n"
              if full else "")
-    text = HEAD.format(extra_commands=extra, thin_issue=THIN if arm == "sk_abcd" else "")
+    text = HEAD.format(extra_commands=extra, thin_issue=THIN if arm in ("sk_abcd", "sk_ad") else "")
     text += CHECK_TOOL if full else CHECK_PLAIN
     tail = (" Then impact (nothing else uses it), the issue's example in .git/agent/repro.py, check, submit: 9 calls."
             if full else " Then the client tests, then submit: 8 calls.")

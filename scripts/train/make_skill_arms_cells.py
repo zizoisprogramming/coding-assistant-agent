@@ -1,6 +1,12 @@
-"""Writes kaggle/cells_skill_arms/: the three skill arms (submissions/sk_a, sk_abc, sk_abcd) on dev16 (user 2026-10-25).
+"""Writes kaggle/cells_skill_ad/: sk_a vs sk_ad on dev16, 2 passes (user 2026-10-25, after the first skill-arms run:
+sk_a 3/16, sk_abc 2/16, sk_abcd 4/16 in pass 1; kaggle/cells_skill_arms = that run, generated at commit 82c8d56).
 
     python3 scripts/make_skill_arms.py && python3 scripts/train/make_skill_arms_cells.py
+
+The run ENDS BY ITSELF after pass 1 when no arm solved more than EARLY_STOP_MAX tasks (a cancelled saved version
+loses all output files). After every run, the log gets a DIGEST line from the model replies (survives a cancel):
+reading-tool use (find / outline / show / note / pin), raw reads (cat, sed, grep, read_file), NOT SHOWN AGAIN
+refusals, the call of the first edit, compactions, model seconds vs tool seconds per call; results/digest.jsonl too.
 
 Conditions = mix's 64 earlier dev16 runs (rung 3e-3m): T0.2, 8 min, 28 calls, 80 turns, 2 tasks at once, so those
 runs are the control (embedded per task; no new mix runs). PASS 1 = every arm once on all 16 tasks (48 runs) before
@@ -21,9 +27,10 @@ sys.path.insert(0, str(ROOT / "scripts/train"))
 import make_gen_cells as G  # noqa: E402
 from make_test_cells import must_replace  # noqa: E402
 
-OUT = ROOT / "kaggle/cells_skill_arms"
-ARMS = ["sk_a", "sk_abc", "sk_abcd"]
+OUT = ROOT / "kaggle/cells_skill_ad"
+ARMS = ["sk_a", "sk_ad"]
 CONCURRENCY = 2
+EARLY_STOP_MAX = 3  # user: stop after pass 1 if every arm solved 3 or fewer
 
 
 def arm_files(arm):
@@ -48,8 +55,9 @@ def mix_reference():
 
 
 BLOCK = '''
-# SKILL ARMS (scripts/train/make_skill_arms_cells.py): dev16 only, three arms, pass 1 before pass 2.
-ATTEMPTS = 2  # passes; stop the session after "PASS 1 COMPLETE" for the early comparison
+# SKILL ARMS (scripts/train/make_skill_arms_cells.py): dev16 only, pass 1 before pass 2.
+ATTEMPTS = 2  # passes; the run ends by itself after pass 1 when no arm solved more than EARLY_STOP_MAX
+EARLY_STOP_MAX = {early_stop_max!r}
 ARMS = {arms!r}
 ARM_FILES = {arm_files!r}
 DEV16 = {dev16!r}
@@ -61,7 +69,8 @@ for l in open(DATA_DIR / 'tasks.jsonl'):
         ROWS[r['instance_id']] = {{**r, 'src': 'public', 'level': 'dev16', 'domain': 'public', 'text_kind': 'public',
                                    'leak': False, 'unfair_names': [], 'env_partial': False, 'split': 'dev16'}}
 assert len(ROWS) == 16, f'dev16 tasks missing from tasks.jsonl: {{sorted(set(DEV16) - set(ROWS))}}'
-print(f"SKILL ARMS: {{len(ROWS)}} dev16 tasks | arms {{ARMS}} | {{ATTEMPTS}} passes | {{CONCURRENCY}} at once")
+print(f"SKILL ARMS: {{len(ROWS)}} dev16 tasks | arms {{ARMS}} | {{ATTEMPTS}} passes | {{CONCURRENCY}} at once | "
+      f"ends after pass 1 if no arm solves more than {{EARLY_STOP_MAX}}")
 SUB_ROOT = WORKING_DIR / 'submissions'
 shutil.rmtree(SUB_ROOT, ignore_errors=True)
 for arm, files in ARM_FILES.items():
@@ -99,8 +108,141 @@ for iid in sorted(ROWS):
         a = sorted((r for r in rows if r['arm'] == arm and r['instance_id'] == iid), key=lambda r: r['attempt'])
         cells.append(''.join('S' if r['resolved'] else ('E' if r['patch_chars'] else '0') for r in a) or '-')
     print(f'  {iid:16} mix {s}/{n} ({p})   ' + '   '.join(f'{c:>4}' for c in cells))
+dig = [json.loads(l) for l in open(RESULTS / 'digest.jsonl')] if (RESULTS / 'digest.jsonl').exists() else []
+print('\nper arm, mean per run (from the model replies; see the DIGEST lines):')
+for arm in ARMS:
+    d = [x for x in dig if x['arm'] == arm]
+    if d:
+        m = lambda k: sum(x.get(k) or 0 for x in d) / len(d)
+        fe = sorted(x['first_edit'] for x in d if x.get('first_edit'))
+        print(f"  {arm:8} runs {len(d)} | a.py find {m('find'):.1f} outline {m('outline'):.1f} show {m('show'):.1f} "
+              f"note {m('note'):.1f} pin {m('pin'):.1f} | raw reads {m('raw_read') + m('read_file'):.1f} | refused "
+              f"{m('refused'):.1f} | repro {m('repro'):.1f} pytest {m('pytest'):.1f} | edited {len(fe)}/{len(d)}, median "
+              f"first edit at call {fe[len(fe) // 2] if fe else '-'} | compactions {m('compactions'):.1f} | model "
+              f"{m('model_s'):.0f}s + tools {m('tool_s'):.0f}s")
 req = WORKING_DIR / 'requests' / 'requests.jsonl'
 print('request log:', f'{req.stat().st_size / 1e6:.0f} MB' if req.exists() else 'MISSING')
+'''
+
+
+DIGEST = r'''
+
+# DIGEST (make_skill_arms_cells.py): per run (job task#a<arm>.<pass>), counted from the model replies as they come:
+# what the agent did with its calls and where the time went. Cell 4 prints one line after each run (it stays in the
+# log even if the session is cancelled) and appends it to results/digest.jsonl.
+import collections, re
+from google.adk.models import lite_llm as _ll
+
+DIGEST = collections.defaultdict(collections.Counter)
+_A_PY = re.compile(r'\.git/agent/a\.py\s+(\w+)')
+_RAW = re.compile(r'(^|[;&|(]\s*)(cat|sed|head|tail|grep|nl|less|awk)\s|git grep|git show \S+:')
+
+
+def _dump(o):
+    if hasattr(o, 'model_dump'):
+        try:
+            return o.model_dump()
+        except Exception:
+            return {}
+    return o if isinstance(o, dict) else {}
+
+
+def _text(content):
+    if isinstance(content, list):
+        return ' '.join(str(_dump(c).get('text') or c) for c in content)
+    return str(content or '')
+
+
+def _digest(job, messages, resp, seconds):
+    d = DIGEST[job]
+    d['model_calls'] += 1
+    d['model_ms'] += int(seconds * 1000)
+    last = _dump(messages[-1]) if messages else {}
+    if last.get('role') == 'tool' and 'NOT SHOWN AGAIN' in _text(last.get('content')):
+        d['refused'] += 1
+    r = _dump(resp)
+    usage = r.get('usage') or {}
+    pt = usage.get('prompt_tokens') or 0
+    if d['last_prompt'] and pt < 0.7 * d['last_prompt']:
+        d['compactions'] += 1
+    d['last_prompt'] = pt
+    d['max_prompt'] = max(d['max_prompt'], pt)
+    d['out_tokens'] += usage.get('completion_tokens') or 0
+    msg = ((r.get('choices') or [{}])[0] or {}).get('message') or {}
+    for tc in msg.get('tool_calls') or []:
+        fn = (tc or {}).get('function') or {}
+        name, args = fn.get('name') or '?', fn.get('arguments') or ''
+        try:
+            a = json.loads(args) if isinstance(args, str) else (args or {})
+        except Exception:
+            a = {}
+        d['tool_calls'] += 1
+        n = d['tool_calls']
+        edit = False
+        if name == 'run_command':
+            cmd = str(a.get('command', ''))
+            subs = _A_PY.findall(cmd)
+            for c in subs:
+                d[c if c in ('find', 'outline', 'show', 'note', 'pin', 'impact', 'check') else 'a_other'] += 1
+            if not subs and _RAW.search(cmd):
+                d['raw_read'] += 1
+            if 'pytest' in cmd:
+                d['pytest'] += 1
+            if 'repro.py' in cmd:
+                d['repro'] += 1
+            edit = 'git apply' in cmd or 'sed -i' in cmd or ('.write' in cmd and '<<' in cmd)
+        elif name in ('edit_file', 'write_file'):
+            path = str(a.get('filepath') or a.get('file_path') or a.get('path') or '')
+            if '.git/agent/' in path:
+                d['repro'] += 1
+            else:
+                d[name] += 1
+                edit = True
+        elif name == 'run_skill_script':
+            d['install'] += 1
+            d['install_at'] = d['install_at'] or n
+        else:
+            d[name] += 1
+        if edit and not d['first_edit']:
+            d['first_edit'] = n
+
+
+_inner = _ll.LiteLLMClient.acompletion
+if not getattr(_inner, '_digest', False):
+    async def _acompletion_digest(self, model, messages, tools, **kwargs):
+        t0 = time.time()
+        resp = await _inner(self, model, messages, tools, **kwargs)
+        try:
+            _digest(JOB.get(), messages, resp, time.time() - t0)
+        except Exception as e:  # never break a run over the digest
+            DIGEST[JOB.get()]['digest_errors'] += 1
+        return resp
+    _acompletion_digest._digest = True
+    _ll.LiteLLMClient.acompletion = _acompletion_digest
+
+
+def digest_row(job, agent_s):
+    d = DIGEST.get(job) or collections.Counter()
+    model_s = d['model_ms'] / 1000
+    n = max(d['tool_calls'], 1)
+    keys = ('install', 'install_at', 'find', 'outline', 'show', 'note', 'pin', 'impact', 'check', 'a_other', 'raw_read',
+            'read_file', 'refused', 'repro', 'pytest', 'edit_file', 'write_file', 'first_edit', 'compactions',
+            'max_prompt', 'out_tokens', 'model_calls', 'tool_calls', 'get_status', 'submit_patch', 'digest_errors')
+    row = {k: d[k] for k in keys}
+    row.update(model_s=round(model_s), tool_s=round(max(agent_s - model_s, 0)),
+               model_s_per_call=round(model_s / max(d['model_calls'], 1), 1),
+               tool_s_per_call=round(max(agent_s - model_s, 0) / n, 1))
+    return row
+
+
+def digest_line(r):
+    return (f"      DIGEST install@{r['install_at'] or '-'} | a.py find {r['find']} outline {r['outline']} show "
+            f"{r['show']} note {r['note']} pin {r['pin']} | raw reads {r['raw_read']} read_file {r['read_file']} | "
+            f"refused {r['refused']} | edit_file/write_file {r['edit_file'] + r['write_file']}, first edit at call {r['first_edit'] or '-'} | "
+            f"repro {r['repro']} pytest {r['pytest']} | compactions {r['compactions']} max prompt {r['max_prompt']} | "
+            f"model {r['model_s']}s ({r['model_s_per_call']}s/call) tools {r['tool_s']}s ({r['tool_s_per_call']}s/call) "
+            f"| out tokens {r['out_tokens']}" + (f" | DIGEST ERRORS {r['digest_errors']}" if r['digest_errors'] else ''))
+print('DIGEST on: one line per run after its result line (results/digest.jsonl)')
 '''
 
 
@@ -125,13 +267,13 @@ def main():
                       "ood.patch_harness()\n")
     host = "print('host pytest plugins:', [Path(p).name for p in _host], '-> exit', _r.returncode, _r.stderr[-200:])\n"
     dev16 = sorted(json.load(open(ROOT / "data/splits_public.json"))["dev16"])
-    c2 = must_replace(c2, host, host + BLOCK.format(arms=ARMS, arm_files={a: arm_files(a) for a in ARMS}, dev16=dev16,
+    c2 = must_replace(c2, host, host + BLOCK.format(arms=ARMS, early_stop_max=EARLY_STOP_MAX, arm_files={a: arm_files(a) for a in ARMS}, dev16=dev16,
                                                     mix_ref=mix_reference()))
     (OUT / "cell2.py").write_text(c2 + "\n" + G.sandbox_env())
     (OUT / "cell2c_public_setup.py").write_text((comb / "cell2c_public_setup.py").read_text())
     (OUT / "cell3.py").write_text((src / "cell3.py").read_text())  # vLLM as the scorer (LoRA on, no adapter)
     (OUT / "cell3b_request_logger.py").write_text((src / "cell3b_request_logger.py").read_text().replace(
-        "(training data: tagged task#attempt)", "(skill arms: tagged task#a<arm>.<pass>)"))
+        "(training data: tagged task#attempt)", "(skill arms: tagged task#a<arm>.<pass>)") + DIGEST)
 
     c4 = (comb / "cell4_run.py").read_text()
     for old, new in (
@@ -162,11 +304,30 @@ def main():
          "    await asyncio.gather(*(one(i, a) for i, a in jobs))  # jobs are queued in pass order (pass 1 first)\n"),
     ):
         c4 = must_replace(c4, old, new)
-    # a line when pass 1 (phase 1) ends, so the session can be stopped there
+    # a line when a pass ends; after pass 1 the run ends by itself unless an arm solved more than EARLY_STOP_MAX
     c4 = must_replace(c4, "    print('PHASE', json.dumps(PHASE_STATS[-1]), flush=True)\n",
                       "    print('PHASE', json.dumps(PHASE_STATS[-1]), flush=True)\n"
-                      "    print('=' * 20, f'PASS {phase_no} COMPLETE: every arm ran once more on all 16 tasks (stop here for '\n"
-                      "          'the early comparison; cell 5 summarises)', '=' * 20, flush=True)\n")
+                      "    print('=' * 20, f'PASS {phase_no} COMPLETE: every arm ran once more on all 16 tasks', '=' * 20, flush=True)\n")
+    c4 = must_replace(c4, "        await run_phase(conc, jobs, k)\n",
+                      "        await run_phase(conc, jobs, k)\n"
+                      "        if k == 1 and len(PHASES) > 1:\n"
+                      "            per_arm = {a: sum(r['resolved'] for r in DONE if r['arm'] == a and r['phase'] == 1) for a in ARMS}\n"
+                      "            if max(per_arm.values()) <= EARLY_STOP_MAX:\n"
+                      "                print(f'EARLY STOP: pass 1 solved {per_arm}, no arm above {EARLY_STOP_MAX} -> pass 2 skipped, '\n"
+                      "                      'the run ends here (outputs saved)', flush=True)\n"
+                      "                break\n"
+                      "            print(f'pass 1 solved {per_arm}: an arm is above {EARLY_STOP_MAX} -> pass 2', flush=True)\n")
+    # the DIGEST line after each run's result line (cell 3b counts it from the model replies)
+    c4 = must_replace(c4, "                  + (f\"\\n      err: {row['error'][:200]!r}\" if row['end'] not in ('ok', 'time', 'tool_budget') else ''),\n"
+                          "                  flush=True)\n",
+                      "                  + (f\"\\n      err: {row['error'][:200]!r}\" if row['end'] not in ('ok', 'time', 'tool_budget') else ''),\n"
+                          "                  flush=True)\n"
+                          "            dg = {'job': f'{iid}#a{attempt}', 'instance_id': iid, 'arm': row['arm'], 'attempt': attempt,\n"
+                          "                  'resolved': row['resolved'], 'end': row['end'], 'patch_chars': row['patch_chars'],\n"
+                          "                  **digest_row(f'{iid}#a{attempt}', row['agent_s'])}\n"
+                          "            print(digest_line(dg), flush=True)\n"
+                          "            with open(RESULTS / 'digest.jsonl', 'a', encoding='utf-8') as fh:\n"
+                          "                fh.write(json.dumps(dg) + '\\n')\n")
     (OUT / "cell4_run.py").write_text(c4)
     (OUT / "cell5_summary.py").write_text(CELL5)
     print("wrote", OUT.relative_to(ROOT), sorted(p.name for p in OUT.iterdir()))

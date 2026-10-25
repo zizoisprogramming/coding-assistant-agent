@@ -10,6 +10,26 @@ change cell 4's printed output. **No training data from Claude, GPT or Gemini (u
 account runs its OWN notebook copy (a shared notebook made `kaggle kernels output` return only the latest version
 and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly quota is tight → small runs.
 
+### SKILL ARMS RESULT + NEXT RUN (2026-10-25 night, NEWEST — read first)
+- **Adapter test (cells_test_31b) stopped:** at 15 min, base_t02 3/7 dev16 vs sd_t02/sd_t07 0/7 (4 no-patch).
+  Fine-tuning parked.
+- **Skill arms pass 1 (log only: saved version cancelled after PASS 1 -> outputs lost;
+  data/results/2026-10-25_skill_arms/testing-arms.log):** sk_a 3/16 (5 no patch), sk_abc 2/16 (10 no patch),
+  sk_abcd 4/16 (5 no patch); mix 3.67 / 5.0 per pass. New solves: rich_3521 (abcd; mix 0/2); rich_3470 sk_a 2/2 incl.
+  pass 2 (mix 1/6). fastapi_14419 no patch in ALL arms (mix 2/6, never no-patch). abc vs abcd differ only on the 9
+  non-short issues (D can't act there) -> mostly noise. "time" ends: real slow runs (calls left) 3/4/4, same tasks
+  (14419, 3180, 3521, 14258); sk_a's extra ones = 28 calls x 17 s hitting both limits. Median 13-14 s per model call
+  in every arm (= mix). 10 min / 32 calls rejected: arms already average 367-391 s/task (mix 286-382, le5 347 timed
+  out on the 12-h sequential scorer).
+- **Next run built: kaggle/cells_skill_ad** (scripts/train/make_skill_arms_cells.py): sk_a vs sk_ad (= sk_a + the
+  short-issue section; scripts/make_skill_arms.py), 8 min / 28 calls, T0.2, 2 at once, 2 passes (64 runs); ENDS BY
+  ITSELF after pass 1 if no arm solves > 3 (run it as a saved version). DIGEST line after every run (in the log):
+  a.py use, raw reads, refusals, first-edit call, compactions, model vs tool seconds; results/digest.jsonl; cell 5
+  per-arm means. Sim (data/sim/armsim.py, SIM_CELLS / SIM_EARLY) passed both branches (local resolved=False = uv venv
+  has no pip; not a notebook issue).
+- **Rule (memory runs-must-end-by-themselves):** cancelling a saved version loses /kaggle/working; build runs to end
+  at the stopping point; say "saved version" vs "interactive" up front.
+
 ### CHECKPOINT 2026-10-25 evening (NEWEST — read first)
 **Two GPU runs are with the user; nothing else is pending on my side.**
 1. **TEST notebook (kaggle/cells_test_31b, adapter vs mix) — RUNNING/maybe done.** 240 runs = 40 tasks (24 test, unseen
