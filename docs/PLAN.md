@@ -10,6 +10,16 @@ change cell 4's printed output. **No training data from Claude, GPT or Gemini (u
 account runs its OWN notebook copy (a shared notebook made `kaggle kernels output` return only the latest version
 and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly quota is tight → small runs.
 
+### NEXT RUN BUILT: sk_a3 alone (2026-10-26, NEWEST — read first)
+- kaggle/cells_skill_a3, submissions/sk_a3 (scripts/make_skill_arms.py sk_a3): sk_a2 with mix's brake back: "before
+  your first edit, run no scripts or tests", the existing targeted test after it, scratch in /tmp only (write_file
+  refuses /tmp). Everything else = sk_a2. 8 min / 28 calls, T0.2, 2 at once, dev16, 2 passes.
+- Notebook: per-arm early stop (arms with <= 3 solved after pass 1 are dropped; none left -> the run ends, outputs
+  saved); digest counts "scripts/tests before edit" (the number that split solved from failed runs).
+  STOP_NEW_TASKS_AFTER_H in cell 2 = this account's quota (h) / 2 - 0.4 so a quota kill never loses the output.
+- Bar: > 3.67 per pass (mix) on dev16 before any LB submission (user). Time: pass 1 ~1.1 h wall (~2.2 h quota),
+  both ~2 h (~4 h).
+
 ### SOLVED-vs-FAILED PAIRS (2026-10-26, NEWEST — read first)
 Same task, one run solved and one failed (request log, data/results/2026-10-26_skill_a2/requests):
 - fastapi_15589: solved = read, NO EDIT YET, edit at call 13, then a check script. Failed = test script BEFORE the

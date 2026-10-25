@@ -15,6 +15,10 @@
            YET / STOP READING while the repo has no change) and reshow (repeats shown again, max 40 lines, instead of
            refused); no note / pin (used 0.1 times per run); timeout on repro and test commands (2 hung 240 s)
   sk_ad2   sk_a2 + the short-issue section, only for one- or two-line issues, its repro run under timeout 30
+  sk_a3    sk_a2 with mix's brake on own scripts back (2026-10-26: on the 7 winnable dev16 tasks, runs with 5+ script /
+           test runs before the first edit solved 2/11, with 0-4 solved 8/17; sk_a2 had invited scripts in
+           .git/agent/check.py): no scripts before the first edit, the existing targeted test after it, scratch in
+           /tmp only (where write_file refuses)
 
 Each prompt is a full rewrite of mix's (same contract, decision rule, edit mechanics, hygiene, budgets, sampling).
 read_file stays declared: the harness task message names it, and an undeclared tool call ends the task.
@@ -27,7 +31,8 @@ SKILL_SRC = ROOT / "scripts/agent_skill"
 MIX = ROOT / "submissions/mix"
 ARMS = {"sk_a": "find outline show note pin", "sk_abc": "find outline show note pin impact check",
         "sk_abcd": "find outline show note pin impact check", "sk_ad": "find outline show note pin",
-        "sk_a2": "find outline show banner reshow", "sk_ad2": "find outline show banner reshow"}
+        "sk_a2": "find outline show banner reshow", "sk_ad2": "find outline show banner reshow",
+        "sk_a3": "find outline show banner reshow"}
 
 AGENT_YAML = """# {arm}: mix + the agent's reading tool (.git/agent/a.py, installed by the skill) - scripts/make_skill_arms.py
 name: swe_agent
@@ -224,17 +229,13 @@ names and spellings. Ignore template boilerplate in the issue: HTML comments, ch
 ## Step 3: One check, one repair, then submit
 - Run ONLY the targeted test for the file you changed, always under a time limit:
   timeout 90 python3 -m pytest tests/test_target.py -x -q -k name -p no:anyio -o timeout=0 > /tmp/t1.log 2>&1; tail -n 25 /tmp/t1.log
-- A script of your own: write it with write_file to .git/agent/check.py (outside your patch; write_file refuses /tmp)
-  and run it under a time limit: timeout 30 python3 .git/agent/check.py
-- If the test fails, make one repair, then submit. A local green test is not the grader: submit even if the check is
+{own_scripts}- If the test fails, make one repair, then submit. A local green test is not the grader: submit even if the check is
   red or skipped. The working tree is graded as it is, so an edit made in time counts even if you never run a test.
 - NEVER run bare pytest, pytest ., or full-repo suites. NEVER repair pre-existing failures, missing fixtures, or import
   errors unrelated to your change. NEVER create test stubs.
 
 ## Step 4: Patch hygiene, then finish
-- Scratch scripts go in .git/agent/ or /tmp only. Files left anywhere else in the repository become part of your patch
-  and fail grading.
-- Before submit_patch: run git status --short and git diff --stat. If a test-looking path appears in the diff (tests/,
+{scratch}- Before submit_patch: run git status --short and git diff --stat. If a test-looking path appears in the diff (tests/,
   conftest.py, pytest.ini, pyproject.toml, setup.cfg, tox.ini), restore it: git checkout -- path
 - submit_patch and get_status are free: they never count against the budget. submit_patch can be re-issued after
   further edits; the last one wins. After your first submission, verify patch_size > 0.
@@ -271,10 +272,24 @@ tests/test_panel.py::test_margin; git log shows "add Panel margin"; hypothesis: 
 width; show pkg/panel.py Panel.render; edit.
 """
 
+OWN_SCRIPTS = """- A script of your own: write it with write_file to .git/agent/check.py (outside your patch; write_file refuses /tmp)
+  and run it under a time limit: timeout 30 python3 .git/agent/check.py
+"""
+OWN_SCRIPTS_NONE = """- Before your first edit, run no scripts or tests: read with a.py, then edit. Experiments before the edit cost calls
+  and often test the wrong case. After the edit, the existing targeted test above is your check.
+"""
+SCRATCH_AGENT = """- Scratch scripts go in .git/agent/ or /tmp only. Files left anywhere else in the repository become part of your patch
+  and fail grading.
+"""
+SCRATCH_TMP = """- Scratch scripts go in /tmp only. Files left anywhere else in the repository become part of your patch and fail grading.
+"""
+
 
 def prompt(arm):
-    if arm in ("sk_a2", "sk_ad2"):
-        return HEAD2.format(thin_issue=THIN2 if arm == "sk_ad2" else "")
+    if arm in ("sk_a2", "sk_ad2", "sk_a3"):
+        return HEAD2.format(thin_issue=THIN2 if arm == "sk_ad2" else "",
+                            own_scripts=OWN_SCRIPTS_NONE if arm == "sk_a3" else OWN_SCRIPTS,
+                            scratch=SCRATCH_TMP if arm == "sk_a3" else SCRATCH_AGENT)
     full = arm in ("sk_abc", "sk_abcd")
     extra = ("  python3 .git/agent/a.py impact                    after an edit: other places that use what you changed\n"
              "  python3 .git/agent/a.py check                     after an edit: .git/agent/repro.py + nearest tests + git status\n"

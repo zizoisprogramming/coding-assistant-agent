@@ -1,10 +1,10 @@
-"""Writes kaggle/cells_skill_a2/: sk_a2 vs sk_ad2 on dev16, 2 passes (user 2026-10-25, after sk_a 2/16 / sk_ad 3/16 in
-kaggle/cells_skill_ad = commit 333285f, and sk_a 3 / sk_abc 2 / sk_abcd 4 in kaggle/cells_skill_arms = commit 82c8d56).
+"""Writes kaggle/cells_skill_a3/: sk_a3 alone on dev16, 2 passes (user 2026-10-26, after sk_a2 7/32 / sk_ad2 3/32 in
+kaggle/cells_skill_a2 = commit 6216e2e; earlier: kaggle/cells_skill_ad = 333285f, kaggle/cells_skill_arms = 82c8d56).
 
     python3 scripts/make_skill_arms.py && python3 scripts/train/make_skill_arms_cells.py
 
-The run ENDS BY ITSELF after pass 1 when no arm solved more than EARLY_STOP_MAX tasks (a cancelled saved version
-loses all output files). After every run, the log gets a DIGEST line from the model replies (survives a cancel):
+After pass 1, an arm that solved EARLY_STOP_MAX or fewer tasks is dropped from pass 2; with none left the run ENDS BY
+ITSELF (a cancelled saved version loses all output files). After every run, the log gets a DIGEST line from the model replies (survives a cancel):
 reading-tool use (find / outline / show / note / pin), raw reads (cat, sed, grep, read_file), NOT SHOWN AGAIN
 refusals, the call of the first edit, compactions, model seconds vs tool seconds per call; results/digest.jsonl too.
 
@@ -27,8 +27,8 @@ sys.path.insert(0, str(ROOT / "scripts/train"))
 import make_gen_cells as G  # noqa: E402
 from make_test_cells import must_replace  # noqa: E402
 
-OUT = ROOT / "kaggle/cells_skill_a2"
-ARMS = ["sk_a2", "sk_ad2"]
+OUT = ROOT / "kaggle/cells_skill_a3"
+ARMS = ["sk_a3"]
 CONCURRENCY = 2
 EARLY_STOP_MAX = 3  # user: stop after pass 1 if every arm solved 3 or fewer
 
@@ -56,7 +56,7 @@ def mix_reference():
 
 BLOCK = '''
 # SKILL ARMS (scripts/train/make_skill_arms_cells.py): dev16 only, pass 1 before pass 2.
-ATTEMPTS = 2  # passes; the run ends by itself after pass 1 when no arm solved more than EARLY_STOP_MAX
+ATTEMPTS = 2  # passes; after pass 1 an arm with EARLY_STOP_MAX or fewer solved is dropped (none left: the run ends)
 EARLY_STOP_MAX = {early_stop_max!r}
 ARMS = {arms!r}
 ARM_FILES = {arm_files!r}
@@ -70,7 +70,7 @@ for l in open(DATA_DIR / 'tasks.jsonl'):
                                    'leak': False, 'unfair_names': [], 'env_partial': False, 'split': 'dev16'}}
 assert len(ROWS) == 16, f'dev16 tasks missing from tasks.jsonl: {{sorted(set(DEV16) - set(ROWS))}}'
 print(f"SKILL ARMS: {{len(ROWS)}} dev16 tasks | arms {{ARMS}} | {{ATTEMPTS}} passes | {{CONCURRENCY}} at once | "
-      f"ends after pass 1 if no arm solves more than {{EARLY_STOP_MAX}}")
+      f"after pass 1, arms solving {{EARLY_STOP_MAX}} or fewer stop")
 SUB_ROOT = WORKING_DIR / 'submissions'
 shutil.rmtree(SUB_ROOT, ignore_errors=True)
 for arm, files in ARM_FILES.items():
@@ -116,7 +116,7 @@ for arm in ARMS:
         m = lambda k: sum(x.get(k) or 0 for x in d) / len(d)
         fe = sorted(x['first_edit'] for x in d if x.get('first_edit'))
         print(f"  {arm:8} runs {len(d)} | a.py find {m('find'):.1f} outline {m('outline'):.1f} show {m('show'):.1f} "
-              f"| raw reads {m('raw_read') + m('read_file'):.1f} | reshown {m('reshown'):.1f} | banner runs "
+              f"| raw reads {m('raw_read') + m('read_file'):.1f} | scripts/tests before edit {m('pre_edit_runs'):.1f} | reshown {m('reshown'):.1f} | banner runs "
               f"{sum(1 for x in d if x.get('banner') or x.get('stop_banner'))} | call 1 wrong "
               f"{sum(1 for x in d if x.get('call1_wrong'))} | pip {m('pip'):.1f} | repro {m('repro'):.1f} pytest {m('pytest'):.1f} | edited {len(fe)}/{len(d)}, median "
               f"first edit at call {fe[len(fe) // 2] if fe else '-'} | compactions {m('compactions'):.1f} | model "
@@ -193,6 +193,8 @@ def _digest(job, messages, resp, seconds):
                 d['raw_read'] += 1
             if 'pytest' in cmd:
                 d['pytest'] += 1
+            if not d['first_edit'] and re.search(r'pytest|python3?\s+(-c\b|-\s*<<|-m\b|\S+\.py)', cmd) and not subs:
+                d['pre_edit_runs'] += 1  # a script or test run before the first edit (solved 8/17 at 0-4, 2/11 at 5+)
             if re.search(r'\bpip\b', cmd):
                 d['pip'] += 1
             if 'repro.py' in cmd:
@@ -235,7 +237,7 @@ def digest_row(job, agent_s):
     model_s = d['model_ms'] / 1000
     n = max(d['tool_calls'], 1)
     keys = ('install', 'install_at', 'find', 'outline', 'show', 'note', 'pin', 'impact', 'check', 'a_other', 'raw_read',
-            'read_file', 'refused', 'reshown', 'banner', 'stop_banner', 'pip', 'call1_wrong', 'repro', 'pytest', 'edit_file', 'write_file', 'first_edit', 'compactions',
+            'read_file', 'pre_edit_runs', 'refused', 'reshown', 'banner', 'stop_banner', 'pip', 'call1_wrong', 'repro', 'pytest', 'edit_file', 'write_file', 'first_edit', 'compactions',
             'max_prompt', 'out_tokens', 'model_calls', 'tool_calls', 'get_status', 'submit_patch', 'digest_errors')
     row = {k: d[k] for k in keys}
     row.update(model_s=round(model_s), tool_s=round(max(agent_s - model_s, 0)),
@@ -247,7 +249,7 @@ def digest_row(job, agent_s):
 def digest_line(r):
     return (f"      DIGEST install@{r['install_at'] or '-'} | a.py find {r['find']} outline {r['outline']} show "
             f"{r['show']} note {r['note']} pin {r['pin']} | raw reads {r['raw_read']} read_file {r['read_file']} | "
-            f"refused {r['refused']} reshown {r['reshown']} | banners {r['banner']}+{r['stop_banner']} stop | pip {r['pip']} | "
+            f"scripts/tests before edit {r['pre_edit_runs']} | refused {r['refused']} reshown {r['reshown']} | banners {r['banner']}+{r['stop_banner']} stop | pip {r['pip']} | "
             f"edit_file/write_file {r['edit_file'] + r['write_file']}, first edit at call {r['first_edit'] or '-'} | "
             f"repro {r['repro']} pytest {r['pytest']} | compactions {r['compactions']} max prompt {r['max_prompt']} | "
             f"model {r['model_s']}s ({r['model_s_per_call']}s/call) tools {r['tool_s']}s ({r['tool_s_per_call']}s/call) "
@@ -318,15 +320,22 @@ def main():
     c4 = must_replace(c4, "    print('PHASE', json.dumps(PHASE_STATS[-1]), flush=True)\n",
                       "    print('PHASE', json.dumps(PHASE_STATS[-1]), flush=True)\n"
                       "    print('=' * 20, f'PASS {phase_no} COMPLETE: every arm ran once more on all 16 tasks', '=' * 20, flush=True)\n")
-    c4 = must_replace(c4, "        await run_phase(conc, jobs, k)\n",
+    c4 = must_replace(c4, "async def run_all():\n    for k, (conc, jobs) in enumerate(PHASES, 1):\n"
+                          "        await run_phase(conc, jobs, k)\n",
+                      "async def run_all():\n    global N_JOBS\n    for k, (conc, jobs) in enumerate(PHASES, 1):\n"
                       "        await run_phase(conc, jobs, k)\n"
-                      "        if k == 1 and len(PHASES) > 1:\n"
+                      "        if k == 1 and len(PHASES) > 1:  # per arm: only arms above EARLY_STOP_MAX get pass 2\n"
                       "            per_arm = {a: sum(r['resolved'] for r in DONE if r['arm'] == a and r['phase'] == 1) for a in ARMS}\n"
-                      "            if max(per_arm.values()) <= EARLY_STOP_MAX:\n"
+                      "            keep = [a for a in ARMS if per_arm[a] > EARLY_STOP_MAX]\n"
+                      "            if not keep:\n"
                       "                print(f'EARLY STOP: pass 1 solved {per_arm}, no arm above {EARLY_STOP_MAX} -> pass 2 skipped, '\n"
                       "                      'the run ends here (outputs saved)', flush=True)\n"
                       "                break\n"
-                      "            print(f'pass 1 solved {per_arm}: an arm is above {EARLY_STOP_MAX} -> pass 2', flush=True)\n")
+                      "            dropped = [a for a in ARMS if a not in keep]\n"
+                      "            PHASES[1:] = [(c, [(i, at) for i, at in js if at.split('.')[0] in keep]) for c, js in PHASES[1:]]\n"
+                      "            N_JOBS = len(DONE) + sum(len(js) for _, js in PHASES[1:])\n"
+                      "            print(f'pass 1 solved {per_arm}: pass 2 runs {keep}' + (f'; dropped {dropped} '\n"
+                      "                  f'({EARLY_STOP_MAX} or fewer)' if dropped else ''), flush=True)\n")
     # the DIGEST line after each run's result line (cell 3b counts it from the model replies)
     c4 = must_replace(c4, "                  + (f\"\\n      err: {row['error'][:200]!r}\" if row['end'] not in ('ok', 'time', 'tool_budget') else ''),\n"
                           "                  flush=True)\n",
