@@ -10,6 +10,18 @@ change cell 4's printed output. **No training data from Claude, GPT or Gemini (u
 account runs its OWN notebook copy (a shared notebook made `kaggle kernels output` return only the latest version
 and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly quota is tight → small runs.
 
+### sk_a2 vs sk_ad2 RESULT (2026-10-26, NEWEST — read first)
+- engziadsamer/arms-again (new version, kaggle/cells_skill_a2), both passes completed (64 runs; outputs in
+  data/results/2026-10-26_skill_a2, request log 77 MB not downloaded yet).
+- **sk_a2 4 + 3 = 7/32 (3.5 per pass; mix 3.67), no patch 3 + 5 (4.0 per pass; mix 5.0).** Solves 11194 SS, 3882 SS,
+  15589 S, 4079 S, rich_3521 S (mix 0/2; memory arms solved it in 3 of 5 arm-runs). Never 14419 (mix 2/6), 3470 (1/6).
+  **sk_ad2 1 + 2 = 3/32, no patch 10 + 6:** D hurts even limited to short issues -> drop D for good.
+- Fixes worked mechanically: call 1 wrong 0/64, pip 0; banner fired in 28/32 sk_a2 runs; refusals 0 (reshown ~1);
+  sk_a2 edited in 29/32 runs, median first edit at call 17 (was 26-30); mean agent 333-353 s (mix ~346, scorer-safe-ish).
+- **Verdict: sk_a2 = mix on dev16.** More runs now edit, but the extra edits are wrong: the bottleneck is the
+  CORRECTNESS of the edit (13920, 14258, 14487, 3468 edited-but-wrong in every arm). Next: analyse wrong edits vs gold
+  (patches in the output; no GPU).
+
 ### NEXT RUN BUILT: sk_a2 vs sk_ad2 (2026-10-25 late, NEWEST — read first)
 - kaggle/cells_skill_a2 (scripts/train/make_skill_arms_cells.py), submissions/sk_a2 + sk_ad2
   (scripts/make_skill_arms.py sk_a2 sk_ad2; old arms stay as they ran). 8 min / 28 calls, T0.2, 2 at once, 2 passes,
