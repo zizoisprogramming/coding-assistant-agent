@@ -10,6 +10,27 @@ change cell 4's printed output. **No training data from Claude, GPT or Gemini (u
 account runs its OWN notebook copy (a shared notebook made `kaggle kernels output` return only the latest version
 and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly quota is tight → small runs.
 
+### SOLVED-vs-FAILED PAIRS (2026-10-26, NEWEST — read first)
+Same task, one run solved and one failed (request log, data/results/2026-10-26_skill_a2/requests):
+- fastapi_15589: solved = read, NO EDIT YET, edit at call 13, then a check script. Failed = test script BEFORE the
+  edit (call 12) tested the wrong case, passed, "why does it already work?" loop calls 12-21, STOP at 22, a DEBUG
+  print at 24 as the whole patch.
+- fastapi_11194: solved (sk_a2 x2) = read code calls 2-9, found _extract_form_body at call 6, edit at 14. Failed
+  (sk_ad2 x2) = repro scripts from call 2: 11-13 script calls, then the wrong function.
+- rich_3521: both experimented; the solved run's 2 scripts reproduced the real case (wide char + zero-width) and it
+  edited at call 9; the failed run tested another case (zero-width at the end) and fixed that.
+- rich_4079 (5-word issue "Inline table code"): split at the first search: solved went to markdown.py (tables in
+  Markdown), failed to table.py (the Table class) and added an unused parameter. Both kept reading ~10 calls after
+  STOP READING.
+- Counted on the 7 winnable tasks (56 runs): **0-4 script/test runs before the first edit -> solved 8/17; 5 or more ->
+  2/11 (0/9 without rich_3882)**. Correlation (a confused run may also experiment more), but it matches rung-3 lesson
+  "scratch scripts double experimenting and hurt; mix's write_file-/tmp refusal is a hidden brake".
+- **sk_a2 removed that brake:** its prompt tells the model to write scripts to .git/agent/check.py (write_file works
+  there); mix says /tmp only, where write_file refuses. D (sk_ad / sk_ad2) adds even more scripts -> worst arms.
+- Banner gaps: it only shows on a.py outputs (script loops never see it), and STOP READING is often ignored ~10 calls.
+- Candidate sk_a3 = sk_a2 with the brake back: no own scripts (no .git/agent/check.py; check = existing tests after
+  the edit only), everything else unchanged.
+
 ### WRONG-EDIT ANALYSIS (2026-10-26, NEWEST — read first)
 All 30 edited-but-failed runs of sk_a2 / sk_ad2, each patch read against the gold patch and the hidden test
 (no test output was saved; judged from test_patch):
