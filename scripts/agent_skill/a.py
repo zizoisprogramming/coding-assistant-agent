@@ -12,6 +12,12 @@
 Every output starts with the MEMORY header (what was read, notes, pinned lines): older tool outputs get dropped from
 the conversation, the header in the newest output never is. Installed by the skill into <repo>/.git/agent/ (git never
 puts .git in the patch); its state lives next to it. Never edits the repository. Always exits 0.
+
+Options (extra words in commands.txt, 2026-10-25, from the sk_a / sk_ad digests):
+  banner   while the repository has no change: after NO_EDIT_LOOKS looks or NO_EDIT_SECONDS since setup, every output
+           starts and ends with NO EDIT YET (later STOP READING): the edit came after call 28 in 6 of 32 runs
+  reshow   a repeat of a recent read is shown again (at most RESHOW_MAX lines, marked ALREADY SHOWN) instead of
+           refused: NOT SHOWN AGAIN cost 2-3 of the 28 calls per run
 """
 import ast
 import json
@@ -19,17 +25,22 @@ import os
 import re
 import subprocess
 import sys
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPRO = os.path.join(HERE, "repro.py")  # per task (2 tasks may run at once: a shared /tmp/repro.py would mix them up)
 WS = os.path.dirname(os.path.dirname(HERE))  # <repo>/.git/agent/a.py -> <repo>
 STATE = os.path.join(HERE, "state.json")
 SHOW_MAX, FIND_MAX, PIN_MAX, NOTES_MAX, RECENT = 150, 30, 40, 20, 3
+NO_EDIT_LOOKS, NO_EDIT_SECONDS, STOP_LOOKS, STOP_SECONDS, RESHOW_MAX = 10, 210, 15, 300, 40
+OPTIONS = {"banner", "reshow"}
 TEST_RE = re.compile(r"(^|/)(tests?|testing)/|(^|/)test_[^/]*\.py$|_test\.py$|(^|/)conftest\.py$")
 try:  # the commands this agent was taught (written by the skill's install.py)
     COMMANDS = open(os.path.join(HERE, "commands.txt")).read().split()
 except OSError:
     COMMANDS = "find outline show note pin impact check".split()
+OPTS = OPTIONS & set(COMMANDS)
+COMMANDS = [c for c in COMMANDS if c not in OPTIONS]
 STOP = {"self", "None", "True", "False", "return", "import", "from", "class", "def", "pass", "raise", "with", "else",
         "elif", "while", "for", "lambda", "yield", "assert", "async", "await", "print", "str", "int", "bool", "dict",
         "list", "tuple", "set", "type", "Optional", "Union", "Any", "List", "Dict", "Tuple", "kwargs", "args", "cls",
@@ -40,7 +51,7 @@ def load():
     try:
         return json.load(open(STATE))
     except Exception:  # noqa: BLE001
-        return {"looks": 0, "reads": [], "notes": [], "pins": []}
+        return {"looks": 0, "reads": [], "notes": [], "pins": [], "t0": time.time()}
 
 
 def save(st):
@@ -86,8 +97,11 @@ def header(st):
     by = {}
     for r in st["reads"]:
         by.setdefault(r["file"], []).append((r["a"], r["b"]))
-    lines = [f"===== MEMORY (survives context trimming) | looks {st['looks']} | notes {len(st['notes'])} | pinned lines "
-             f"{sum(p['b'] - p['a'] + 1 for p in st['pins'])} ====="]
+    if "note" in COMMANDS or st["notes"] or st["pins"]:
+        lines = [f"===== MEMORY (survives context trimming) | looks {st['looks']} | notes {len(st['notes'])} | pinned "
+                 f"lines {sum(p['b'] - p['a'] + 1 for p in st['pins'])} ====="]
+    else:
+        lines = [f"===== MEMORY (survives context trimming) | looks {st['looks']} ====="]
     if by:
         lines.append("read so far: " + " | ".join(f"{f} " + ",".join(f"{a}-{b}" for a, b in merge(rs)) for f, rs in by.items()))
     for i, n in enumerate(st["notes"], 1):
@@ -220,8 +234,13 @@ def cmd_show(st, args):
     for k, r in enumerate(reversed(st["reads"][-RECENT:])):
         seen = set(range(r["a"], r["b"] + 1))
         if r["file"] == path and len(want & seen) > 0.5 * len(want):
-            return (f"NOT SHOWN AGAIN: {path} lines {r['a']}-{r['b']} were shown {k + 1} look(s) ago and are still above "
-                    f"in this conversation. Use them, or ask for lines you have not seen.")
+            if "reshow" not in OPTS:
+                return (f"NOT SHOWN AGAIN: {path} lines {r['a']}-{r['b']} were shown {k + 1} look(s) ago and are still "
+                        f"above in this conversation. Use them, or ask for lines you have not seen.")
+            b = min(b, a + RESHOW_MAX - 1)
+            extra = extra + (f"ALREADY SHOWN {k + 1} look(s) ago ({path} {r['a']}-{r['b']}); again below, at most {RESHOW_MAX} "
+                     f"lines. If these are the lines to change, your next call is the edit.\n")
+            break
     st["looks"] += 1
     st["reads"].append({"file": path, "a": a, "b": b})
     return extra + "\n".join(f"{i:6}| {src[i - 1]}" for i in range(a, b + 1))
@@ -359,6 +378,25 @@ def cmd_check(st, args):
     return "\n\n".join(out)
 
 
+def has_change():
+    """Any change in the working tree (git status never lists .git, so the tool's own files do not count)."""
+    out = run("git status --porcelain --untracked-files=all", 20)
+    return bool(out.strip()) and not out.startswith("(timed out")
+
+
+def banner(st):
+    if "banner" not in OPTS or has_change():
+        return ""
+    secs = int(time.time() - st.get("t0", time.time()))
+    used = f"{st['looks']} looks, {secs // 60}:{secs % 60:02d} of the 8 minutes used"
+    if st["looks"] >= STOP_LOOKS or secs >= STOP_SECONDS:
+        return (f">>> STOP READING: {used}, and still no edit. Make your best edit with your next call: no edit scores "
+                f"zero, an imperfect edit can pass. <<<")
+    if st["looks"] >= NO_EDIT_LOOKS or secs >= NO_EDIT_SECONDS:
+        return f">>> NO EDIT YET: {used}. If you know which lines to change, your next call is the edit. <<<"
+    return ""
+
+
 HANDLERS = {"find": cmd_find, "outline": cmd_outline, "show": cmd_show, "note": cmd_note, "pin": cmd_pin,
             "impact": cmd_impact, "check": cmd_check}
 
@@ -373,8 +411,13 @@ def main(argv):
         except Exception as e:  # noqa: BLE001  never crash: the model gets a message and the header
             body = f"(error in {argv[0]}: {type(e).__name__}: {e})"
     save(st)
+    warn = banner(st)
+    if warn:
+        print(warn)
     print(header(st))
     print(body)
+    if warn:
+        print(warn)
 
 
 if __name__ == "__main__":

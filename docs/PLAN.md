@@ -10,6 +10,19 @@ change cell 4's printed output. **No training data from Claude, GPT or Gemini (u
 account runs its OWN notebook copy (a shared notebook made `kaggle kernels output` return only the latest version
 and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly quota is tight → small runs.
 
+### NEXT RUN BUILT: sk_a2 vs sk_ad2 (2026-10-25 late, NEWEST — read first)
+- kaggle/cells_skill_a2 (scripts/train/make_skill_arms_cells.py), submissions/sk_a2 + sk_ad2
+  (scripts/make_skill_arms.py sk_a2 sk_ad2; old arms stay as they ran). 8 min / 28 calls, T0.2, 2 at once, 2 passes,
+  ends by itself after pass 1 if no arm solves > 3. Saved version. ~4 h quota (pass 1), ~7.5 h (both).
+- Fixes (all from the arms-again request log): call 1 spelled out ("Call 1: run_skill_script", never pip, no internet)
+  + SKILL.md / install output say READY, nothing to pip install; usage shown as an invented concrete example (no
+  copyable template); a.py options in commands.txt: banner (NO EDIT YET at 10 looks or 210 s since setup, STOP READING
+  at 15 / 300 s, only while git status is clean) and reshow (repeat -> shown again, max 40 lines, ALREADY SHOWN);
+  note / pin removed; timeout 90 on pytest, timeout 30 on own scripts (in .git/agent/, write_file refuses /tmp).
+  sk_ad2 = + short-issue section limited to one- or two-line issues.
+- Question it answers: do the fixes lift the memory arm above mix (3.67), and does D add anything on short issues?
+  Digest adds reshown / banners / pip / call-1-wrong counts.
+
 ### sk_a vs sk_ad RESULT (2026-10-25 late, NEWEST — read first)
 - engziadsamer/arms-again (kaggle/cells_skill_ad), pass 1 only (early stop worked, outputs saved:
   data/results/2026-10-25_skill_ad incl. requests.jsonl 36 MB): **sk_a 2/16 (7 no patch), sk_ad 3/16 (9 no patch)**;

@@ -1,9 +1,11 @@
 """Copy a.py into <repository>/.git/agent/ (git never puts .git in the patch), write the commands this agent uses,
 reset the memory. Run once per task through run_skill_script."""
 import inspect
+import json
 import os
 import shutil
 import sys
+import time
 
 
 def workspace():
@@ -26,6 +28,8 @@ shutil.copyfile(os.path.join(here, "commands.txt"), os.path.join(target, "comman
 for stale in ("state.json", "state.json.tmp", "repro.py"):
     if os.path.exists(os.path.join(target, stale)):
         os.remove(os.path.join(target, stale))
+with open(os.path.join(target, "state.json"), "w") as f:  # the clock for a.py's NO EDIT YET banner starts here
+    json.dump({"looks": 0, "reads": [], "notes": [], "pins": [], "t0": time.time()}, f)
 cmds = open(os.path.join(here, "commands.txt")).read().split()
 usage = {
     "find": 'find "exact text" [PATH]      where it appears',
@@ -36,6 +40,8 @@ usage = {
     "impact": "impact                        after an edit: other places using what you changed",
     "check": "check                         after an edit: .git/agent/repro.py + nearest tests + git status",
 }
-print("INSTALLED. Use it with run_command: python3 .git/agent/a.py COMMAND ...\n" +
+print("READY. Your reading tool, with run_command: python3 .git/agent/a.py COMMAND ...\n" +
       "\n".join("  " + usage[c] for c in cmds if c in usage) +
-      "\nEvery output starts with your MEMORY (what you read, notes, pinned lines).")
+      ("\nEvery output starts with your MEMORY (what you read, notes, pinned lines)." if "note" in cmds else
+       "\nEvery output starts with your MEMORY (the lines you have read).") +
+      "\nNothing to pip install: the sandbox has no internet and every dependency is already installed.")

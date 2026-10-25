@@ -1,5 +1,5 @@
-"""Writes kaggle/cells_skill_ad/: sk_a vs sk_ad on dev16, 2 passes (user 2026-10-25, after the first skill-arms run:
-sk_a 3/16, sk_abc 2/16, sk_abcd 4/16 in pass 1; kaggle/cells_skill_arms = that run, generated at commit 82c8d56).
+"""Writes kaggle/cells_skill_a2/: sk_a2 vs sk_ad2 on dev16, 2 passes (user 2026-10-25, after sk_a 2/16 / sk_ad 3/16 in
+kaggle/cells_skill_ad = commit 333285f, and sk_a 3 / sk_abc 2 / sk_abcd 4 in kaggle/cells_skill_arms = commit 82c8d56).
 
     python3 scripts/make_skill_arms.py && python3 scripts/train/make_skill_arms_cells.py
 
@@ -27,8 +27,8 @@ sys.path.insert(0, str(ROOT / "scripts/train"))
 import make_gen_cells as G  # noqa: E402
 from make_test_cells import must_replace  # noqa: E402
 
-OUT = ROOT / "kaggle/cells_skill_ad"
-ARMS = ["sk_a", "sk_ad"]
+OUT = ROOT / "kaggle/cells_skill_a2"
+ARMS = ["sk_a2", "sk_ad2"]
 CONCURRENCY = 2
 EARLY_STOP_MAX = 3  # user: stop after pass 1 if every arm solved 3 or fewer
 
@@ -116,8 +116,9 @@ for arm in ARMS:
         m = lambda k: sum(x.get(k) or 0 for x in d) / len(d)
         fe = sorted(x['first_edit'] for x in d if x.get('first_edit'))
         print(f"  {arm:8} runs {len(d)} | a.py find {m('find'):.1f} outline {m('outline'):.1f} show {m('show'):.1f} "
-              f"note {m('note'):.1f} pin {m('pin'):.1f} | raw reads {m('raw_read') + m('read_file'):.1f} | refused "
-              f"{m('refused'):.1f} | repro {m('repro'):.1f} pytest {m('pytest'):.1f} | edited {len(fe)}/{len(d)}, median "
+              f"| raw reads {m('raw_read') + m('read_file'):.1f} | reshown {m('reshown'):.1f} | banner runs "
+              f"{sum(1 for x in d if x.get('banner') or x.get('stop_banner'))} | call 1 wrong "
+              f"{sum(1 for x in d if x.get('call1_wrong'))} | pip {m('pip'):.1f} | repro {m('repro'):.1f} pytest {m('pytest'):.1f} | edited {len(fe)}/{len(d)}, median "
               f"first edit at call {fe[len(fe) // 2] if fe else '-'} | compactions {m('compactions'):.1f} | model "
               f"{m('model_s'):.0f}s + tools {m('tool_s'):.0f}s")
 req = WORKING_DIR / 'requests' / 'requests.jsonl'
@@ -158,8 +159,12 @@ def _digest(job, messages, resp, seconds):
     d['model_calls'] += 1
     d['model_ms'] += int(seconds * 1000)
     last = _dump(messages[-1]) if messages else {}
-    if last.get('role') == 'tool' and 'NOT SHOWN AGAIN' in _text(last.get('content')):
-        d['refused'] += 1
+    if last.get('role') == 'tool':
+        out = _text(last.get('content'))
+        d['refused'] += 'NOT SHOWN AGAIN' in out
+        d['reshown'] += 'ALREADY SHOWN' in out
+        d['banner'] += 'NO EDIT YET' in out
+        d['stop_banner'] += 'STOP READING' in out
     r = _dump(resp)
     usage = r.get('usage') or {}
     pt = usage.get('prompt_tokens') or 0
@@ -188,6 +193,8 @@ def _digest(job, messages, resp, seconds):
                 d['raw_read'] += 1
             if 'pytest' in cmd:
                 d['pytest'] += 1
+            if re.search(r'\bpip\b', cmd):
+                d['pip'] += 1
             if 'repro.py' in cmd:
                 d['repro'] += 1
             edit = 'git apply' in cmd or 'sed -i' in cmd or ('.write' in cmd and '<<' in cmd)
@@ -203,6 +210,8 @@ def _digest(job, messages, resp, seconds):
             d['install_at'] = d['install_at'] or n
         else:
             d[name] += 1
+        if n == 1 and name != 'run_skill_script':
+            d['call1_wrong'] = 1
         if edit and not d['first_edit']:
             d['first_edit'] = n
 
@@ -226,7 +235,7 @@ def digest_row(job, agent_s):
     model_s = d['model_ms'] / 1000
     n = max(d['tool_calls'], 1)
     keys = ('install', 'install_at', 'find', 'outline', 'show', 'note', 'pin', 'impact', 'check', 'a_other', 'raw_read',
-            'read_file', 'refused', 'repro', 'pytest', 'edit_file', 'write_file', 'first_edit', 'compactions',
+            'read_file', 'refused', 'reshown', 'banner', 'stop_banner', 'pip', 'call1_wrong', 'repro', 'pytest', 'edit_file', 'write_file', 'first_edit', 'compactions',
             'max_prompt', 'out_tokens', 'model_calls', 'tool_calls', 'get_status', 'submit_patch', 'digest_errors')
     row = {k: d[k] for k in keys}
     row.update(model_s=round(model_s), tool_s=round(max(agent_s - model_s, 0)),
@@ -238,7 +247,8 @@ def digest_row(job, agent_s):
 def digest_line(r):
     return (f"      DIGEST install@{r['install_at'] or '-'} | a.py find {r['find']} outline {r['outline']} show "
             f"{r['show']} note {r['note']} pin {r['pin']} | raw reads {r['raw_read']} read_file {r['read_file']} | "
-            f"refused {r['refused']} | edit_file/write_file {r['edit_file'] + r['write_file']}, first edit at call {r['first_edit'] or '-'} | "
+            f"refused {r['refused']} reshown {r['reshown']} | banners {r['banner']}+{r['stop_banner']} stop | pip {r['pip']} | "
+            f"edit_file/write_file {r['edit_file'] + r['write_file']}, first edit at call {r['first_edit'] or '-'} | "
             f"repro {r['repro']} pytest {r['pytest']} | compactions {r['compactions']} max prompt {r['max_prompt']} | "
             f"model {r['model_s']}s ({r['model_s_per_call']}s/call) tools {r['tool_s']}s ({r['tool_s_per_call']}s/call) "
             f"| out tokens {r['out_tokens']}" + (f" | DIGEST ERRORS {r['digest_errors']}" if r['digest_errors'] else ''))
