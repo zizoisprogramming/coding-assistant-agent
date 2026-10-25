@@ -26,7 +26,23 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   data/results/2026-10-25_train31). **TEST notebook BUILT (kaggle/cells_test_31b, commit 87f2160):** base_t02 / sd_t02
   / sd_t07 on 24 test tasks + dev16 (never generated on → clean; same repos as trained public tasks → reported apart),
   2 runs each = 240 runs ≈ 6 h at 41/h ≈ 13 h quota. Sim passed (data/sim/testsim.py).
-- **NEXT (proposed, awaiting user go):** one prompt change: full rewrite where "minimal" no longer means "stop at the
+- **FAILURE-PATTERN ANALYSIS (2026-10-25; dev16 625 runs + val16 77 local traces; 574 exported failed generation runs
+  = 52 public + 522 rebench, data/results/2026-10-25_failed via kaggle/cells_export_failed):** (A) reading paralysis:
+  no-edit runs found the gold file by call ~2 (80%) then read it 8-22x in ~32-line slices, 24% re-reads (57% of them
+  after a compaction), the 28-call budget binds (median 345 s < 480 s) - public 31% / rebench 16% of failures;
+  (B) missed another file: 65% of 150 runs the missed file uses a name our own edit touched (plumbing/siblings, e.g.
+  rich_3777 diagnose.py) - public 33% / rebench 25%; (C) wrong fix in the right file (public 25% / rebench 48%): half
+  never ran an existing test; runs that checked after the last edit solved 50% vs 28%; (D) thin issues (22/52 public
+  failures < 30 words) -> wrong area/direction; (E) unwinnable: hidden exact texts / huge features (~1/3 of dev16).
+  History: ~20 dev16 designs all 19-69% no-edit, warnings (r4b_warn) and locator/editor splits worse.
+- **SKILL ARMS BUILT (commit 82c8d56):** .git/agent/a.py via a skill (le6's proven install): find/outline/show/note/pin
+  with a MEMORY header in every output (reads, notes, pinned lines) + refusal of repeats of the last 3 reads; impact
+  (callers of changed defs + where neighbouring names live); check (.git/agent/repro.py + nearest tests + git status
+  flags). Arms sk_a (memory), sk_abc (+impact+check), sk_abcd (+thin-issue decoding), full mix rewrites, read_file kept
+  declared (task message names it; undeclared call = task lost). Notebook kaggle/cells_skill_arms: dev16 only, T0.2,
+  8 min, 2 at once = mix's 64 dev16 runs (3.67 solved / 5.0 no-patch per pass, embedded control); pass 1 then pass 2.
+  Lessons: write_file refuses /tmp ("escapes workspace root") -> repro in .git/agent/; .txt not extension-less files.
+- **NEXT (old proposal, superseded by the skill arms):** one prompt change: full rewrite where "minimal" no longer means "stop at the
   first spot" (check all places the bug lives: callers, siblings, sync/async twins, other files using the name) + a clean
   ending (no submit loops); measure on the swing set (tasks mix solves sometimes), base vs change, same tasks.
 
