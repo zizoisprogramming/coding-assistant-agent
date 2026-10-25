@@ -1,15 +1,44 @@
 # Gemma 4 Developer Agent — Competition Plan (living doc)
 
-## >>> START HERE (session handoff, updated 2026-10-24) <<<
+## >>> START HERE (session handoff, updated 2026-10-25) <<<
 **User:** beginner to agents/ADK (ML engineer background); wants step-by-step plain explanations, research-backed
-claims (verify, cite), chat before building, decides when planning ends. Rules: one change per arm where possible;
+claims (verify, cite), chat before building, decides when planning ends. Rules: several changes per run are fine
+(since 10-25) but bundle them into arms;
 prompts generic (no dev-task content); competition data never committed (data/ is gitignored, incl. adapters built
 from sample data); Kaggle token only in ~/.kaggle/access_token. Give Kaggle cells as FILE LINKS, never pasted; never
 change cell 4's printed output. **No training data from Claude, GPT or Gemini (user decision, D14).** Each Kaggle
 account runs its OWN notebook copy (a shared notebook made `kaggle kernels output` return only the latest version
 and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly quota is tight → small runs.
 
-### UPDATE 2026-10-25 (read first, then the 10-24 checkpoint below)
+### CHECKPOINT 2026-10-25 evening (NEWEST — read first)
+**Two GPU runs are with the user; nothing else is pending on my side.**
+1. **TEST notebook (kaggle/cells_test_31b, adapter vs mix) — RUNNING/maybe done.** 240 runs = 40 tasks (24 test, unseen
+   repos + dev16) x 3 arms (base_t02 = mix T0.2, sd_t02 = adapter T0.2, sd_t07 = adapter T0.7) x 2; 6 at once, 15 min.
+   Early lines: adapter solved only mix-solved test tasks (lizard-370, policyuniverse-147, glyphsLib-1015); 0/5 on dev16
+   early. Reference: mix T1.0 11/24 on test (combined run), mix ~3-4/16 on dev16. When the user pastes cell 5: compare
+   per set; run scripts/triage.py on its output (attempts "<arm>.<n>"; jobs task#a<arm>.<n>) for submit loops/no-edit.
+   Adapter = engziadsamer/finetuning-shard-2 output (adapter_31b/final, r16/a16; val 0.1932 -> 0.1605), dataset
+   engziadsamer/model-trial-2.
+2. **SKILL ARMS notebook (kaggle/cells_skill_arms) — BUILT, user to run.** dev16 only; sk_a / sk_abc / sk_abcd (see
+   "SKILL ARMS BUILT" below); T0.2, 8 min, 2 at once = mix's 64 dev16 runs (control embedded: 3.67 solved, 5.0 no-patch
+   per 16-task pass; per task in MIX_REF). Pass 1 (48 runs, ~2.5 h, ~5 h quota) prints "PASS 1 COMPLETE" -> user may stop
+   and run cell 5; pass 2 = 48 more. Inputs: competition, wheelhouse, model 31B, rodrigospalma/ood45-bugfix-split,
+   ziadsamer/rebench-new-cp312, gold-check output (ziad23samer/test-gemma-comp or its dataset); Internet OFF; set
+   STOP_NEW_TASKS_AFTER_H = quota/2 - 0.4. AFTER IT: run scripts/triage.py on its output + check compliance (did the
+   model install the skill first, read only via a.py, use note/pin/impact/check, how often read_file / cat / NOT SHOWN
+   AGAIN / SCRATCH FILE); then decide pass 2 / which arm to push / LB.
+- **How to read results:** scripts/triage.py extract/report; scripts/failure_analysis/ (fail_load, devtime, devgroups,
+  devshort, devcase). Exported failed runs: data/results/2026-10-25_failed/ (4 files, 574 runs). Triage files:
+  data/results/2026-10-25_triage/. Local sims: data/sim/testsim.py (test notebook), data/sim/armsim.py (skill arms,
+  fake model drives the real skill through the real harness; run with data/venv_harness/bin/python).
+- **Skill arm sources:** scripts/agent_skill/{a.py,install.py} -> scripts/make_skill_arms.py writes submissions/sk_*;
+  scripts/train/make_skill_arms_cells.py writes the notebook (run both with .venv/bin/python; pack.py validates).
+- **Ideas parked:** memory script alone in a submission vs + adapter; FastAPI docs_src tutorial files for features;
+  32-36 calls arm (user: no doubling); per-task analysis of rebench "wrong fix" group (253 runs) not read one by one.
+- **Kaggle lessons today:** kagglehub version download only works in INTERACTIVE sessions (committed -> "New Datasets
+  cannot be attached in non-interactive sessions") and it mounts at the SAME path as the attached latest version.
+
+### UPDATE 2026-10-25 (earlier today)
 - **Training:** session 1 PAUSED at step 93/152 after 10.48 h (fatmazenhom/finetuning-shard-1). Val (8-segment
   subset) 0.1797 @21 → 0.1742 @42 → 0.1725 @63 → 0.1714 @84 (full val @start 0.1932); train avg 0.163; peak 18.4 GiB.
   Session 2 RUNNING (resumed at 93; ~7 h real). Then: final val on all 28 vs 0.1932, then the TEST notebook (not built).
