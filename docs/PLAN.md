@@ -10,6 +10,28 @@ change cell 4's printed output. **No training data from Claude, GPT or Gemini (u
 account runs its OWN notebook copy (a shared notebook made `kaggle kernels output` return only the latest version
 and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly quota is tight → small runs.
 
+### CHECKPOINT 2026-10-26 late night (NEWEST — read first)
+- **Running now:** sk_a5 vs sk_a5r on dev16 (kaggle/cells_skill_a5, kernel ziadsamer/fork-of-generation-all-shards-gpu,
+  saved version, ends by itself; per-arm early stop). The same kernel slug held sk_a3 and sk_a4/p1/a2_t05 before:
+  only the LATEST version's output is downloadable (sk_a3's request log is lost).
+  Partial (17/64, user paste): 3 solved; failed edits 0 in all 7 shown runs; replace used 1-2x/run (14419 a5r used
+  edit_file 5x, replace 0); first edits 10, 16, 18, 25, 29, 29, 30 (3 refused after call 28); rich_3934 a5 used
+  `run` 5x (4 before the edit); rich_3521 a5 27.6 s per model call.
+- **When it finishes:** `uvx --from kaggle kaggle kernels output ziadsamer/fork-of-generation-all-shards-gpu -p
+  data/results/2026-10-27_skill_a5 --file-pattern 'results/(gen_per_task|digest|phases)|\.log$|results/gen/patches/'`
+  (+ 'requests\.jsonl$' if needed); answer the 5 questions in AGREED NEXT STEPS (digest first), update
+  data/results/dev16_reference.md (add r6 columns in data/results/make_dev16_reference.py), then BUILD THE NAVIGATOR ARM.
+- **LB:** sk_a2 submitted (dist/submission.zip); score not reported yet. mix = 0.17.
+- **Rules added this session:** runs end by themselves (memory runs-must-end-by-themselves; STOP_NEW_TASKS_AFTER_H
+  in cell 2 line 12 = quota h / 2 - 0.4); new arm prompts are full rewrites (memory prompts-are-full-rewrites);
+  test set = 7 solvable tasks x 2 repeats (14 runs/arm).
+- **Where things are:** arms scripts/make_skill_arms.py (sk_a..sk_a5r, VARIANTS for sk_a2_t05; old arms keep their own
+  a.py copies -> regenerate only new arms: `python3 scripts/make_skill_arms.py ARM`); tool scripts/agent_skill/a.py
+  (options in commands.txt: banner reshow brake plangate debugflag; commands find outline show note pin impact check
+  plan replace run); notebooks scripts/train/make_skill_arms_cells.py (`uv run python ...`, needs pyarrow) ->
+  kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
+  local reference table data/results/dev16_reference.md.
+
 ### AGREED NEXT STEPS (2026-10-26 night, NEWEST — read first)
 - **sk_a5 / sk_a5r running** (kaggle/cells_skill_a5). When done, read the DIGEST averages first (cell 5), then score:
   1. failed edits per run (sk_a2: ~1 in 5 edit_file calls failed) -> replace becomes the base if they drop;
