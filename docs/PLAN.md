@@ -32,6 +32,16 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
+### sk_nav_s6 / sk_nav_s6_32 RESULT: 6/16 (2026-10-28, NEWEST — read first)
+- sk_nav_s6_32 (prompt says 28 calls / 6 min; config 32 calls / 8 min) 6/16 = best 16-task pass ever (mix 3.67, best
+  before 4): 11194, 3882, 3521, 3470, 4079 + rich_3180 (tier 3: never solved before, ~150 runs; real fix in
+  rich/cells.py chop_cells). Mean agent 344 s (= sk_a2 343), 1 time end. sk_nav_s6 (config 28) 3/16, 370 s, 5 time ends.
+- The hidden cushion paid directly: rich_4079 (first edit call 29) and rich_3470 (31) solved; under 28 they are refused.
+- Call 1 wrong 16/16 (sk_nav prompt); s6_32 installed the tool at call 2-3 mostly, 3 runs at 19-21, 1 never; 95 raw
+  reads. fastapi_15589 (tier 1) lost: tool at call 19, read_file + repro scripts, no source edit.
+- One pass: the 28-config twin got 3, so part of the gap is noise. Outputs: data/results/2026-10-28_skill_s6/.
+- LB candidate: sk_nav_s6_32 (344 s/task like sk_a2; whether that fits the 12 h = sk_a2's LB outcome).
+
 ### NEXT RUN BUILT: sk_nav_s6 vs sk_nav_s6_32, all 16, 1 pass (2026-10-28, NEWEST — read first)
 - Why: the model does not count its calls (get_status 3x in ~450 replies; the budget appears in its reasoning only
   after "Tool call budget exhausted"); with a 32-call prompt late tasks edited later (3470 28/29 -> 35, 4079 29 -> 32).
