@@ -1,6 +1,6 @@
-"""Writes kaggle/cells_skill_nav2/: sk_nav2 (navigator, install as route step 1) vs sk_nav2_32 (the same with 32 tool
-calls) on the 7 winnable dev16 tasks (the only ones any arm or mix ever solved), 2 passes (user 2026-10-27). Arms may
-differ only in max_tool_calls. Earlier: kaggle/cells_skill_nav = 329307b (sk_nav 5 + 3 of 7). Earlier: kaggle/cells_skill_a5 = 3bef97a (sk_a5 3/16, sk_a5r 3/16).
+"""Writes kaggle/cells_skill_nav32/: sk_nav_32 (sk_nav, file for file, with 32 tool calls) alone on the 7 winnable
+dev16 tasks (the only ones any arm or mix ever solved), 2 passes (user 2026-10-27). Arms may differ only in
+max_tool_calls. Earlier: kaggle/cells_skill_nav2 = 8220cc6 (sk_nav2 2/7, sk_nav2_32 3/7, pass 1 only). Earlier: kaggle/cells_skill_nav = 329307b (sk_nav 5 + 3 of 7). Earlier: kaggle/cells_skill_a5 = 3bef97a (sk_a5 3/16, sk_a5r 3/16).
 Earlier: kaggle/cells_skill_a4p1 = 32f7f2a (sk_a4 2/16, sk_p1 6/32, sk_a2_t05 3/16). Earlier runs: kaggle/cells_skill_a3 = 6c5d224 (sk_a3 2/16), kaggle/cells_skill_a2 = 6216e2e
 (sk_a2 7/32, sk_ad2 3/32), kaggle/cells_skill_ad = 333285f, kaggle/cells_skill_arms = 82c8d56.
 
@@ -30,8 +30,8 @@ sys.path.insert(0, str(ROOT / "scripts/train"))
 import make_gen_cells as G  # noqa: E402
 from make_test_cells import must_replace  # noqa: E402
 
-OUT = ROOT / "kaggle/cells_skill_nav2"
-ARMS = ["sk_nav2", "sk_nav2_32"]
+OUT = ROOT / "kaggle/cells_skill_nav32"
+ARMS = ["sk_nav_32"]
 # the winnable dev16 tasks: tier 1 (mix 55-95%) + tier 2 (14-35% over all arms); the other 9 were 0 in ~150 runs
 TASKS = ["rich_3882", "fastapi_15589", "fastapi_11194", "rich_4079", "rich_3521", "fastapi_14419", "rich_3470"]
 CONCURRENCY = 2

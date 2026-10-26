@@ -35,6 +35,8 @@
   sk_nav2  sk_nav with install as step 1 of the route (sk_nav: call 1 wrong in 8/14, 3 runs edited at call 29, one
            call too late), the contract thought out before any call; prompt rewritten (user 2026-10-27)
   sk_nav2_32  sk_nav2 with 32 tool calls instead of 28 (eval_config.yaml and the prompt; time stays 8 minutes)
+  sk_nav_32  an exact copy of sk_nav (5 then 3 of 7) with 32 tool calls (eval_config.yaml + the prompt's three budget
+           numbers) (user 2026-10-27, after sk_nav2 2/7, sk_nav2_32 3/7)
   sk_p1    new design from all runs so far (user 2026-10-26): look (8 looks) -> plan "FILE:LINES what and why" (gated:
            reading BLOCKED until the plan; the plan shows the closest existing test, for location and conventions) ->
            5 more looks -> edit (gated) -> one targeted test -> submit; no scripts; brake + debugflag; own prompt
@@ -699,6 +701,7 @@ def prompt(arm):
 
 
 VARIANTS = {"sk_a2_t05": ("sk_a2", 0.5)}  # arm -> (arm it copies file for file, temperature)
+CALL_VARIANTS = {"sk_nav_32": ("sk_nav", 32)}  # arm -> (arm it copies file for file, max_tool_calls)
 
 
 def variant(arm):
@@ -715,12 +718,35 @@ def variant(arm):
     print("wrote", out.relative_to(ROOT), f"| copy of {base}, temperature {temp}")
 
 
+def call_variant(arm):
+    """A file-for-file copy with another tool-call budget: eval_config.yaml and the prompt's budget numbers."""
+    base, calls = CALL_VARIANTS[arm]
+    out = ROOT / "submissions" / arm
+    shutil.rmtree(out, ignore_errors=True)
+    shutil.copytree(ROOT / "submissions" / base, out)
+    ev = out / "eval_config.yaml"
+    assert ev.read_text().count("max_tool_calls: 28") == 1
+    ev.write_text(ev.read_text().replace("max_tool_calls: 28", f"max_tool_calls: {calls}"))
+    sp = out / "prompts/system.md"
+    text = sp.read_text()
+    for old in ("You have 28 tool", "after call 28 is refused", "An edit after call 28:"):
+        assert text.count(old) == 1, old
+        text = text.replace(old, old.replace("28", str(calls)))
+    assert "28" not in text, "a budget number left at 28"
+    sp.write_text(text)
+    ay = out / "agent.yaml"
+    ay.write_text(ay.read_text().replace(f"# {base}: ", f"# {arm} = {base} with {calls} tool calls; {base}: ", 1))
+    print("wrote", out.relative_to(ROOT), f"| copy of {base}, max_tool_calls {calls}")
+
+
 def main():
     import sys
-    wanted = sys.argv[1:] or list(ARMS) + list(VARIANTS)
+    wanted = sys.argv[1:] or list(ARMS) + list(VARIANTS) + list(CALL_VARIANTS)
     for arm in [a for a in wanted if a in VARIANTS]:
         variant(arm)
-    for arm, cmds in ((a, ARMS[a]) for a in wanted if a not in VARIANTS):
+    for arm in [a for a in wanted if a in CALL_VARIANTS]:
+        call_variant(arm)
+    for arm, cmds in ((a, ARMS[a]) for a in wanted if a not in VARIANTS and a not in CALL_VARIANTS):
         out = ROOT / "submissions" / arm
         shutil.rmtree(out, ignore_errors=True)
         (out / "prompts").mkdir(parents=True)
