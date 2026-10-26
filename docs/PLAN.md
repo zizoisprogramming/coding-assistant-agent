@@ -24,6 +24,7 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   a.py output: whole-function show adds its top callers + "decide: edit it, or show the caller that feeds it";
   ping-pong detector (~4 find/line-peeks without a whole-function show); probe counter (2 probes -> decide); prompt asks
   for WHERE / WHY / CHANGE before the first edit. No blocks, no bans.
+  **Its prompt is written fresh as one full text (user: no gluing / find-and-replace of older prompts).**
 - **Test set from now on: the 7 tier-1/2 tasks x 2 repeats (14 runs per arm, ~1.5 h quota)**; a full-16 check of time
   per task only before an LB submission.
 
