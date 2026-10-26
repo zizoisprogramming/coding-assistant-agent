@@ -20,7 +20,11 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
     existing test function for location + conventions; plan kept in MEMORY) -> 5 more looks -> edit (gated) -> one
     targeted test -> submit; no scripts; brake + debugflag; new prompt (1,081 words; mix 783, sk_a2 1,018).
   - Broken-code (py_compile) alarm dropped (user: its only evidence was one sk_ad2 patch).
-- T0.2 both; 8 min / 28 calls; 2 passes; per-arm early stop (<= 3 after pass 1 -> dropped). Bar: >= 9 over 2 passes.
+  - **sk_a2_t05 (3rd arm, user):** an exact copy of the submitted sk_a2 (its own a.py) with temperature 0.5.
+  - sk_p1 prompt: heading "## Example (an invented package)" -> "## Example " (user's edit, kept in the generator).
+- sk_a4 / sk_p1 at T0.2, sk_a2_t05 at T0.5 (sim checked the temperature each arm sends); 8 min / 28 calls; 2 passes;
+  per-arm early stop (<= 3 after pass 1 -> dropped). Bar: >= 9 over 2 passes. Pass 1 = 48 runs ~2.5 h wall (~5 h
+  quota); each arm continuing to pass 2 ~0.9 h wall (~1.8 h quota).
   a.py options unit-tested on a scratch repo; full harness sim passed (plan saved, plan gate BLOCKED after 5 looks).
 - Old arms keep their own a.py copies (sk_a2 / sk_ad2 / sk_a3 restored after regenerating).
 

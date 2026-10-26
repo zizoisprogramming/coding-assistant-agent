@@ -72,7 +72,7 @@ names and spellings. Ignore template boilerplate in the issue: HTML comments, ch
   patch_size > 0. If get_status shows under 90 seconds remaining, call submit_patch immediately. When submit_patch
   returns patch_size above 0, reply with one sentence describing the fix and make no further tool calls.
 
-## Example (an invented package)
+## Example 
 Task: "Client should reject a negative timeout." Call 1 is run_skill_script. find "timeout" shows pkg/client.py:88
 self.timeout = timeout; show pkg/client.py Client.__init__ shows a check two lines below raising
 ValueError("retries must be >= 0"). Plan: plan "pkg/client.py:88-90 raise ValueError for a negative timeout like the

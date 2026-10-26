@@ -1,5 +1,5 @@
-"""Writes kaggle/cells_skill_a4p1/: sk_a4 (sk_a2 optimized) vs sk_p1 (new plan-gated design) on dev16, 2 passes
-(user 2026-10-26). Earlier runs: kaggle/cells_skill_a3 = 6c5d224 (sk_a3 2/16), kaggle/cells_skill_a2 = 6216e2e
+"""Writes kaggle/cells_skill_a4p1/: sk_a4 (sk_a2 optimized) vs sk_p1 (new plan-gated design) vs sk_a2_t05 (sk_a2 at
+temperature 0.5) on dev16, 2 passes (user 2026-10-26). Earlier runs: kaggle/cells_skill_a3 = 6c5d224 (sk_a3 2/16), kaggle/cells_skill_a2 = 6216e2e
 (sk_a2 7/32, sk_ad2 3/32), kaggle/cells_skill_ad = 333285f, kaggle/cells_skill_arms = 82c8d56.
 
     python3 scripts/make_skill_arms.py && python3 scripts/train/make_skill_arms_cells.py
@@ -29,7 +29,7 @@ import make_gen_cells as G  # noqa: E402
 from make_test_cells import must_replace  # noqa: E402
 
 OUT = ROOT / "kaggle/cells_skill_a4p1"
-ARMS = ["sk_a4", "sk_p1"]
+ARMS = ["sk_a4", "sk_p1", "sk_a2_t05"]
 CONCURRENCY = 2
 EARLY_STOP_MAX = 3  # user: stop after pass 1 if every arm solved 3 or fewer
 

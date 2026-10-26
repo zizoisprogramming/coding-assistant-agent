@@ -22,6 +22,7 @@
   sk_a4    sk_a2 + a.py options brake (at STOP READING, reading is BLOCKED until the repository has a change: 9 edits
            came after call 28 in sk_a2 / sk_a3, banners were read through) and debugflag (debug-looking added lines are
            listed in every output: one failed patch was a lone DEBUG print) (user 2026-10-26: "optimize a2")
+  sk_a2_t05  an exact copy of the submitted sk_a2 (its own a.py) with temperature 0.5 instead of 0.2 (user 2026-10-26)
   sk_p1    new design from all runs so far (user 2026-10-26): look (8 looks) -> plan "FILE:LINES what and why" (gated:
            reading BLOCKED until the plan; the plan shows the closest existing test, for location and conventions) ->
            5 more looks -> edit (gated) -> one targeted test -> submit; no scripts; brake + debugflag; own prompt
@@ -372,7 +373,7 @@ names and spellings. Ignore template boilerplate in the issue: HTML comments, ch
   patch_size > 0. If get_status shows under 90 seconds remaining, call submit_patch immediately. When submit_patch
   returns patch_size above 0, reply with one sentence describing the fix and make no further tool calls.
 
-## Example (an invented package)
+## Example 
 Task: "Client should reject a negative timeout." Call 1 is run_skill_script. find "timeout" shows pkg/client.py:88
 self.timeout = timeout; show pkg/client.py Client.__init__ shows a check two lines below raising
 ValueError("retries must be >= 0"). Plan: plan "pkg/client.py:88-90 raise ValueError for a negative timeout like the
@@ -411,10 +412,29 @@ def prompt(arm):
     return text + TAIL.format(example_tail=tail)
 
 
+VARIANTS = {"sk_a2_t05": ("sk_a2", 0.5)}  # arm -> (arm it copies file for file, temperature)
+
+
+def variant(arm):
+    base, temp = VARIANTS[arm]
+    out = ROOT / "submissions" / arm
+    shutil.rmtree(out, ignore_errors=True)
+    shutil.copytree(ROOT / "submissions" / base, out)
+    samp = out / "configs/sampling.yaml"
+    text = samp.read_text()
+    assert text.count("temperature: 0.2\n") == 1, "the copied arm must use temperature 0.2"
+    samp.write_text(text.replace("temperature: 0.2\n", f"temperature: {temp}  # {arm}: {base} at {temp}\n"))
+    ay = out / "agent.yaml"
+    ay.write_text(ay.read_text().replace(f"# {base}: ", f"# {arm} = {base} with temperature {temp}; {base}: ", 1))
+    print("wrote", out.relative_to(ROOT), f"| copy of {base}, temperature {temp}")
+
+
 def main():
     import sys
-    wanted = sys.argv[1:] or list(ARMS)
-    for arm, cmds in ((a, ARMS[a]) for a in wanted):
+    wanted = sys.argv[1:] or list(ARMS) + list(VARIANTS)
+    for arm in [a for a in wanted if a in VARIANTS]:
+        variant(arm)
+    for arm, cmds in ((a, ARMS[a]) for a in wanted if a not in VARIANTS):
         out = ROOT / "submissions" / arm
         shutil.rmtree(out, ignore_errors=True)
         (out / "prompts").mkdir(parents=True)
