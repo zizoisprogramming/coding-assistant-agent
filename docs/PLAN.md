@@ -37,8 +37,13 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   5 no patch, 5 time ends, call 1 wrong 12/16 (sk_nav's prompt; fixed in sk_nav2). Outputs: data/results/2026-10-28_skill_nav32/.
 - Mean agent 387 s/task: over le5's 347 s (Notebook Timeout on the 12-h scorer); mix's dev runs 286-382 and PLAN's rule
   "keep mean well under ~330 s or cap time". NOT submittable as is.
-- Navigator family so far: sk_nav 5, 3 (7 tasks); sk_nav2 2; sk_nav2_32 3 (7 tasks); sk_nav_32 4/16. All within the
-  noise of mix (3.67 per pass); no arm has shown a reliable gain on dev.
+- The sk_nav PROMPT (user: sk_nav2 / sk_nav2_32 have another prompt and do not count): 5, 3 (28 calls, 7 tasks) + 4
+  (32 calls, 16 tasks) = 12 in 3 passes = 4.0 per pass, the best of any prompt with 2+ passes (mix 3.67, sk_a2 3.5);
+  still within dev noise (+-1-2 per pass).
+- Time at 28 calls: sk_nav 354 s on the 7 winnable tasks; sk_a2's other 9 tasks run faster than its 7 (327 vs 364 s,
+  all 343 s), so sk_nav at 28 calls on all 16 is estimated ~335 s (sk_a2 343 s, already submitted). The 32-call
+  version (387 s) is not submittable.
+- Candidate to submit: sk_nav at 28 calls; whether ~340 s fits the scorer's 12 h is answered by sk_a2's LB run.
 
 ### sk_nav2 RESULT + NEXT RUN BUILT: sk_nav_32 (2026-10-27, NEWEST — read first)
 - sk_nav2 2/7, sk_nav2_32 3/7 (pass 1; early stop). Call 1 wrong 0/14 (sk_nav 8/14): the install fix worked, the
