@@ -32,6 +32,19 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
+### sk_a5 / sk_a5r RESULT (2026-10-27, NEWEST — read first)
+Run ended by itself after pass 1 (early stop, 1.6 h). Outputs + request log: data/results/2026-10-27_skill_a5/.
+- Score: sk_a5 (replace+run) 3/16, sk_a5r (replace only) 3/16; mix 3.67. Same as sk_a2's level; nothing new on tier 3.
+  Solves: rich_3882 both, fastapi_11194 both, fastapi_15589 a5, rich_3521 a5r.
+- Q1 failed edits: 1 in 32 runs (sk_a2-era arms: ~22% of edit calls failed). `replace` fixed edit mechanics.
+- Q2 replace 50 uses vs edit_file 20 (a5r used edit_file 14x, e.g. 14419 a5r 5x edit_file). Both work.
+- Q3 median first edit: a5 19, a5r 21 (sk_a2 17, winners 14). Earlier edits did NOT happen; timing is the bottleneck.
+- Q4 `run`: 33 uses in a5, scripts before the edit 1.6/run in both arms -> no extra spiral, but no gain.
+  a5 had 5 time-outs vs 1 (driven by slow model calls, 14-28 s/call on those runs, not by run's tool time 15 s).
+- Q5 first edit at call >= 29 (refused, no patch): a5 2 runs, a5r 5 runs = 7/32 runs lost to late editing.
+- Conclusion for the navigator: keep `replace` (free win on mechanics), drop `run` (no evidence it helps; fewer
+  commands = simpler prompt). The thing to move is the first-edit call (19-21 -> ~14).
+
 ### AGREED NEXT STEPS (2026-10-26 night, NEWEST — read first)
 - **sk_a5 / sk_a5r running** (kaggle/cells_skill_a5). When done, read the DIGEST averages first (cell 5), then score:
   1. failed edits per run (sk_a2: ~1 in 5 edit_file calls failed) -> replace becomes the base if they drop;
