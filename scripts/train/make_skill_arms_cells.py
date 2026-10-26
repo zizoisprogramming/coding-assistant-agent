@@ -1,5 +1,5 @@
-"""Writes kaggle/cells_skill_nav32/: sk_nav_32 (sk_nav, file for file, with 32 tool calls) alone on the 7 winnable
-dev16 tasks (the only ones any arm or mix ever solved), 2 passes (user 2026-10-27). Arms may differ only in
+"""Writes kaggle/cells_skill_nav32/: sk_nav_32 (sk_nav, file for file, with 32 tool calls) alone on all 16 dev16
+tasks, 1 pass (user 2026-10-27: "the full 16 for 1 pass"; the 7-task set: TASKS = WINNABLE7, PASSES = 2). Arms may differ only in
 max_tool_calls. Earlier: kaggle/cells_skill_nav2 = 8220cc6 (sk_nav2 2/7, sk_nav2_32 3/7, pass 1 only). Earlier: kaggle/cells_skill_nav = 329307b (sk_nav 5 + 3 of 7). Earlier: kaggle/cells_skill_a5 = 3bef97a (sk_a5 3/16, sk_a5r 3/16).
 Earlier: kaggle/cells_skill_a4p1 = 32f7f2a (sk_a4 2/16, sk_p1 6/32, sk_a2_t05 3/16). Earlier runs: kaggle/cells_skill_a3 = 6c5d224 (sk_a3 2/16), kaggle/cells_skill_a2 = 6216e2e
 (sk_a2 7/32, sk_ad2 3/32), kaggle/cells_skill_ad = 333285f, kaggle/cells_skill_arms = 82c8d56.
@@ -33,7 +33,9 @@ from make_test_cells import must_replace  # noqa: E402
 OUT = ROOT / "kaggle/cells_skill_nav32"
 ARMS = ["sk_nav_32"]
 # the winnable dev16 tasks: tier 1 (mix 55-95%) + tier 2 (14-35% over all arms); the other 9 were 0 in ~150 runs
-TASKS = ["rich_3882", "fastapi_15589", "fastapi_11194", "rich_4079", "rich_3521", "fastapi_14419", "rich_3470"]
+WINNABLE7 = ["rich_3882", "fastapi_15589", "fastapi_11194", "rich_4079", "rich_3521", "fastapi_14419", "rich_3470"]
+TASKS = sorted(json.load(open(ROOT / "data/splits_public.json"))["dev16"])  # all 16 (or WINNABLE7)
+PASSES = 1  # 1: no early stop needed (EARLY_STOP_MAX only acts between pass 1 and pass 2)
 CONCURRENCY = 2
 EARLY_STOP_MAX = 3  # user: stop after pass 1 if every arm solved 3 or fewer (mix: 3.67 per pass, all on these 7 tasks)
 
@@ -60,12 +62,12 @@ def mix_reference():
 
 
 BLOCK = '''
-# SKILL ARMS (scripts/train/make_skill_arms_cells.py): the 7 winnable dev16 tasks only, pass 1 before pass 2.
-ATTEMPTS = 2  # passes; after pass 1 an arm with EARLY_STOP_MAX or fewer solved is dropped (none left: the run ends)
+# SKILL ARMS (scripts/train/make_skill_arms_cells.py): a dev16 task set, pass 1 before pass 2.
+ATTEMPTS = {passes!r}  # passes; after pass 1 an arm with EARLY_STOP_MAX or fewer solved is dropped (none left: the run ends)
 EARLY_STOP_MAX = {early_stop_max!r}
 ARMS = {arms!r}
 ARM_FILES = {arm_files!r}
-TASK_SET = {dev16!r}  # the 7 winnable dev16 tasks
+TASK_SET = {dev16!r}
 MIX_REF = {mix_ref!r}  # mix (T0.2, 8 min, 2 at once) on these tasks: task -> [solved, no patch, runs]
 ROWS = {{}}
 for l in open(DATA_DIR / 'tasks.jsonl'):
@@ -74,7 +76,7 @@ for l in open(DATA_DIR / 'tasks.jsonl'):
         ROWS[r['instance_id']] = {{**r, 'src': 'public', 'level': 'dev16', 'domain': 'public', 'text_kind': 'public',
                                    'leak': False, 'unfair_names': [], 'env_partial': False, 'split': 'dev16'}}
 assert len(ROWS) == len(TASK_SET), f'tasks missing from tasks.jsonl: {{sorted(set(TASK_SET) - set(ROWS))}}'
-print(f"SKILL ARMS: {{len(ROWS)}} winnable dev16 tasks {{sorted(ROWS)}} | arms {{ARMS}} | {{ATTEMPTS}} passes | {{CONCURRENCY}} at once | "
+print(f"SKILL ARMS: {{len(ROWS)}} dev16 tasks {{sorted(ROWS)}} | arms {{ARMS}} | {{ATTEMPTS}} passes | {{CONCURRENCY}} at once | "
       f"after pass 1, arms solving {{EARLY_STOP_MAX}} or fewer stop")
 SUB_ROOT = WORKING_DIR / 'submissions'
 shutil.rmtree(SUB_ROOT, ignore_errors=True)
@@ -298,7 +300,7 @@ def main():
     host = "print('host pytest plugins:', [Path(p).name for p in _host], '-> exit', _r.returncode, _r.stderr[-200:])\n"
     dev16 = sorted(TASKS)
     assert set(TASKS) <= set(json.load(open(ROOT / "data/splits_public.json"))["dev16"])
-    c2 = must_replace(c2, host, host + BLOCK.format(arms=ARMS, early_stop_max=EARLY_STOP_MAX, arm_files={a: arm_files(a) for a in ARMS}, dev16=dev16,
+    c2 = must_replace(c2, host, host + BLOCK.format(passes=PASSES, arms=ARMS, early_stop_max=EARLY_STOP_MAX, arm_files={a: arm_files(a) for a in ARMS}, dev16=dev16,
                                                     mix_ref=mix_reference()))
     (OUT / "cell2.py").write_text(c2 + "\n" + G.sandbox_env())
     (OUT / "cell2c_public_setup.py").write_text((comb / "cell2c_public_setup.py").read_text())

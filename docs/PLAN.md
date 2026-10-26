@@ -39,7 +39,8 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
 - Noise reminder: sk_nav itself went 5 then 3; one 7-task pass moves +-1-2 by chance.
 - Next (user): sk_nav_32 = sk_nav file for file (its prompt with the Avoid section, its a.py) with max_tool_calls 32
   (eval_config.yaml + the 3 budget numbers in the prompt). Notebook kaggle/cells_skill_nav32 (only cell2 differs from
-  cells_skill_nav2). Simulated locally: OK.
+  cells_skill_nav2): ALL 16 dev16 tasks, 1 pass (user: "the full 16 for 1 pass"; mix 3.67 per 16-task pass; generator
+  constants TASKS / PASSES, WINNABLE7 kept). Simulated locally: OK.
 
 ### NEXT RUN BUILT: sk_nav2 vs sk_nav2_32 on the 7 winnable tasks x 2 (2026-10-27, NEWEST — read first)
 - sk_nav2: sk_nav's prompt rewritten so install is step 1 of the route ("always tool call 1", never a.py or
