@@ -10,6 +10,18 @@ change cell 4's printed output. **No training data from Claude, GPT or Gemini (u
 account runs its OWN notebook copy (a shared notebook made `kaggle kernels output` return only the latest version
 and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly quota is tight → small runs.
 
+### sk_a4 / sk_p1 / sk_a2_t05 RESULT (2026-10-26 evening, NEWEST — read first)
+- ziadsamer/fork-of-generation-all-shards-gpu (kaggle/cells_skill_a4p1), data/results/2026-10-26_skill_a4p1
+  (requests 78 MB downloaded). Per-arm early stop worked: pass 1 a4 2, p1 4, a2_t05 3 -> only p1 got pass 2 (2).
+  **sk_p1 6/32 (3.0 per pass), sk_a4 2/16, sk_a2_t05 3/16.** None reaches the bar (9 over 2 passes).
+- sk_p1: gates get bypassed: 128 raw reads (cat/grep via run_command) in 32 runs, 56 of them right after a BLOCKED;
+  9/32 first calls were not the skill (mostly grep -r); plan used 0.9 per run. sk_a4: brake fired in 11/16 runs,
+  lost 11194 and 4079 (edited, wrong). Refusals only bind when there is no other way to read.
+- **All skill-arm passes so far (14 passes, 224 runs): 37 solved = 2.6 per pass vs mix 3.67 (64 runs from 10-14..10-16).**
+  ~1 sigma, not significant, but no arm is above mix. Possible drift: mix's runs are 10 days old (other harness /
+  wheelhouse / setup) -> a fresh mix control in the same session is needed before more arm work.
+- Local reference table: data/results/dev16_reference.md (rebuilt by data/results/make_dev16_reference.py).
+
 ### NEXT RUN BUILT: sk_a4 vs sk_p1 (2026-10-26, NEWEST — read first)
 - LB: sk_a2 submitted by the user (dist/submission.zip = dist/sk_a2.zip = dist/sk_a2_submitted.zip, byte-identical
   to the dev16 run); score pending. Old dist/submission.zip = le6_t6.zip.
