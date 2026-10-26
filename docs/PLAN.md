@@ -10,6 +10,20 @@ change cell 4's printed output. **No training data from Claude, GPT or Gemini (u
 account runs its OWN notebook copy (a shared notebook made `kaggle kernels output` return only the latest version
 and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly quota is tight → small runs.
 
+### NEXT RUN BUILT: sk_a4 vs sk_p1 (2026-10-26, NEWEST — read first)
+- LB: sk_a2 submitted by the user (dist/submission.zip = dist/sk_a2.zip = dist/sk_a2_submitted.zip, byte-identical
+  to the dev16 run); score pending. Old dist/submission.zip = le6_t6.zip.
+- kaggle/cells_skill_a4p1 (scripts/train/make_skill_arms_cells.py); arms (scripts/make_skill_arms.py sk_a4 sk_p1):
+  - **sk_a4 = sk_a2 optimized:** a.py brake (at STOP READING, find/outline/show answer BLOCKED until the repository
+    has a change) + debugflag (debug-looking added lines listed in every output). Prompt = sk_a2 + 2 lines.
+  - **sk_p1 = new plan-gated design:** look (8) -> `a.py plan "FILE:LINES what and why"` (gated; shows the closest
+    existing test function for location + conventions; plan kept in MEMORY) -> 5 more looks -> edit (gated) -> one
+    targeted test -> submit; no scripts; brake + debugflag; new prompt (1,081 words; mix 783, sk_a2 1,018).
+  - Broken-code (py_compile) alarm dropped (user: its only evidence was one sk_ad2 patch).
+- T0.2 both; 8 min / 28 calls; 2 passes; per-arm early stop (<= 3 after pass 1 -> dropped). Bar: >= 9 over 2 passes.
+  a.py options unit-tested on a scratch repo; full harness sim passed (plan saved, plan gate BLOCKED after 5 looks).
+- Old arms keep their own a.py copies (sk_a2 / sk_ad2 / sk_a3 restored after regenerating).
+
 ### sk_a3 RESULT + WHERE THE SKILL ARMS STAND (2026-10-26, NEWEST — read first)
 - ziadsamer/fork-of-generation-all-shards-gpu (kaggle/cells_skill_a3): **sk_a3 2/16, no patch 8**, early stop worked
   (data/results/2026-10-26_skill_a3, request log 20 MB not downloaded). Solved 14419 (mix 2/6) + 3882; lost 11194

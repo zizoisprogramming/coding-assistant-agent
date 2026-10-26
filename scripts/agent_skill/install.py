@@ -39,6 +39,7 @@ usage = {
     "pin": "pin FILE START END            keep these lines visible in every output",
     "impact": "impact                        after an edit: other places using what you changed",
     "check": "check                         after an edit: .git/agent/repro.py + nearest tests + git status",
+    "plan": 'plan "FILE:START-END what and why"   commit to the change; shows the closest existing test',
 }
 print("READY. Your reading tool, with run_command: python3 .git/agent/a.py COMMAND ...\n" +
       "\n".join("  " + usage[c] for c in cmds if c in usage) +

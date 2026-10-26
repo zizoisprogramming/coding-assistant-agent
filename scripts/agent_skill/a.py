@@ -18,6 +18,14 @@ Options (extra words in commands.txt, 2026-10-25, from the sk_a / sk_ad digests)
            starts and ends with NO EDIT YET (later STOP READING): the edit came after call 28 in 6 of 32 runs
   reshow   a repeat of a recent read is shown again (at most RESHOW_MAX lines, marked ALREADY SHOWN) instead of
            refused: NOT SHOWN AGAIN cost 2-3 of the 28 calls per run
+Options (2026-10-26, from sk_a2 / sk_a3: banners were read through for 10+ calls, 9 edits came after call 28):
+  brake     at the STOP READING point (and while the repository has no change) find / outline / show answer BLOCKED
+            until there is a change: the model reacts to refusals, not to warnings
+  plangate  after PLAN_AFTER looks without a plan, find / outline / show answer BLOCKED until `plan "FILE:LINES ..."`;
+            the plan shows the nearest existing test of FILE; EDIT_AFTER_PLAN looks later, reading is BLOCKED until a
+            change (with the plan command)
+  debugflag every output lists added lines of the diff that look like debugging (print("DEBUG ..."), breakpoint(),
+            pdb): one failed patch was only a debug print
 """
 import ast
 import json
@@ -33,7 +41,10 @@ WS = os.path.dirname(os.path.dirname(HERE))  # <repo>/.git/agent/a.py -> <repo>
 STATE = os.path.join(HERE, "state.json")
 SHOW_MAX, FIND_MAX, PIN_MAX, NOTES_MAX, RECENT = 150, 30, 40, 20, 3
 NO_EDIT_LOOKS, NO_EDIT_SECONDS, STOP_LOOKS, STOP_SECONDS, RESHOW_MAX = 10, 210, 15, 300, 40
-OPTIONS = {"banner", "reshow"}
+PLAN_AFTER, EDIT_AFTER_PLAN, TEST_SHOW_MAX = 8, 5, 40
+OPTIONS = {"banner", "reshow", "brake", "plangate", "debugflag"}
+DEBUG_RE = re.compile(r"DEBUG|breakpoint\(|pdb\.set_trace|^\s*print\(\s*f?[\"'](>>>|---|XXX|here|HERE)")
+READS = {"find", "outline", "show"}
 TEST_RE = re.compile(r"(^|/)(tests?|testing)/|(^|/)test_[^/]*\.py$|_test\.py$|(^|/)conftest\.py$")
 try:  # the commands this agent was taught (written by the skill's install.py)
     COMMANDS = open(os.path.join(HERE, "commands.txt")).read().split()
@@ -104,6 +115,8 @@ def header(st):
         lines = [f"===== MEMORY (survives context trimming) | looks {st['looks']} ====="]
     if by:
         lines.append("read so far: " + " | ".join(f"{f} " + ",".join(f"{a}-{b}" for a, b in merge(rs)) for f, rs in by.items()))
+    if st.get("plan"):
+        lines.append(f"your plan: {st['plan']}")
     for i, n in enumerate(st["notes"], 1):
         lines.append(f"note {i}: {n}")
     for p in st["pins"]:
@@ -378,6 +391,102 @@ def cmd_check(st, args):
     return "\n\n".join(out)
 
 
+def nearest_test(path, words):
+    """(test file, [lines]) of the existing test closest to PATH: tests/**/test_<stem>.py, else a test importing the
+    module; inside it the test function sharing the most identifiers with WORDS (the plan and the planned lines)."""
+    stem = os.path.splitext(os.path.basename(path))[0].lstrip("_")
+    cand = [t for t in run(f"git ls-files | grep -E '(^|/)tests?/(.*/)?test_{re.escape(stem)}\\.py$'").split("\n") if t]
+    if not cand:
+        mod = os.path.splitext(path)[0].replace("/", ".")
+        cand = [t for t in run("git grep -l -E " + q("(from|import) " + re.escape(mod) + r"\b") + " -- 'tests' 'test'").split("\n") if t]
+    if not cand:
+        return None, []
+    best = None
+    for t in cand[:3]:
+        src = file_lines(t)
+        for name, a, b, kind in (outline_items(t) or []):
+            if kind != "def" or not name.split(".")[-1].startswith("test"):
+                continue
+            body = "\n".join(src[a - 1:b])
+            score = len(words & set(re.findall(r"[A-Za-z_][A-Za-z0-9_]{3,}", body)))
+            if best is None or score > best[0]:
+                best = (score, t, a, b, src)
+    if best is None:
+        return cand[0], []
+    _, t, a, b, src = best
+    b = min(b, a + TEST_SHOW_MAX - 1)
+    return t, [f"{i:6}| {src[i - 1]}" for i in range(a, b + 1)]
+
+
+def cmd_plan(st, args):
+    text = " ".join(args).strip()
+    m = re.search(r"([\w./-]+\.py)(?::(\d+)(?:-(\d+))?)?", text)
+    if not m or not os.path.isfile(os.path.join(WS, rel(m.group(1)))):
+        return ('usage: plan "FILE:START-END what you will change and why", e.g. plan "pkg/panel.py:120-131 subtract '
+                'the margin from the width in Panel.render" (FILE must exist)')
+    path = rel(m.group(1))
+    st["plan"] = text[:300]
+    st["plan_looks"] = st["looks"]
+    words = set(re.findall(r"[A-Za-z_][A-Za-z0-9_]{3,}", text)) - STOP
+    if m.group(2):
+        a = int(m.group(2))
+        b = int(m.group(3) or a)
+        src = file_lines(path)
+        words |= set(re.findall(r"[A-Za-z_][A-Za-z0-9_]{3,}", "\n".join(src[max(a - 1, 0):b]))) - STOP
+        for name, x, y, _ in outline_items(path) or []:
+            if x <= a <= y:
+                words.add(name.split(".")[-1])
+    t, lines = nearest_test(path, words)
+    out = [f"PLAN SAVED (shown in MEMORY). You have {EDIT_AFTER_PLAN} more looks; your next call should be the edit."]
+    if t and lines:
+        out.append(f"The existing test closest to your plan ({t}): copy its conventions (exception types, messages, "
+                   f"names) in your fix.")
+        out += lines
+    elif t:
+        out.append(f"(nearest test file: {t})")
+    else:
+        out.append("(no existing test file found for this module)")
+    return "\n".join(out)
+
+
+def gate(st, cmd):
+    """BLOCKED message when a reading command is closed (brake / plangate), else ''."""
+    if cmd not in READS or has_change():
+        return ""
+    secs = int(time.time() - st.get("t0", time.time()))
+    if "plangate" in OPTS:
+        if not st.get("plan") and st["looks"] >= PLAN_AFTER:
+            return (f"BLOCKED: {st['looks']} looks and no plan yet. Reading reopens after your plan: "
+                    f'python3 .git/agent/a.py plan "FILE:START-END what you will change and why"')
+        if st.get("plan") and st["looks"] >= st.get("plan_looks", 0) + EDIT_AFTER_PLAN:
+            return (f"BLOCKED: your plan is saved and you have read {EDIT_AFTER_PLAN} more times. Reading reopens after "
+                    f"your edit: make it now with edit_file (your plan is in MEMORY above).")
+    if "brake" in OPTS and (st["looks"] >= STOP_LOOKS or secs >= STOP_SECONDS):
+        return (f"BLOCKED: {st['looks']} looks, {secs // 60}:{secs % 60:02d} of the 8 minutes used, and no edit. "
+                f"Reading reopens after your edit: make your best edit now with edit_file.")
+    return ""
+
+
+def debug_lines():
+    if "debugflag" not in OPTS:
+        return ""
+    hits, cur, n = [], None, 0
+    for line in run("git diff -U0", 20).split("\n"):
+        if line.startswith("+++ b/"):
+            cur = line[6:]
+        elif line.startswith("@@"):
+            m = re.search(r"\+(\d+)", line)
+            n = int(m.group(1)) if m else 0
+        elif line.startswith("+") and not line.startswith("+++"):
+            if DEBUG_RE.search(line[1:]):
+                hits.append(f"  {cur}:{n}: {line[1:].strip()[:100]}")
+            n += 1
+    if not hits:
+        return ""
+    return ("DEBUG LINE IN YOUR DIFF (it becomes part of your patch): remove it unless it is part of the fix:\n"
+            + "\n".join(hits[:5]))
+
+
 def has_change():
     """Any change in the working tree (git status never lists .git, so the tool's own files do not count)."""
     out = run("git status --porcelain --untracked-files=all", 20)
@@ -398,7 +507,7 @@ def banner(st):
 
 
 HANDLERS = {"find": cmd_find, "outline": cmd_outline, "show": cmd_show, "note": cmd_note, "pin": cmd_pin,
-            "impact": cmd_impact, "check": cmd_check}
+            "impact": cmd_impact, "check": cmd_check, "plan": cmd_plan}
 
 
 def main(argv):
@@ -406,16 +515,20 @@ def main(argv):
     if not argv or argv[0].lstrip("-").lower() not in COMMANDS:
         body = "commands: " + ", ".join(COMMANDS) + " (python3 .git/agent/a.py COMMAND ...)"
     else:
+        cmd = argv[0].lstrip("-").lower()
         try:
-            body = HANDLERS[argv[0].lstrip("-").lower()](st, argv[1:])
+            body = gate(st, cmd) or HANDLERS[cmd](st, argv[1:])
         except Exception as e:  # noqa: BLE001  never crash: the model gets a message and the header
             body = f"(error in {argv[0]}: {type(e).__name__}: {e})"
     save(st)
-    warn = banner(st)
+    warn = "" if body.startswith("BLOCKED") else banner(st)
     if warn:
         print(warn)
     print(header(st))
     print(body)
+    dbg = debug_lines()
+    if dbg:
+        print(dbg)
     if warn:
         print(warn)
 
