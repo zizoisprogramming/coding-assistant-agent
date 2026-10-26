@@ -1,5 +1,6 @@
-"""Writes kaggle/cells_skill_a5/: sk_a5 (sk_a2 + a.py replace + a.py run) vs sk_a5r (sk_a2 + a.py replace) on dev16,
-2 passes (user 2026-10-26). Earlier: kaggle/cells_skill_a4p1 = 32f7f2a (sk_a4 2/16, sk_p1 6/32, sk_a2_t05 3/16). Earlier runs: kaggle/cells_skill_a3 = 6c5d224 (sk_a3 2/16), kaggle/cells_skill_a2 = 6216e2e
+"""Writes kaggle/cells_skill_nav/: sk_nav (the navigator) alone on the 7 winnable dev16 tasks (the only ones any arm
+or mix ever solved), 2 passes (user 2026-10-27). Earlier: kaggle/cells_skill_a5 = 3bef97a (sk_a5 3/16, sk_a5r 3/16).
+Earlier: kaggle/cells_skill_a4p1 = 32f7f2a (sk_a4 2/16, sk_p1 6/32, sk_a2_t05 3/16). Earlier runs: kaggle/cells_skill_a3 = 6c5d224 (sk_a3 2/16), kaggle/cells_skill_a2 = 6216e2e
 (sk_a2 7/32, sk_ad2 3/32), kaggle/cells_skill_ad = 333285f, kaggle/cells_skill_arms = 82c8d56.
 
     python3 scripts/make_skill_arms.py && python3 scripts/train/make_skill_arms_cells.py
@@ -28,10 +29,12 @@ sys.path.insert(0, str(ROOT / "scripts/train"))
 import make_gen_cells as G  # noqa: E402
 from make_test_cells import must_replace  # noqa: E402
 
-OUT = ROOT / "kaggle/cells_skill_a5"
-ARMS = ["sk_a5", "sk_a5r"]
+OUT = ROOT / "kaggle/cells_skill_nav"
+ARMS = ["sk_nav"]
+# the winnable dev16 tasks: tier 1 (mix 55-95%) + tier 2 (14-35% over all arms); the other 9 were 0 in ~150 runs
+TASKS = ["rich_3882", "fastapi_15589", "fastapi_11194", "rich_4079", "rich_3521", "fastapi_14419", "rich_3470"]
 CONCURRENCY = 2
-EARLY_STOP_MAX = 3  # user: stop after pass 1 if every arm solved 3 or fewer
+EARLY_STOP_MAX = 3  # user: stop after pass 1 if every arm solved 3 or fewer (mix: 3.67 per pass, all on these 7 tasks)
 
 
 def arm_files(arm):
@@ -41,7 +44,7 @@ def arm_files(arm):
 
 def mix_reference():
     """Pure mix (arms mix, mix_r1, mix_r2) on dev16: task -> [solved, no patch, runs]."""
-    dev = set(json.load(open(ROOT / "data/splits_public.json"))["dev16"])
+    dev = set(TASKS)
     ref = {}
     for f in sorted((ROOT / "data/results").glob("*/results/*/task_results.jsonl")):
         if f.parent.name not in ("mix", "mix_r1", "mix_r2"):
@@ -56,21 +59,21 @@ def mix_reference():
 
 
 BLOCK = '''
-# SKILL ARMS (scripts/train/make_skill_arms_cells.py): dev16 only, pass 1 before pass 2.
+# SKILL ARMS (scripts/train/make_skill_arms_cells.py): the 7 winnable dev16 tasks only, pass 1 before pass 2.
 ATTEMPTS = 2  # passes; after pass 1 an arm with EARLY_STOP_MAX or fewer solved is dropped (none left: the run ends)
 EARLY_STOP_MAX = {early_stop_max!r}
 ARMS = {arms!r}
 ARM_FILES = {arm_files!r}
-DEV16 = {dev16!r}
-MIX_REF = {mix_ref!r}  # mix (T0.2, 8 min, 2 at once) on dev16, 64 runs: task -> [solved, no patch, runs]
+TASK_SET = {dev16!r}  # the 7 winnable dev16 tasks
+MIX_REF = {mix_ref!r}  # mix (T0.2, 8 min, 2 at once) on these tasks: task -> [solved, no patch, runs]
 ROWS = {{}}
 for l in open(DATA_DIR / 'tasks.jsonl'):
     r = json.loads(l)
-    if r['instance_id'] in DEV16:
+    if r['instance_id'] in TASK_SET:
         ROWS[r['instance_id']] = {{**r, 'src': 'public', 'level': 'dev16', 'domain': 'public', 'text_kind': 'public',
                                    'leak': False, 'unfair_names': [], 'env_partial': False, 'split': 'dev16'}}
-assert len(ROWS) == 16, f'dev16 tasks missing from tasks.jsonl: {{sorted(set(DEV16) - set(ROWS))}}'
-print(f"SKILL ARMS: {{len(ROWS)}} dev16 tasks | arms {{ARMS}} | {{ATTEMPTS}} passes | {{CONCURRENCY}} at once | "
+assert len(ROWS) == len(TASK_SET), f'tasks missing from tasks.jsonl: {{sorted(set(TASK_SET) - set(ROWS))}}'
+print(f"SKILL ARMS: {{len(ROWS)}} winnable dev16 tasks {{sorted(ROWS)}} | arms {{ARMS}} | {{ATTEMPTS}} passes | {{CONCURRENCY}} at once | "
       f"after pass 1, arms solving {{EARLY_STOP_MAX}} or fewer stop")
 SUB_ROOT = WORKING_DIR / 'submissions'
 shutil.rmtree(SUB_ROOT, ignore_errors=True)
@@ -89,7 +92,7 @@ CELL5 = r'''# 5. SKILL ARMS SUMMARY (paste this output to Claude): per pass, per
 rows = [json.loads(l) for l in open(PER_TASK)] if PER_TASK.exists() else []
 mix_solved = sum(s / n for s, _, n in MIX_REF.values())
 mix_nopatch = sum(p / n for _, p, n in MIX_REF.values())
-print(f'{len(rows)} runs | {(time.time() - T_START) / 3600:.1f} h | mix reference per 16-task pass: solved {mix_solved:.2f}, '
+print(f'{len(rows)} runs | {(time.time() - T_START) / 3600:.1f} h | mix reference per pass over these tasks: solved {mix_solved:.2f}, '
       f'no patch {mix_nopatch:.2f}')
 for n in range(1, ATTEMPTS + 1):
     rs = [r for r in rows if r['attempt'].endswith(f'.{n}')]
@@ -118,6 +121,7 @@ for arm in ARMS:
         fe = sorted(x['first_edit'] for x in d if x.get('first_edit'))
         print(f"  {arm:8} runs {len(d)} | a.py find {m('find'):.1f} outline {m('outline'):.1f} show {m('show'):.1f} "
               f"| replace {m('replace'):.1f} run {m('run'):.1f} failed edits {m('edit_fail'):.1f} "
+              f"| callers shown {m('callers'):.1f} ping-pong {m('pingpong'):.1f} WHERE written {sum(1 for x in d if x.get('where_at'))}/{len(d)} "
               f"| plan {m('plan'):.1f} blocked {m('blocked'):.1f} debug flags {m('debug_flag'):.1f} "
               f"| raw reads {m('raw_read') + m('read_file'):.1f} | scripts/tests before edit {m('pre_edit_runs'):.1f} | reshown {m('reshown'):.1f} | banner runs "
               f"{sum(1 for x in d if x.get('banner') or x.get('stop_banner'))} | call 1 wrong "
@@ -170,6 +174,8 @@ def _digest(job, messages, resp, seconds):
         d['stop_banner'] += 'STOP READING' in out
         d['blocked'] += 'BLOCKED: ' in out
         d['debug_flag'] += 'DEBUG LINE IN YOUR DIFF' in out
+        d['callers'] += 'CALLED FROM' in out
+        d['pingpong'] += 'PING-PONG:' in out
         d['edit_fail'] += any(k in out for k in ('FileEditError', 'old_string not found', 'REPLACE FAILED'))
     r = _dump(resp)
     usage = r.get('usage') or {}
@@ -180,6 +186,8 @@ def _digest(job, messages, resp, seconds):
     d['max_prompt'] = max(d['max_prompt'], pt)
     d['out_tokens'] += usage.get('completion_tokens') or 0
     msg = ((r.get('choices') or [{}])[0] or {}).get('message') or {}
+    if msg.get('tool_calls') and 'WHERE:' in _text(msg.get('content')) and not d['where_at']:
+        d['where_at'] = d['tool_calls'] + 1  # the call that came with the first WHERE / WHY / CHANGE lines
     for tc in msg.get('tool_calls') or []:
         fn = (tc or {}).get('function') or {}
         name, args = fn.get('name') or '?', fn.get('arguments') or ''
@@ -244,7 +252,7 @@ def digest_row(job, agent_s):
     model_s = d['model_ms'] / 1000
     n = max(d['tool_calls'], 1)
     keys = ('install', 'install_at', 'find', 'outline', 'show', 'note', 'pin', 'impact', 'check', 'a_other', 'raw_read',
-            'read_file', 'pre_edit_runs', 'plan', 'blocked', 'debug_flag', 'replace', 'run', 'edit_fail', 'refused', 'reshown', 'banner', 'stop_banner', 'pip', 'call1_wrong', 'repro', 'pytest', 'edit_file', 'write_file', 'first_edit', 'compactions',
+            'read_file', 'pre_edit_runs', 'plan', 'blocked', 'debug_flag', 'replace', 'run', 'callers', 'pingpong', 'where_at', 'edit_fail', 'refused', 'reshown', 'banner', 'stop_banner', 'pip', 'call1_wrong', 'repro', 'pytest', 'edit_file', 'write_file', 'first_edit', 'compactions',
             'max_prompt', 'out_tokens', 'model_calls', 'tool_calls', 'get_status', 'submit_patch', 'digest_errors')
     row = {k: d[k] for k in keys}
     row.update(model_s=round(model_s), tool_s=round(max(agent_s - model_s, 0)),
@@ -257,7 +265,7 @@ def digest_line(r):
     return (f"      DIGEST install@{r['install_at'] or '-'} | a.py find {r['find']} outline {r['outline']} show "
             f"{r['show']} note {r['note']} pin {r['pin']} | raw reads {r['raw_read']} read_file {r['read_file']} | "
             f"scripts/tests before edit {r['pre_edit_runs']} | a.py replace {r['replace']} run {r['run']} | failed edits "
-            f"{r['edit_fail']} | plan {r['plan']} blocked {r['blocked']} debug flags "
+            f"{r['edit_fail']} | navigator: callers {r['callers']} ping-pong {r['pingpong']} WHERE at call {r['where_at'] or '-'} | plan {r['plan']} blocked {r['blocked']} debug flags "
             f"{r['debug_flag']} | refused {r['refused']} reshown {r['reshown']} | banners {r['banner']}+{r['stop_banner']} stop | pip {r['pip']} | "
             f"edit_file/write_file {r['edit_file'] + r['write_file']}, first edit at call {r['first_edit'] or '-'} | "
             f"repro {r['repro']} pytest {r['pytest']} | compactions {r['compactions']} max prompt {r['max_prompt']} | "
@@ -274,7 +282,7 @@ def main():
 
     c2 = G.CELL2.format(submission=G.submission(), embedded_prev=[], sample=[], sub_name="mix")
     mode_line = next(l for l in c2.splitlines() if l.startswith("MODE = "))
-    c2 = c2.replace(mode_line, "MODE = 'skill_arms'  # three skill arms on dev16 (make_skill_arms_cells.py)")
+    c2 = c2.replace(mode_line, "MODE = 'skill_arms'  # skill arms on a dev16 task set (make_skill_arms_cells.py)")
     c2 = must_replace(c2, "CONCURRENCY = 6  # full / retry: trial 2026-10-21: 40.9 attempts/h at 6 vs 31.4 at 4\n",
                       f"CONCURRENCY = {CONCURRENCY}  # as mix's dev16 runs (rung 3e-3m): 2 at once, 8 min\n")
     c2 = must_replace(c2, "STOP_NEW_TASKS_AFTER_H = 10.5  # Kaggle ends GPU sessions at 12 h; a task takes <= ~10 min\n",
@@ -287,7 +295,8 @@ def main():
                       "_HARNESS_INSTALL, _HARNESS_COMPAT = _cs0.install_test_dependencies, _cs0._is_wheel_compatible_py313  # public tasks\n"
                       "ood.patch_harness()\n")
     host = "print('host pytest plugins:', [Path(p).name for p in _host], '-> exit', _r.returncode, _r.stderr[-200:])\n"
-    dev16 = sorted(json.load(open(ROOT / "data/splits_public.json"))["dev16"])
+    dev16 = sorted(TASKS)
+    assert set(TASKS) <= set(json.load(open(ROOT / "data/splits_public.json"))["dev16"])
     c2 = must_replace(c2, host, host + BLOCK.format(arms=ARMS, early_stop_max=EARLY_STOP_MAX, arm_files={a: arm_files(a) for a in ARMS}, dev16=dev16,
                                                     mix_ref=mix_reference()))
     (OUT / "cell2.py").write_text(c2 + "\n" + G.sandbox_env())
@@ -328,7 +337,7 @@ def main():
     # a line when a pass ends; after pass 1 the run ends by itself unless an arm solved more than EARLY_STOP_MAX
     c4 = must_replace(c4, "    print('PHASE', json.dumps(PHASE_STATS[-1]), flush=True)\n",
                       "    print('PHASE', json.dumps(PHASE_STATS[-1]), flush=True)\n"
-                      "    print('=' * 20, f'PASS {phase_no} COMPLETE: every arm ran once more on all 16 tasks', '=' * 20, flush=True)\n")
+                      "    print('=' * 20, f'PASS {phase_no} COMPLETE: every arm ran once more on all {len(ROWS)} tasks', '=' * 20, flush=True)\n")
     c4 = must_replace(c4, "async def run_all():\n    for k, (conc, jobs) in enumerate(PHASES, 1):\n"
                           "        await run_phase(conc, jobs, k)\n",
                       "async def run_all():\n    global N_JOBS\n    for k, (conc, jobs) in enumerate(PHASES, 1):\n"

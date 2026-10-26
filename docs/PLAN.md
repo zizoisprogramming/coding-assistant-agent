@@ -32,6 +32,24 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
+### NEXT RUN BUILT: sk_nav, the navigator, alone on the 7 winnable tasks x 2 (2026-10-27, NEWEST — read first)
+- Arm submissions/sk_nav (scripts/make_skill_arms.py sk_nav): own prompt, written fresh (1263 words), built on the
+  winners' route: contract -> find 1-3 -> outline -> 1-2 whole functions -> at most 2 one-call probes
+  (timeout 30 python3 - << EOF) -> WHERE / WHY / CHANGE lines in the reply that edits -> one test -> submit.
+  Tells the model the evidence (passing runs edited at ~14, failing at ~27, same file) and names the two losing
+  routes (ping-pong, script spiral). Edits with a.py replace; no `run`; no blocks, no bans.
+- a.py option `navigate` (only while there is no change): a whole-function show (show FILE NAME, or a range covering
+  a whole function) ends with CALLED FROM (up to 4 non-test callers) + DECIDE (edit these lines, or show the one
+  caller that feeds them); 4+ finds / line peeks in a row without a whole function print PING-PONG. Plus banner +
+  reshow as sk_a2. No probe counter (a.py cannot see run_command probes; the prompt says 2 at most).
+- Notebook kaggle/cells_skill_nav (scripts/train/make_skill_arms_cells.py): tasks rich_3882, fastapi_15589,
+  fastapi_11194, rich_4079, rich_3521, fastapi_14419, rich_3470; 2 passes; mix reference 3.67 per pass on these 7.
+  Ends by itself after pass 1 if sk_nav solves 3 or fewer of 7. DIGEST adds: callers shown, ping-pong, WHERE at call.
+- Simulated locally (SIM_CELLS=cells_skill_nav data/sim/armsim.py): runs end to end, CALLED FROM / PING-PONG / WHERE
+  reach the digest, early stop ends the run (resolved=False and `timeout: not found` are Mac/uv artefacts).
+- Read the result by: solved per pass vs 3.67 (>= 5 of 7 is a real gain); median first edit (target ~14, sk_a5 19-21);
+  edits refused after call 28 (sk_a5: 7/32); does DECIDE lead to an edit within 1-2 calls (request log).
+
 ### sk_a5 / sk_a5r RESULT (2026-10-27, NEWEST — read first)
 Run ended by itself after pass 1 (early stop, 1.6 h). Outputs + request log: data/results/2026-10-27_skill_a5/.
 - Score: sk_a5 (replace+run) 3/16, sk_a5r (replace only) 3/16; mix 3.67. Same as sk_a2's level; nothing new on tier 3.

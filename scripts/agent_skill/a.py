@@ -30,6 +30,11 @@ Commands (2026-10-26, from 128 runs: 54 of 286 edit_file calls failed, "old_stri
 39 runs spent 6+ calls on scripts, write_file + run = 2 calls each):
   replace FILE START END  (new lines on stdin)  replace lines START..END by line number: no old text to match
   run                     (python code on stdin) run it in the repository in one call, RUN_TIMEOUT s, no file left
+Option (2026-10-27, from the solved vs failed runs on the 7 winnable dev16 tasks: same first search, same file, but
+solved runs edit at call ~14 and failed ones at ~27, after find / line-peek ping-pong; sk_a5: first edit at call 19-21):
+  navigate  while the repository has no change: a whole-function show ends with the function's callers (CALLED FROM)
+            and a DECIDE line (edit these lines, or show the one caller that feeds them); PING_PONG finds / line-range
+            shows in a row without a whole function print PING-PONG (open the most likely file whole)
 """
 import ast
 import json
@@ -47,7 +52,8 @@ SHOW_MAX, FIND_MAX, PIN_MAX, NOTES_MAX, RECENT = 150, 30, 40, 20, 3
 NO_EDIT_LOOKS, NO_EDIT_SECONDS, STOP_LOOKS, STOP_SECONDS, RESHOW_MAX = 10, 210, 15, 300, 40
 PLAN_AFTER, EDIT_AFTER_PLAN, TEST_SHOW_MAX = 8, 5, 40
 RUN_TIMEOUT, RUN_TAIL = 30, 30
-OPTIONS = {"banner", "reshow", "brake", "plangate", "debugflag"}
+PING_PONG, CALLERS_MAX = 4, 4
+OPTIONS = {"banner", "reshow", "brake", "plangate", "debugflag", "navigate"}
 DEBUG_RE = re.compile(r"DEBUG|breakpoint\(|pdb\.set_trace|^\s*print\(\s*f?[\"'](>>>|---|XXX|here|HERE)")
 READS = {"find", "outline", "show"}
 TEST_RE = re.compile(r"(^|/)(tests?|testing)/|(^|/)test_[^/]*\.py$|_test\.py$|(^|/)conftest\.py$")
@@ -160,6 +166,7 @@ def cmd_find(st, args):
     if not text:
         return 'usage: find "exact text" [PATH]'
     st["looks"] += 1
+    st["peeks"] = st.get("peeks", 0) + 1
     where = " ".join(q(rel(p)) for p in path_args) or "."
     out = run(f"git grep -n -I -F -e {q(text)} -- {where}")
     note = ""
@@ -230,7 +237,7 @@ def cmd_show(st, args):
     if not os.path.isfile(os.path.join(WS, path)):
         return no_file(path)
     src = file_lines(path)
-    extra = ""
+    extra, whole = "", None
     nums = [int(x) for x in re.findall(r"\d+", " ".join(rest))]
     if rest and not nums:  # a name
         name = rest[0]
@@ -238,6 +245,7 @@ def cmd_show(st, args):
         hits = [it for it in items if it[0] == name or it[0].endswith("." + name)]
         if not hits:
             return f"(no class or function named {name} in {path}; use outline {path})"
+        whole = hits[0][0]
         _, a, b, _ = hits[0]
         if len(hits) > 1:
             extra = "other definitions: " + ", ".join(f"{h[0]} {h[1]}-{h[2]}" for h in hits[1:5]) + "\n"
@@ -261,7 +269,42 @@ def cmd_show(st, args):
             break
     st["looks"] += 1
     st["reads"].append({"file": path, "a": a, "b": b})
-    return extra + "\n".join(f"{i:6}| {src[i - 1]}" for i in range(a, b + 1))
+    if not whole:  # a range of a file whose functions are known: if it covers one whole function, it counts as one
+        whole = next((n for n, x, y, k in outline_items(path) or [] if k == "def" and a <= x and y <= b and y - x >= 3), None)
+    st["peeks"] = 0 if whole else st.get("peeks", 0) + 1
+    body = extra + "\n".join(f"{i:6}| {src[i - 1]}" for i in range(a, b + 1))
+    if whole and "navigate" in OPTS and not has_change():
+        body += "\n" + callers(path, whole, a, b)
+    return body
+
+
+def callers(path, qual, a, b):
+    """CALLED FROM + DECIDE after a whole function: where the value it works with comes from is one hop away."""
+    name = qual.split(".")[-1]
+    hits = []
+    if not name.startswith("__") and len(name) > 2:
+        out = run(f"git grep -n -I -F -e {q(name + '(')} -- '*.py'")
+        for h in out.split("\n"):
+            f, _, rest = h.partition(":")
+            ln, _, text = rest.partition(":")
+            if not ln.isdigit() or TEST_RE.search(f) or re.search(r"\bdef\s+" + re.escape(name) + r"\b", text):
+                continue
+            if f == path and a <= int(ln) <= b:
+                continue  # a recursive call inside the function itself
+            hits.append(f"  {f}:{ln}: {text.strip()[:110]}")
+    lines = [f"CALLED FROM ({len(hits)} non-test places):" if hits else
+             f"CALLED FROM: no direct calls of {name}( outside tests (it is used by name, e.g. registered, a hook or an override)"]
+    lines += hits[:CALLERS_MAX] + ([f"  ... {len(hits) - CALLERS_MAX} more"] if len(hits) > CALLERS_MAX else [])
+    lines.append(f"DECIDE: if the wrong behaviour is produced in {path} {a}-{b}, your next call is the edit (replace). If "
+                 f"the wrong value comes in from a caller, show that caller whole (one hop), then edit.")
+    return "\n".join(lines)
+
+
+def ping_pong(st):
+    if "navigate" not in OPTS or st.get("peeks", 0) < PING_PONG or has_change():
+        return ""
+    return (f"PING-PONG: {st['peeks']} finds and line peeks in a row without a whole function. Small views rarely let you "
+            f"decide: outline the file most of your finds point to, then show the whole function (show FILE NAME).")
 
 
 def cmd_note(st, args):
@@ -594,6 +637,9 @@ def main(argv):
             body = gate(st, cmd) or HANDLERS[cmd](st, argv[1:])
         except Exception as e:  # noqa: BLE001  never crash: the model gets a message and the header
             body = f"(error in {argv[0]}: {type(e).__name__}: {e})"
+    if argv and argv[0].lstrip("-").lower() in ("find", "show") and not body.startswith("BLOCKED"):
+        pp = ping_pong(st)
+        body = body + "\n" + pp if pp else body
     save(st)
     warn = "" if body.startswith("BLOCKED") else banner(st)
     if warn:
