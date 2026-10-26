@@ -26,6 +26,10 @@ Options (2026-10-26, from sk_a2 / sk_a3: banners were read through for 10+ calls
             change (with the plan command)
   debugflag every output lists added lines of the diff that look like debugging (print("DEBUG ..."), breakpoint(),
             pdb): one failed patch was only a debug print
+Commands (2026-10-26, from 128 runs: 54 of 286 edit_file calls failed, "old_string not found" / "occurs N times";
+39 runs spent 6+ calls on scripts, write_file + run = 2 calls each):
+  replace FILE START END  (new lines on stdin)  replace lines START..END by line number: no old text to match
+  run                     (python code on stdin) run it in the repository in one call, RUN_TIMEOUT s, no file left
 """
 import ast
 import json
@@ -42,6 +46,7 @@ STATE = os.path.join(HERE, "state.json")
 SHOW_MAX, FIND_MAX, PIN_MAX, NOTES_MAX, RECENT = 150, 30, 40, 20, 3
 NO_EDIT_LOOKS, NO_EDIT_SECONDS, STOP_LOOKS, STOP_SECONDS, RESHOW_MAX = 10, 210, 15, 300, 40
 PLAN_AFTER, EDIT_AFTER_PLAN, TEST_SHOW_MAX = 8, 5, 40
+RUN_TIMEOUT, RUN_TAIL = 30, 30
 OPTIONS = {"banner", "reshow", "brake", "plangate", "debugflag"}
 DEBUG_RE = re.compile(r"DEBUG|breakpoint\(|pdb\.set_trace|^\s*print\(\s*f?[\"'](>>>|---|XXX|here|HERE)")
 READS = {"find", "outline", "show"}
@@ -391,6 +396,75 @@ def cmd_check(st, args):
     return "\n\n".join(out)
 
 
+def stdin_text():
+    if sys.stdin is None or sys.stdin.isatty():
+        return ""
+    text = sys.stdin.read()
+    return text[:-1] if text.endswith("\n") else text  # the heredoc's own final newline
+
+
+def cmd_replace(st, args):
+    nums = [int(x) for x in re.findall(r"\d+", " ".join(args[1:]))] if len(args) > 1 else []
+    usage = ("REPLACE FAILED: usage: python3 .git/agent/a.py replace FILE START END << 'EOF' (the new lines, full "
+             "indentation) EOF")
+    if not args or len(nums) < 2:
+        return usage
+    path = rel(args[0])
+    if not os.path.isfile(os.path.join(WS, path)):
+        return "REPLACE FAILED: " + no_file(path)
+    a, b = nums[0], nums[1]
+    with open(os.path.join(WS, path), encoding="utf-8", errors="replace", newline="") as f:
+        raw = f.read()
+    nl = "\r\n" if "\r\n" in raw else "\n"
+    src = raw.split(nl)
+    trailing = raw.endswith(nl)
+    if trailing:
+        src = src[:-1]
+    if not (1 <= a <= b <= len(src)):
+        return f"REPLACE FAILED: lines {a}-{b} are outside {path} (1-{len(src)} lines); show the lines again for fresh numbers"
+    new = stdin_text()
+    if new == "" and not sys.stdin.isatty():
+        new_lines = []
+    elif new == "":
+        return usage
+    else:
+        new_lines = new.split("\n")
+    old = src[a - 1:b]
+    src[a - 1:b] = new_lines
+    with open(os.path.join(WS, path), "w", encoding="utf-8", newline="") as f:
+        f.write(nl.join(src) + (nl if trailing else ""))
+    shift = len(new_lines) - len(old)
+    end = a + len(new_lines) - 1
+    lo, hi = max(1, a - 2), min(len(src), max(end, a) + 2)
+    out = [f"REPLACED {path} {a}-{b} ({len(old)} old lines -> {len(new_lines)} new lines)"
+           + (f"; lines below moved by {shift:+d}: show again before another replace further down" if shift else ""),
+           "old:"] + [f"     -| {l}" for l in old] + ["now:"] + [f"{i:6}| {src[i - 1]}" for i in range(lo, hi + 1)]
+    return "\n".join(out)
+
+
+def cmd_run(st, args):
+    code = stdin_text()
+    if not code.strip():
+        return "usage: python3 .git/agent/a.py run << 'EOF' (python code; runs in the repository) EOF"
+    st["runs"] = st.get("runs", 0) + 1
+    path = os.path.join(HERE, "run_tmp.py")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(code + "\n")
+    env = dict(os.environ, PYTHONPATH=WS + os.pathsep + os.environ.get("PYTHONPATH", ""))
+    try:
+        r = subprocess.run([sys.executable, path], cwd=WS, capture_output=True, text=True, timeout=RUN_TIMEOUT, env=env)
+        lines = (r.stdout + r.stderr).rstrip().split("\n")
+        head = f"RUN {st['runs']}: exit code {r.returncode}" + (f" (last {RUN_TAIL} of {len(lines)} lines)" if len(lines) > RUN_TAIL else "")
+        return head + "\n" + "\n".join(lines[-RUN_TAIL:])
+    except subprocess.TimeoutExpired:
+        return f"RUN {st['runs']}: stopped after {RUN_TIMEOUT} s (it hangs or waits for input)"
+    finally:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
+
 def nearest_test(path, words):
     """(test file, [lines]) of the existing test closest to PATH: tests/**/test_<stem>.py, else a test importing the
     module; inside it the test function sharing the most identifiers with WORDS (the plan and the planned lines)."""
@@ -507,7 +581,7 @@ def banner(st):
 
 
 HANDLERS = {"find": cmd_find, "outline": cmd_outline, "show": cmd_show, "note": cmd_note, "pin": cmd_pin,
-            "impact": cmd_impact, "check": cmd_check, "plan": cmd_plan}
+            "impact": cmd_impact, "check": cmd_check, "plan": cmd_plan, "replace": cmd_replace, "run": cmd_run}
 
 
 def main(argv):

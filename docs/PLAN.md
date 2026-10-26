@@ -10,6 +10,20 @@ change cell 4's printed output. **No training data from Claude, GPT or Gemini (u
 account runs its OWN notebook copy (a shared notebook made `kaggle kernels output` return only the latest version
 and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly quota is tight → small runs.
 
+### NEXT RUN BUILT: sk_a5 vs sk_a5r (2026-10-26 night, NEWEST — read first)
+- User: optimize sk_a2; no fresh mix control; aim for a pass of 5+.
+- sk_a2 losses on winnable tasks (7 runs): scripts eating the 28 calls then a refused edit (rich_3470 x2), a misread
+  issue (4079), a wrong repro case (3521), the 15589 script loop, 14419 slow/late. In 128 recent runs 54 of 286
+  edit_file calls failed (22 "old_string not found", ~14 "occurs N times", 18 after call 28); 37 runs had a failed
+  edit, 17 of them ended with no patch (3470 x4, 4079 x3, 11194, 14419 among them); 39 runs spent 6+ calls on scripts.
+  Pushing / blocking (a3 rule, a4 brake, p1 gates) never helped; these arms make existing actions cheaper instead.
+- **sk_a5 = sk_a2 + `a.py replace FILE START END << EOF` (edit by line numbers: nothing to match) + `a.py run << EOF`
+  (a script in one call, 30 s, no file left).** **sk_a5r = sk_a2 + replace only.** Prompts = sk_a2 with the
+  edit-mechanics bullet (and for sk_a5 the script line) rewritten. kaggle/cells_skill_a5; digest counts replace / run /
+  failed edits (edit_file errors + REPLACE FAILED). T0.2, 8 min / 28 calls, 2 passes, per-arm early stop.
+- Tests: replace / run unit-tested on a scratch repo (in-range, out-of-range, a hanging script stopped at 30 s, no
+  stray files); full harness sim passed (run via run_command heredoc, REPLACE FAILED counted).
+
 ### sk_a4 / sk_p1 / sk_a2_t05 RESULT (2026-10-26 evening, NEWEST — read first)
 - ziadsamer/fork-of-generation-all-shards-gpu (kaggle/cells_skill_a4p1), data/results/2026-10-26_skill_a4p1
   (requests 78 MB downloaded). Per-arm early stop worked: pass 1 a4 2, p1 4, a2_t05 3 -> only p1 got pass 2 (2).

@@ -1,5 +1,5 @@
-"""Writes kaggle/cells_skill_a4p1/: sk_a4 (sk_a2 optimized) vs sk_p1 (new plan-gated design) vs sk_a2_t05 (sk_a2 at
-temperature 0.5) on dev16, 2 passes (user 2026-10-26). Earlier runs: kaggle/cells_skill_a3 = 6c5d224 (sk_a3 2/16), kaggle/cells_skill_a2 = 6216e2e
+"""Writes kaggle/cells_skill_a5/: sk_a5 (sk_a2 + a.py replace + a.py run) vs sk_a5r (sk_a2 + a.py replace) on dev16,
+2 passes (user 2026-10-26). Earlier: kaggle/cells_skill_a4p1 = 32f7f2a (sk_a4 2/16, sk_p1 6/32, sk_a2_t05 3/16). Earlier runs: kaggle/cells_skill_a3 = 6c5d224 (sk_a3 2/16), kaggle/cells_skill_a2 = 6216e2e
 (sk_a2 7/32, sk_ad2 3/32), kaggle/cells_skill_ad = 333285f, kaggle/cells_skill_arms = 82c8d56.
 
     python3 scripts/make_skill_arms.py && python3 scripts/train/make_skill_arms_cells.py
@@ -28,8 +28,8 @@ sys.path.insert(0, str(ROOT / "scripts/train"))
 import make_gen_cells as G  # noqa: E402
 from make_test_cells import must_replace  # noqa: E402
 
-OUT = ROOT / "kaggle/cells_skill_a4p1"
-ARMS = ["sk_a4", "sk_p1", "sk_a2_t05"]
+OUT = ROOT / "kaggle/cells_skill_a5"
+ARMS = ["sk_a5", "sk_a5r"]
 CONCURRENCY = 2
 EARLY_STOP_MAX = 3  # user: stop after pass 1 if every arm solved 3 or fewer
 
@@ -117,6 +117,7 @@ for arm in ARMS:
         m = lambda k: sum(x.get(k) or 0 for x in d) / len(d)
         fe = sorted(x['first_edit'] for x in d if x.get('first_edit'))
         print(f"  {arm:8} runs {len(d)} | a.py find {m('find'):.1f} outline {m('outline'):.1f} show {m('show'):.1f} "
+              f"| replace {m('replace'):.1f} run {m('run'):.1f} failed edits {m('edit_fail'):.1f} "
               f"| plan {m('plan'):.1f} blocked {m('blocked'):.1f} debug flags {m('debug_flag'):.1f} "
               f"| raw reads {m('raw_read') + m('read_file'):.1f} | scripts/tests before edit {m('pre_edit_runs'):.1f} | reshown {m('reshown'):.1f} | banner runs "
               f"{sum(1 for x in d if x.get('banner') or x.get('stop_banner'))} | call 1 wrong "
@@ -169,6 +170,7 @@ def _digest(job, messages, resp, seconds):
         d['stop_banner'] += 'STOP READING' in out
         d['blocked'] += 'BLOCKED: ' in out
         d['debug_flag'] += 'DEBUG LINE IN YOUR DIFF' in out
+        d['edit_fail'] += any(k in out for k in ('FileEditError', 'old_string not found', 'REPLACE FAILED'))
     r = _dump(resp)
     usage = r.get('usage') or {}
     pt = usage.get('prompt_tokens') or 0
@@ -192,18 +194,19 @@ def _digest(job, messages, resp, seconds):
             cmd = str(a.get('command', ''))
             subs = _A_PY.findall(cmd)
             for c in subs:
-                d[c if c in ('find', 'outline', 'show', 'note', 'pin', 'impact', 'check', 'plan') else 'a_other'] += 1
+                d[c if c in ('find', 'outline', 'show', 'note', 'pin', 'impact', 'check', 'plan', 'replace', 'run') else 'a_other'] += 1
             if not subs and _RAW.search(cmd):
                 d['raw_read'] += 1
             if 'pytest' in cmd:
                 d['pytest'] += 1
-            if not d['first_edit'] and re.search(r'pytest|python3?\s+(-c\b|-\s*<<|-m\b|\S+\.py)', cmd) and not subs:
+            if not d['first_edit'] and (('run' in subs) or (re.search(r'pytest|python3?\s+(-c\b|-\s*<<|-m\b|\S+\.py)', cmd)
+                                                            and not subs)):
                 d['pre_edit_runs'] += 1  # a script or test run before the first edit (solved 8/17 at 0-4, 2/11 at 5+)
             if re.search(r'\bpip\b', cmd):
                 d['pip'] += 1
             if 'repro.py' in cmd:
                 d['repro'] += 1
-            edit = 'git apply' in cmd or 'sed -i' in cmd or ('.write' in cmd and '<<' in cmd)
+            edit = 'git apply' in cmd or 'sed -i' in cmd or ('.write' in cmd and '<<' in cmd) or 'replace' in subs
         elif name in ('edit_file', 'write_file'):
             path = str(a.get('filepath') or a.get('file_path') or a.get('path') or '')
             if '.git/agent/' in path:
@@ -241,7 +244,7 @@ def digest_row(job, agent_s):
     model_s = d['model_ms'] / 1000
     n = max(d['tool_calls'], 1)
     keys = ('install', 'install_at', 'find', 'outline', 'show', 'note', 'pin', 'impact', 'check', 'a_other', 'raw_read',
-            'read_file', 'pre_edit_runs', 'plan', 'blocked', 'debug_flag', 'refused', 'reshown', 'banner', 'stop_banner', 'pip', 'call1_wrong', 'repro', 'pytest', 'edit_file', 'write_file', 'first_edit', 'compactions',
+            'read_file', 'pre_edit_runs', 'plan', 'blocked', 'debug_flag', 'replace', 'run', 'edit_fail', 'refused', 'reshown', 'banner', 'stop_banner', 'pip', 'call1_wrong', 'repro', 'pytest', 'edit_file', 'write_file', 'first_edit', 'compactions',
             'max_prompt', 'out_tokens', 'model_calls', 'tool_calls', 'get_status', 'submit_patch', 'digest_errors')
     row = {k: d[k] for k in keys}
     row.update(model_s=round(model_s), tool_s=round(max(agent_s - model_s, 0)),
@@ -253,7 +256,8 @@ def digest_row(job, agent_s):
 def digest_line(r):
     return (f"      DIGEST install@{r['install_at'] or '-'} | a.py find {r['find']} outline {r['outline']} show "
             f"{r['show']} note {r['note']} pin {r['pin']} | raw reads {r['raw_read']} read_file {r['read_file']} | "
-            f"scripts/tests before edit {r['pre_edit_runs']} | plan {r['plan']} blocked {r['blocked']} debug flags "
+            f"scripts/tests before edit {r['pre_edit_runs']} | a.py replace {r['replace']} run {r['run']} | failed edits "
+            f"{r['edit_fail']} | plan {r['plan']} blocked {r['blocked']} debug flags "
             f"{r['debug_flag']} | refused {r['refused']} reshown {r['reshown']} | banners {r['banner']}+{r['stop_banner']} stop | pip {r['pip']} | "
             f"edit_file/write_file {r['edit_file'] + r['write_file']}, first edit at call {r['first_edit'] or '-'} | "
             f"repro {r['repro']} pytest {r['pytest']} | compactions {r['compactions']} max prompt {r['max_prompt']} | "

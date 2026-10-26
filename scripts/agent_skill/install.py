@@ -40,6 +40,8 @@ usage = {
     "impact": "impact                        after an edit: other places using what you changed",
     "check": "check                         after an edit: .git/agent/repro.py + nearest tests + git status",
     "plan": 'plan "FILE:START-END what and why"   commit to the change; shows the closest existing test',
+    "replace": "replace FILE START END << 'EOF' ... EOF   replace those lines (numbers from show) with the new lines",
+    "run": "run << 'EOF' ... EOF            run python code in the repository in one call (30 s limit)",
 }
 print("READY. Your reading tool, with run_command: python3 .git/agent/a.py COMMAND ...\n" +
       "\n".join("  " + usage[c] for c in cmds if c in usage) +

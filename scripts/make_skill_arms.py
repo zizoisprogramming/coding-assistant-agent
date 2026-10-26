@@ -23,6 +23,10 @@
            came after call 28 in sk_a2 / sk_a3, banners were read through) and debugflag (debug-looking added lines are
            listed in every output: one failed patch was a lone DEBUG print) (user 2026-10-26: "optimize a2")
   sk_a2_t05  an exact copy of the submitted sk_a2 (its own a.py) with temperature 0.5 instead of 0.2 (user 2026-10-26)
+  sk_a5    sk_a2 + a.py replace (edit by line numbers: 54 of 286 edit_file calls failed on "old_string not found" /
+           "occurs N times") + a.py run (a script in one call, 30 s, no file: 39 of 128 runs spent 6+ calls on scripts)
+           (user 2026-10-26)
+  sk_a5r   sk_a2 + a.py replace only (separates the two tools' effects)
   sk_p1    new design from all runs so far (user 2026-10-26): look (8 looks) -> plan "FILE:LINES what and why" (gated:
            reading BLOCKED until the plan; the plan shows the closest existing test, for location and conventions) ->
            5 more looks -> edit (gated) -> one targeted test -> submit; no scripts; brake + debugflag; own prompt
@@ -41,7 +45,9 @@ ARMS = {"sk_a": "find outline show note pin", "sk_abc": "find outline show note 
         "sk_a2": "find outline show banner reshow", "sk_ad2": "find outline show banner reshow",
         "sk_a3": "find outline show banner reshow",
         "sk_a4": "find outline show banner reshow brake debugflag",
-        "sk_p1": "find outline show plan banner reshow brake plangate debugflag"}
+        "sk_p1": "find outline show plan banner reshow brake plangate debugflag",
+        "sk_a5": "find outline show replace run banner reshow",
+        "sk_a5r": "find outline show replace banner reshow"}
 
 AGENT_YAML = """# {arm}: mix + the agent's reading tool (.git/agent/a.py, installed by the skill) - scripts/make_skill_arms.py
 name: swe_agent
@@ -225,12 +231,7 @@ names and spellings. Ignore template boilerplate in the issue: HTML comments, ch
 ## Step 2: Edit (the decision rule above)
 - Apply the fix directly to source files. Match the existing style of the file. Change only what the issue needs:
   no speculative extra changes.
-- edit_file mechanics: copy the real characters from the show output (without the line-number column), never
-  JSON-escape backslashes. Keep old_string short and unique: never include docstrings, triple-quoted strings, or
-  blank-line runs. Several small edits beat one large edit. If a call fails validation, never resend the identical
-  call: show the exact lines again and rebuild from a fresh short anchor, or edit with run_command:
-  python3 - << 'EOF' (open the file, assert the old text occurs once, replace it, write it back) EOF.
-- Feature request: copy the closest existing sibling feature end to end, including imports, __all__ exports, dispatch
+{edit_mech}- Feature request: copy the closest existing sibling feature end to end, including imports, __all__ exports, dispatch
   or option tables, and type hints.
 - Fix the behaviour where it is produced, not where it is observed.
 - For documentation-code tasks (e.g. FastAPI), edit executable code under docs_src/.
@@ -281,6 +282,27 @@ tests/test_panel.py::test_margin; git log shows "add Panel margin"; hypothesis: 
 width; show pkg/panel.py Panel.render; edit.
 """
 
+EDIT_MECH_FILE = """- edit_file mechanics: copy the real characters from the show output (without the line-number column), never
+  JSON-escape backslashes. Keep old_string short and unique: never include docstrings, triple-quoted strings, or
+  blank-line runs. Several small edits beat one large edit. If a call fails validation, never resend the identical
+  call: show the exact lines again and rebuild from a fresh short anchor, or edit with run_command:
+  python3 - << 'EOF' (open the file, assert the old text occurs once, replace it, write it back) EOF.
+"""
+EDIT_MECH_REPLACE = """- Edit with a.py replace and the line numbers from your latest show of those lines: one call, no old text to copy.
+  python3 .git/agent/a.py replace pkg/panel.py 120 124 << 'EOF'
+          if margin > width:
+              raise ValueError("margin too large")
+  EOF
+  It replaces lines 120-124 with exactly the lines you write (give them their full indentation) and shows the result.
+  When a replace changes the number of lines, the lines below it move: show them again before another replace further
+  down. Several small replaces beat one large one. edit_file still works, but it needs the old text copied exactly and
+  fails when it does not match.
+"""
+RUN_SCRIPTS = """- A quick script of your own runs in one call, in the repository, with a 30-second limit and no file left behind:
+  python3 .git/agent/a.py run << 'EOF'
+  (your python code)
+  EOF
+"""
 OWN_SCRIPTS = """- A script of your own: write it with write_file to .git/agent/check.py (outside your patch; write_file refuses /tmp)
   and run it under a time limit: timeout 30 python3 .git/agent/check.py
 """
@@ -395,9 +417,11 @@ submit: 7 calls.
 def prompt(arm):
     if arm == "sk_p1":
         return HEAD_P
-    if arm in ("sk_a2", "sk_ad2", "sk_a3", "sk_a4"):
+    if arm in ("sk_a2", "sk_ad2", "sk_a3", "sk_a4", "sk_a5", "sk_a5r"):
         return HEAD2.format(thin_issue=THIN2 if arm == "sk_ad2" else "",
-                            own_scripts=OWN_SCRIPTS_NONE if arm == "sk_a3" else OWN_SCRIPTS,
+                            edit_mech=EDIT_MECH_REPLACE if arm in ("sk_a5", "sk_a5r") else EDIT_MECH_FILE,
+                            own_scripts=(OWN_SCRIPTS_NONE if arm == "sk_a3" else RUN_SCRIPTS if arm == "sk_a5"
+                                         else OWN_SCRIPTS),
                             scratch=SCRATCH_TMP if arm == "sk_a3" else SCRATCH_AGENT,
                             brake_text=BRAKE_TEXT if arm == "sk_a4" else "",
                             debug_text=DEBUG_TEXT if arm == "sk_a4" else "")

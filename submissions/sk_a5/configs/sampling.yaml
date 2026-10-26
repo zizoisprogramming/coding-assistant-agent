@@ -1,0 +1,8 @@
+# Arm mix (rung-3e): bf prompt + r4 decision rule/example/edit fallback; bf tools. Thinking set from rung-3d
+# (placeholder 2048 / max_output 4096, as r4_mid).
+temperature: 0.2
+top_p: 0.95
+max_output_tokens: 4096
+thinking_config:
+  thinking_budget: 2048
+  include_thoughts: true
