@@ -10,6 +10,23 @@ change cell 4's printed output. **No training data from Claude, GPT or Gemini (u
 account runs its OWN notebook copy (a shared notebook made `kaggle kernels output` return only the latest version
 and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly quota is tight → small runs.
 
+### AGREED NEXT STEPS (2026-10-26 night, NEWEST — read first)
+- **sk_a5 / sk_a5r running** (kaggle/cells_skill_a5). When done, read the DIGEST averages first (cell 5), then score:
+  1. failed edits per run (sk_a2: ~1 in 5 edit_file calls failed) -> replace becomes the base if they drop;
+  2. replace vs edit_file use; 3. median first edit (sk_a2: 17; winners: 14); 4. sk_a5 vs sk_a5r scripts before the
+  edit + edit timing -> keep `run` only if it does not feed script spirals; 5. edits after call 28 (sk_a2: 4/32);
+  score: only >= 5 or <= 2 per pass means anything; watch 3882 / 15589 / 11194 (tier 1).
+- **Task tiers (all runs):** tier 1 = 3882 95%, 15589 60%, 11194 55%; tier 2 = 4079 35%, 3521 31%, 14419 15%,
+  3470 14%; tier 3 = the other 9 at 0 in ~150 runs (model limit). Ceiling 7, now ~3 per pass.
+- **Winners' recipe** (action strings): 1-3 find -> outline -> show 1-2 WHOLE functions -> at most 1-2 probes -> edit ->
+  test -> submit. Losers: find / line-peek ping-pong (fsfsfs) or script spirals (xrxrxr).
+- **Next arm to build after sk_a5: "navigator"** = sk_a2 + whichever of replace / run passed + situational hints in
+  a.py output: whole-function show adds its top callers + "decide: edit it, or show the caller that feeds it";
+  ping-pong detector (~4 find/line-peeks without a whole-function show); probe counter (2 probes -> decide); prompt asks
+  for WHERE / WHY / CHANGE before the first edit. No blocks, no bans.
+- **Test set from now on: the 7 tier-1/2 tasks x 2 repeats (14 runs per arm, ~1.5 h quota)**; a full-16 check of time
+  per task only before an LB submission.
+
 ### WHY DO SOME ARMS SOLVE WHAT OTHERS DON'T? (2026-10-26 night, NEWEST — read first)
 - 60 logged runs (sk_a/sk_ad, sk_a2/sk_ad2, sk_a4/sk_p1/sk_a2_t05) on the 6 winnable tasks (11194, 15589, 4079, 3470,
   14419, 3521); sk_a3's and the first run's request logs are gone (same kernel slug overwritten / cancelled).
