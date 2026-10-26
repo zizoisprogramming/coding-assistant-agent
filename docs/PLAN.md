@@ -32,6 +32,15 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
+### NEXT RUN BUILT: sk_nav2 vs sk_nav2_32 on the 7 winnable tasks x 2 (2026-10-27, NEWEST — read first)
+- sk_nav2: sk_nav's prompt rewritten so install is step 1 of the route ("always tool call 1", never a.py or
+  python3 -m run_skill_script before it), the contract is thought out before any tool call, and Avoid starts with
+  "any first call other than run_skill_script". Same a.py (navigate), same replace.
+- sk_nav2_32: identical, with max_tool_calls 32 (eval_config.yaml and the prompt's numbers); time stays 8 min
+  (user 2026-10-27). Scorer risk to watch: mean agent seconds per run (mix 346 s ran 116 tasks in the 12 h).
+- Notebook kaggle/cells_skill_nav2: arms may now differ in max_tool_calls (per-arm EVAL_CFGS); DIGEST reads WHERE
+  from the reasoning too. 28 runs; early stop after pass 1 per arm at <= 3 of 7. Simulated locally: OK.
+
 ### sk_nav RESULT (2026-10-27, NEWEST — read first)
 Run ended by itself after 2 passes (0.9 h). Outputs + request log: data/results/2026-10-27_skill_nav/.
 - Score on the 7 winnable tasks: pass 1 5/7 (first 5 ever), pass 2 3/7 -> 8/14 = 4.0 per pass (mix 3.67, sk_a2 3.5,

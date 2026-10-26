@@ -1,5 +1,6 @@
-"""Writes kaggle/cells_skill_nav/: sk_nav (the navigator) alone on the 7 winnable dev16 tasks (the only ones any arm
-or mix ever solved), 2 passes (user 2026-10-27). Earlier: kaggle/cells_skill_a5 = 3bef97a (sk_a5 3/16, sk_a5r 3/16).
+"""Writes kaggle/cells_skill_nav2/: sk_nav2 (navigator, install as route step 1) vs sk_nav2_32 (the same with 32 tool
+calls) on the 7 winnable dev16 tasks (the only ones any arm or mix ever solved), 2 passes (user 2026-10-27). Arms may
+differ only in max_tool_calls. Earlier: kaggle/cells_skill_nav = 329307b (sk_nav 5 + 3 of 7). Earlier: kaggle/cells_skill_a5 = 3bef97a (sk_a5 3/16, sk_a5r 3/16).
 Earlier: kaggle/cells_skill_a4p1 = 32f7f2a (sk_a4 2/16, sk_p1 6/32, sk_a2_t05 3/16). Earlier runs: kaggle/cells_skill_a3 = 6c5d224 (sk_a3 2/16), kaggle/cells_skill_a2 = 6216e2e
 (sk_a2 7/32, sk_ad2 3/32), kaggle/cells_skill_ad = 333285f, kaggle/cells_skill_arms = 82c8d56.
 
@@ -29,8 +30,8 @@ sys.path.insert(0, str(ROOT / "scripts/train"))
 import make_gen_cells as G  # noqa: E402
 from make_test_cells import must_replace  # noqa: E402
 
-OUT = ROOT / "kaggle/cells_skill_nav"
-ARMS = ["sk_nav"]
+OUT = ROOT / "kaggle/cells_skill_nav2"
+ARMS = ["sk_nav2", "sk_nav2_32"]
 # the winnable dev16 tasks: tier 1 (mix 55-95%) + tier 2 (14-35% over all arms); the other 9 were 0 in ~150 runs
 TASKS = ["rich_3882", "fastapi_15589", "fastapi_11194", "rich_4079", "rich_3521", "fastapi_14419", "rich_3470"]
 CONCURRENCY = 2
@@ -186,7 +187,7 @@ def _digest(job, messages, resp, seconds):
     d['max_prompt'] = max(d['max_prompt'], pt)
     d['out_tokens'] += usage.get('completion_tokens') or 0
     msg = ((r.get('choices') or [{}])[0] or {}).get('message') or {}
-    if msg.get('tool_calls') and 'WHERE:' in _text(msg.get('content')) and not d['where_at']:
+    if msg.get('tool_calls') and 'WHERE:' in _text(msg.get('content')) + str(msg.get('reasoning_content') or '') and not d['where_at']:
         d['where_at'] = d['tool_calls'] + 1  # the call that came with the first WHERE / WHY / CHANGE lines
     for tc in msg.get('tool_calls') or []:
         fn = (tc or {}).get('function') or {}
@@ -317,8 +318,11 @@ def main():
         ("MANIFEST = discover_adapters(str(SUB_DIR), adapter_extensions=ALLOWED_ADAPTER_EXTENSIONS)\n",
          "MANIFESTS = {a: discover_adapters(str(SUB_ROOT / a), adapter_extensions=ALLOWED_ADAPTER_EXTENSIONS) for a in ARMS}\n"),
         ("EVAL_CFG = read_eval_config(SUB_DIR)\n",
-         "EVAL_CFG = read_eval_config(SUB_ROOT / ARMS[0])\n"
-         "assert all(read_eval_config(SUB_ROOT / a) == EVAL_CFG for a in ARMS), 'arms differ in budgets'\n"),
+         "EVAL_CFGS = {a: read_eval_config(SUB_ROOT / a) for a in ARMS}  # arms may differ only in max_tool_calls\n"
+         "EVAL_CFG = EVAL_CFGS[ARMS[0]]\n"
+         "assert all({**c, 'max_tool_calls': 0} == {**EVAL_CFG, 'max_tool_calls': 0} for c in EVAL_CFGS.values()), "
+         "'arms differ in budgets other than max_tool_calls'\n"),
+        ("display_mode='quiet', **EVAL_CFG))", "display_mode='quiet', **EVAL_CFGS[arm]))"),
         ("def evaluator_for(iid):\n", "def evaluator_for(iid, arm):\n"),
         ("results_dir=RESULTS / 'gen', submission_dir=SUB_DIR,", "results_dir=RESULTS / 'gen', submission_dir=SUB_ROOT / arm,"),
         ("adapter_manifest=MANIFEST,", "adapter_manifest=MANIFESTS[arm],"),
@@ -326,7 +330,7 @@ def main():
          "print('budgets', EVAL_CFG, '| adapters', list(MANIFEST.adapters))\n",
          "for _a in ARMS:  # fail before any task if a submission does not build into a config\n"
          "    evaluator_for(ORDER[0], _a)\n"
-         "    print(_a, '| budgets', EVAL_CFG, '| adapters', list(MANIFESTS[_a].adapters))\n"),
+         "    print(_a, '| budgets', EVAL_CFGS[_a], '| adapters', list(MANIFESTS[_a].adapters))\n"),
         ("evaluator_for(iid), time.time()", "evaluator_for(iid, attempt.split('.')[0]), time.time()"),
         ("row = {'instance_id': iid, 'attempt': attempt, 'mode': MODE,",
          "row = {'instance_id': iid, 'attempt': attempt, 'arm': attempt.split('.')[0], 'mode': MODE,"),
