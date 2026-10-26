@@ -10,6 +10,20 @@ change cell 4's printed output. **No training data from Claude, GPT or Gemini (u
 account runs its OWN notebook copy (a shared notebook made `kaggle kernels output` return only the latest version
 and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly quota is tight → small runs.
 
+### sk_a3 RESULT + WHERE THE SKILL ARMS STAND (2026-10-26, NEWEST — read first)
+- ziadsamer/fork-of-generation-all-shards-gpu (kaggle/cells_skill_a3): **sk_a3 2/16, no patch 8**, early stop worked
+  (data/results/2026-10-26_skill_a3, request log 20 MB not downloaded). Solved 14419 (mix 2/6) + 3882; lost 11194
+  (first edit at call 29 after 18 banners -> refused) and 15589 (E). "No scripts before the edit" partly obeyed
+  (1.8 per run; 10 on rich_3934). Median first edit 24 (sk_a2 17); 5/16 runs edited only after call 28.
+- **All skill-arm passes on dev16 (mix 3.67):** sk_a 3, 2 | sk_abc 2 | sk_abcd 4 | sk_ad 3 | sk_a2 4, 3 | sk_ad2 1, 2 |
+  sk_a3 2. None is clearly above mix; one pass of 16 tasks has a spread of about +-1.7 solved (binomial), so
+  differences of 1 task are noise. dev16 cannot separate the arms any more.
+- Recurring: STOP READING is read through for 10+ calls (sk_a3: 6 runs had 11-13 STOP banners); edits after call 28
+  are refused -> no patch (sk_a3 5 runs, sk_a2 4 of 32).
+- Options: (1) LB-submit sk_a2 (no GPU quota; ~116 tasks, a 7x bigger sample; mix 0.17); (2) a hard brake in a.py
+  (after STOP, show/find refuse until the repo has a change; le6 lesson: only refusals change behaviour);
+  (3) a bigger local eval (dev16 + val16) before any more arm changes.
+
 ### NEXT RUN BUILT: sk_a3 alone (2026-10-26, NEWEST — read first)
 - kaggle/cells_skill_a3, submissions/sk_a3 (scripts/make_skill_arms.py sk_a3): sk_a2 with mix's brake back: "before
   your first edit, run no scripts or tests", the existing targeted test after it, scratch in /tmp only (write_file
