@@ -10,6 +10,21 @@ change cell 4's printed output. **No training data from Claude, GPT or Gemini (u
 account runs its OWN notebook copy (a shared notebook made `kaggle kernels output` return only the latest version
 and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly quota is tight → small runs.
 
+### WHY DO SOME ARMS SOLVE WHAT OTHERS DON'T? (2026-10-26 night, NEWEST — read first)
+- 60 logged runs (sk_a/sk_ad, sk_a2/sk_ad2, sk_a4/sk_p1/sk_a2_t05) on the 6 winnable tasks (11194, 15589, 4079, 3470,
+  14419, 3521); sk_a3's and the first run's request logs are gone (same kernel slug overwritten / cancelled).
+- **Every arm starts the same way and finds the same file:** the first search is identical per task across arms
+  (e.g. find "convert_underscores", find "File" fastapi/params.py, find "cache" fastapi/dependencies) and solved and
+  failed runs edit the same file (except 4079: markdown.py vs table.py/pretty.py).
+- **The difference is timing:** solved runs (17) edit at call 14 (median; 11/17 by call 16), with 10 reads and 2
+  scripts before; failed runs (43) edit at call 27 (4/43 by call 16) or never (11), with 19 reads and 3 scripts.
+  Same place, same first step; the winners commit early and keep budget to test and repair.
+- So "unique" solves (3521 by 5 arms, 11194 by many, 14419 only by sk_a3, 3470 only by the first sk_a) are mostly
+  which runs happened to commit early, not a feature one arm had. Combining arms will not combine their solves.
+  Exception: 4079 needs the right reading of "table" (Markdown tables) and a long search (solved runs edit at 17-28).
+- Pushing the edit earlier by force (sk_a4 brake at 15 reads, sk_p1 gates) did not reproduce it: forced edits were
+  wrong. The winners committed early because they understood early; open question how to get there more often.
+
 ### NEXT RUN BUILT: sk_a5 vs sk_a5r (2026-10-26 night, NEWEST — read first)
 - User: optimize sk_a2; no fresh mix control; aim for a pass of 5+.
 - sk_a2 losses on winnable tasks (7 runs): scripts eating the 28 calls then a refused edit (rich_3470 x2), a misread
