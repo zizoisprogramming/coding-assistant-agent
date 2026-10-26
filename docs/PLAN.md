@@ -32,6 +32,21 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
+### sk_nav RESULT (2026-10-27, NEWEST — read first)
+Run ended by itself after 2 passes (0.9 h). Outputs + request log: data/results/2026-10-27_skill_nav/.
+- Score on the 7 winnable tasks: pass 1 5/7 (first 5 ever), pass 2 3/7 -> 8/14 = 4.0 per pass (mix 3.67, sk_a2 3.5,
+  sk_a5 3). Per task: 11194 SS, 3882 SS, 14419 S0, 15589 SE, 3470 S0, 3521 0S, 4079 00.
+- Failed edits 0 (replace). Median first edit still 20 (sk_a5 19-21; target 14): the hints did not move timing.
+- DECIDE is read through: calls from the first DECIDE to the first edit = 2, 6, 7, 8, 9, 10, 12, 12, 18, 19, 23, 24.
+  PING-PONG too (14419.2 got it 4 times in a row and kept finding). Same lesson as banners: warnings are ignored.
+- WHERE / WHY / CHANGE was written in 11/14 runs, in the model's reasoning (digest counted only content -> 0: bug).
+- Call 1 wrong in 8/14 (all fastapi tasks + rich_4079, both passes; sk_a2 had 0): searched first, or
+  `python3 -m run_skill_script`; install came at call 2-3. Likely cause: the route starts with "1. Search" and the
+  contract section is titled "Before call 2".
+- 3 runs lost by ONE call: 14419.2, 3470.2, 4079.2 edited at call 29 (refused, no patch); 2 of them had wasted call 1.
+  rich_3470.1 solved with its first edit at call 28.
+- Next candidate: sk_nav2 = sk_nav with install as step 1 of the route (the call-1 fix) + digest WHERE fix.
+
 ### NEXT RUN BUILT: sk_nav, the navigator, alone on the 7 winnable tasks x 2 (2026-10-27, NEWEST — read first)
 - Arm submissions/sk_nav (scripts/make_skill_arms.py sk_nav): own prompt, written fresh (1263 words), built on the
   winners' route: contract -> find 1-3 -> outline -> 1-2 whole functions -> at most 2 one-call probes
