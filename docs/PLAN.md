@@ -32,6 +32,14 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
+### sk_nav_32 on ALL 16 RESULT (2026-10-28, NEWEST — read first)
+- 4/16 (mix 3.67, sk_a2 3.5): 11194, 15589, 3882 + rich_4079; missed 14419, 3470, 3521; 0 of the 9 never-solved.
+  5 no patch, 5 time ends, call 1 wrong 12/16 (sk_nav's prompt; fixed in sk_nav2). Outputs: data/results/2026-10-28_skill_nav32/.
+- Mean agent 387 s/task: over le5's 347 s (Notebook Timeout on the 12-h scorer); mix's dev runs 286-382 and PLAN's rule
+  "keep mean well under ~330 s or cap time". NOT submittable as is.
+- Navigator family so far: sk_nav 5, 3 (7 tasks); sk_nav2 2; sk_nav2_32 3 (7 tasks); sk_nav_32 4/16. All within the
+  noise of mix (3.67 per pass); no arm has shown a reliable gain on dev.
+
 ### sk_nav2 RESULT + NEXT RUN BUILT: sk_nav_32 (2026-10-27, NEWEST — read first)
 - sk_nav2 2/7, sk_nav2_32 3/7 (pass 1; early stop). Call 1 wrong 0/14 (sk_nav 8/14): the install fix worked, the
   score did not follow. First edit median 17 (28 calls) / 22 (32 calls). sk_nav2_32 mean agent 355 s = sk_nav 354 s
