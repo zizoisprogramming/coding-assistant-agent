@@ -41,6 +41,8 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   reads. fastapi_15589 (tier 1) lost: tool at call 19, read_file + repro scripts, no source edit.
 - One pass: the 28-config twin got 3, so part of the gap is noise. Outputs: data/results/2026-10-28_skill_s6/.
 - LB candidate: sk_nav_s6_32 (344 s/task like sk_a2; whether that fits the 12 h = sk_a2's LB outcome).
+- PACKED: dist/submission.zip = dist/sk_nav_s6_32.zip (pack.py OK; byte-identical to the files that ran in
+  cells_skill_s6). sk_a2 stays in dist/sk_a2.zip. User submits after the daily slot resets.
 
 ### NEXT RUN BUILT: sk_nav_s6 vs sk_nav_s6_32, all 16, 1 pass (2026-10-28, NEWEST — read first)
 - Why: the model does not count its calls (get_status 3x in ~450 replies; the budget appears in its reasoning only
