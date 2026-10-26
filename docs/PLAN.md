@@ -32,6 +32,15 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
+### NEXT RUN BUILT: sk_nav_s6 vs sk_nav_s6_32, all 16, 1 pass (2026-10-28, NEWEST — read first)
+- Why: the model does not count its calls (get_status 3x in ~450 replies; the budget appears in its reasoning only
+  after "Tool call budget exhausted"); with a 32-call prompt late tasks edited later (3470 28/29 -> 35, 4079 29 -> 32).
+- User: state a smaller budget than the real one. Both arms = sk_nav file for file; prompt + a.py banner say
+  "28 tool calls and 6 minutes" ("of the 6 minutes used"); real config: sk_nav_s6 28 calls / 8 min, sk_nav_s6_32
+  32 calls / 8 min (4 calls + 2 min of cushion). scripts/make_skill_arms.py CALL_VARIANTS.
+- Notebook kaggle/cells_skill_s6 (only cell2 differs from cells_skill_nav32): 32 runs. Simulated locally: OK.
+- Read: solved vs mix 3.67 and sk_nav_32 4/16; first edits > 28 (the cushion used?); mean agent s (sk_nav_32 387).
+
 ### sk_nav_32 on ALL 16 RESULT (2026-10-28, NEWEST — read first)
 - 4/16 (mix 3.67, sk_a2 3.5): 11194, 15589, 3882 + rich_4079; missed 14419, 3470, 3521; 0 of the 9 never-solved.
   5 no patch, 5 time ends, call 1 wrong 12/16 (sk_nav's prompt; fixed in sk_nav2). Outputs: data/results/2026-10-28_skill_nav32/.

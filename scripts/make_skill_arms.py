@@ -37,6 +37,9 @@
   sk_nav2_32  sk_nav2 with 32 tool calls instead of 28 (eval_config.yaml and the prompt; time stays 8 minutes)
   sk_nav_32  an exact copy of sk_nav (5 then 3 of 7) with 32 tool calls (eval_config.yaml + the prompt's three budget
            numbers) (user 2026-10-27, after sk_nav2 2/7, sk_nav2_32 3/7)
+  sk_nav_s6 / sk_nav_s6_32  sk_nav file for file; the prompt and a.py's banner say 28 calls and 6 minutes while the
+           config is 28 calls / 8 min and 32 calls / 8 min (user 2026-10-28: the model does not count its calls; a
+           stated budget below the real one leaves a cushion)
   sk_p1    new design from all runs so far (user 2026-10-26): look (8 looks) -> plan "FILE:LINES what and why" (gated:
            reading BLOCKED until the plan; the plan shows the closest existing test, for location and conventions) ->
            5 more looks -> edit (gated) -> one targeted test -> submit; no scripts; brake + debugflag; own prompt
@@ -701,7 +704,10 @@ def prompt(arm):
 
 
 VARIANTS = {"sk_a2_t05": ("sk_a2", 0.5)}  # arm -> (arm it copies file for file, temperature)
-CALL_VARIANTS = {"sk_nav_32": ("sk_nav", 32)}  # arm -> (arm it copies file for file, max_tool_calls)
+# arm -> (arm it copies file for file, real max_tool_calls, (calls, minutes) the prompt and a.py's banner state)
+CALL_VARIANTS = {"sk_nav_32": ("sk_nav", 32, (32, 8)),
+                 "sk_nav_s6": ("sk_nav", 28, (28, 6)),  # user 2026-10-28: say 28 calls / 6 minutes, config differs
+                 "sk_nav_s6_32": ("sk_nav", 32, (28, 6))}
 
 
 def variant(arm):
@@ -720,23 +726,28 @@ def variant(arm):
 
 def call_variant(arm):
     """A file-for-file copy with another tool-call budget: eval_config.yaml and the prompt's budget numbers."""
-    base, calls = CALL_VARIANTS[arm]
+    base, calls, (said_calls, said_min) = CALL_VARIANTS[arm]
     out = ROOT / "submissions" / arm
     shutil.rmtree(out, ignore_errors=True)
     shutil.copytree(ROOT / "submissions" / base, out)
     ev = out / "eval_config.yaml"
-    assert ev.read_text().count("max_tool_calls: 28") == 1
+    assert ev.read_text().count("max_tool_calls: 28") == 1 and "max_time_minutes: 8" in ev.read_text()
     ev.write_text(ev.read_text().replace("max_tool_calls: 28", f"max_tool_calls: {calls}"))
     sp = out / "prompts/system.md"
     text = sp.read_text()
-    for old in ("You have 28 tool", "after call 28 is refused", "An edit after call 28:"):
+    for old in ("You have 28 tool", "after call 28 is refused", "An edit after call 28:", "free) and 8 minutes."):
         assert text.count(old) == 1, old
-        text = text.replace(old, old.replace("28", str(calls)))
-    assert "28" not in text, "a budget number left at 28"
+        text = text.replace(old, old.replace("28", str(said_calls)).replace("8 minutes", f"{said_min} minutes"))
+    assert said_calls == 28 or "28" not in text, "a budget number left at 28"
     sp.write_text(text)
+    ap = out / "skills/agent/scripts/a.py"  # the NO EDIT YET / STOP READING banner names the stated minutes
+    code = ap.read_text()
+    assert code.count("of the 8 minutes used") == 2
+    ap.write_text(code.replace("of the 8 minutes used", f"of the {said_min} minutes used"))
     ay = out / "agent.yaml"
     ay.write_text(ay.read_text().replace(f"# {base}: ", f"# {arm} = {base} with {calls} tool calls; {base}: ", 1))
-    print("wrote", out.relative_to(ROOT), f"| copy of {base}, max_tool_calls {calls}")
+    print("wrote", out.relative_to(ROOT), f"| copy of {base}, max_tool_calls {calls} | the prompt says {said_calls} calls, "
+          f"{said_min} minutes")
 
 
 def main():
