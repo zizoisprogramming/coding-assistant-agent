@@ -10,8 +10,8 @@ functions.
 
 ## Call 1: run_skill_script
 Your first tool call is run_skill_script with skill_name agent and file_path scripts/install.py, and nothing else. It
-puts your tool at .git/agent/a.py and prints READY. It is not a package install: never run pip. The sandbox has no
-internet (pip hangs for minutes, then fails) and every dependency is already installed.
+puts your tool at .git/agent/a.py and prints READY. It is not a package install: the sandbox has no internet and
+every dependency is already installed.
 
 ## Before call 2: the contract
 From the problem statement, list the exact function names, class names, error messages, exception types, HTTP status
@@ -43,21 +43,13 @@ names from YOUR issue):
      CHANGE: subtract twice the margin from the width before drawing
    and make the edit in that same reply.
 6. Test once, repair once, submit (below).
-
-## Two ways runs lose the budget
-- Ping-pong: find, a few lines, find again, a few lines. Each view is too small to decide on, so the run never
-  decides. When a.py prints PING-PONG, outline the file most of your finds point to and show the whole function.
-- Script spiral: probe after probe before any edit, each testing a slightly different case. Two probes, then decide.
-When a.py prints NO EDIT YET, STOP READING or ALREADY SHOWN, you have read enough: your next call is the edit.
-
-## Reading and memory
-Read code only with a.py: never with read_file, cat, sed, head, tail or grep. The first message shows the workspace
-layout, so never spend a call on ls or find to orient. Every a.py output starts with MEMORY, the lines you have read
-so far. Older tool outputs are removed from the conversation as it grows: trust MEMORY instead of reading again.
+Every a.py output starts with MEMORY, the lines you have read so far. Older tool outputs are removed from the
+conversation as it grows: trust MEMORY. When a.py prints NO EDIT YET, STOP READING or ALREADY SHOWN, you have read
+enough: your next call is the edit.
 
 ## Choosing the change
 - Fix the behaviour where it is produced, not where it is observed.
-- Change only what the issue needs, in the style of the file. No speculative extra changes, no refactoring.
+- Change only what the issue needs, in the style of the file.
 - An error type or message in the issue: copy the style of the checks next to it (assert vs raise, the exception
   class, the message wording).
 - A feature request: copy the closest existing sibling feature end to end, including imports, __all__ exports,
@@ -72,15 +64,13 @@ Replace lines by their numbers from your latest show of them: one call, no old t
   EOF
 It replaces lines 120-124 with exactly the lines you write (give each its full indentation) and shows the result.
 When a replace changes the number of lines, the lines below it move: show them again before another replace further
-down. Several small replaces beat one large one. edit_file also works, but it needs the old text copied exactly and
-fails when it does not match.
+down. Several small replaces beat one large one.
 
 ## Test once, repair once, submit
 - After the edit, run only the targeted existing test for the file you changed, under a time limit:
   timeout 90 python3 -m pytest tests/test_target.py -x -q -k name -p no:anyio -o timeout=0 > /tmp/t1.log 2>&1; tail -n 25 /tmp/t1.log
 - If it fails because of your change, make one repair, then submit. A local green test is not the grader: submit even
-  if the test is red or skipped. Never run bare pytest or the whole suite; never repair failures unrelated to your
-  change; never create test stubs.
+  if the test is red or skipped.
 - Before submit_patch: git status --short and git diff --stat. Only your source changes may appear. A file you created
   in the repository becomes part of the patch: delete it. A changed test-looking path (tests/, conftest.py,
   pytest.ini, pyproject.toml, setup.cfg, tox.ini): restore it with git checkout -- path
@@ -98,11 +88,31 @@ The wrong behaviour is produced right here, so call 4 is the edit:
   CHANGE: raise ValueError("timeout must be >= 0") for a negative timeout, like the retries check
 with a.py replace pkg/client.py 88 88 and the three new lines. Call 5: the client tests under timeout 90. Submit.
 
-## Never
-- Never run pip or install anything. A ModuleNotFoundError means fix the code under /workspace.
-- Never modify, create or delete test files or test configuration: anything under tests/, conftest.py, pytest.ini,
-  pyproject.toml, setup.cfg, tox.ini. The grader resets them and applying your patch fails if they differ.
-- Never search outside /workspace for sources or packages.
-- Never use git to change history or the working tree beyond your edit: no checkout of source files, reset, stash or
+## Avoid (each of these has cost earlier runs their score)
+Reading
+- Ping-pong: find, a few lines, find again, a few lines. Each view is too small to decide on, so the run never
+  decides. When a.py prints PING-PONG, outline the file most of your finds point to and show the whole function.
+- Reading on after you can say WHERE, WHY and CHANGE: the edit comes first, checking comes after.
+- Reading the same lines again: they are in MEMORY and above in the conversation.
+- Reading with read_file, cat, sed, head, tail or grep: they skip MEMORY and the CALLED FROM / DECIDE hints.
+- Spending calls on ls or find to orient: the first message already shows the workspace layout.
+- Searching outside /workspace for sources or packages.
+Probing and testing
+- A script spiral: probe after probe before any edit, each testing a slightly different case. Two probes, then decide.
+- Running pip or installing anything: there is no internet, pip hangs for minutes and fails. A ModuleNotFoundError
+  means fix the code under /workspace.
+- Running bare pytest, pytest . or the whole suite; any command without a time limit.
+- Repairing test failures that are not caused by your change (missing fixtures, import errors elsewhere), and more
+  than one repair round.
+Editing
+- An edit after call 28: it is refused and the run ends with no patch.
+- edit_file with a long old_string copied by hand: it fails when one character differs. Use replace.
+- Fixing the symptom where it shows instead of where the wrong value is produced.
+- Speculative extra changes, refactoring or reformatting unrelated code.
+- Leaving debug prints, scratch files or probe files in the repository: they become part of the patch.
+- Modifying, creating or deleting test files or test configuration (tests/, conftest.py, pytest.ini, pyproject.toml,
+  setup.cfg, tox.ini): the grader resets them and applying your patch fails if they differ.
+- Using git to change history or the working tree beyond your edit: no checkout of source files, reset, stash or
   commit.
-- Never finish without a non-empty patch: submit whatever partial edit exists.
+Finishing
+- Finishing without a non-empty patch: submit whatever partial edit exists.
