@@ -43,6 +43,8 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
 - LB candidate: sk_nav_s6_32 (344 s/task like sk_a2; whether that fits the 12 h = sk_a2's LB outcome).
 - PACKED: dist/submission.zip = dist/sk_nav_s6_32.zip (pack.py OK; byte-identical to the files that ran in
   cells_skill_s6). sk_a2 stays in dist/sk_a2.zip. User submits after the daily slot resets.
+- Kaggle allows only ONE pending submission per team (refused 2026-10-27: "already has 1 pending submissions").
+  sk_a2 (submitted 10-26 09:16 UTC) was still PENDING at 10-27 08:09 UTC (~23 h): sk_nav_s6_32 waits for it.
 
 ### NEXT RUN BUILT: sk_nav_s6 vs sk_nav_s6_32, all 16, 1 pass (2026-10-28, NEWEST — read first)
 - Why: the model does not count its calls (get_status 3x in ~450 replies; the budget appears in its reasoning only
