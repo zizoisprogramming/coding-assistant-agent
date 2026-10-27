@@ -32,6 +32,18 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
+### FIX ARMS RESULT: control 3/8, tmpl 3/8, brake 4/8 (2026-10-29, NEWEST — read first)
+- data/results/2026-10-29_skill_fix, 24 runs, 1.3 h. Mean agent s: control (r_n2k rerun) 356, tmpl 392 (4 timeouts),
+  brake 374 (1 timeout). r_n2k over 3 passes on these 8 tasks: 5, 3, 3.
+- Install at call 1 in all 24 runs (control too: the r15 fastapi_15589 miss was not repeated). tmpl solved fastapi_15589.
+- Template (EDIT NOW appended to whole-function shows): fired 12 times in 3 runs; the next call was an edit once
+  (rich_3180, and a different file). Ignored, like the other stop-signals. Drop it.
+- Brake (reading BLOCKED until the first edit): fired in 4 runs, 7 times; next call an edit 3 of 7, and every run it
+  fired in made an edit at calls 18-21 except rich_3180, where the model read around it with
+  python3 -c inspect.getsource and timed out with no patch. All 4 runs it fired in failed: the extra solves vs control
+  (fastapi_14419 with first edit 16, rich_3521 with first edit 11) had no block, so they are prompt or noise.
+- Brake gap: it blocks a.py reads only; probes (inspect.getsource, python - << EOF) and grep/sed get around it.
+
 ### NEXT RUN BUILT: fix arms sk_nav_tmpl / sk_nav_brake vs sk_nav_s6_32r_n2k, 8 tasks, 1 pass (2026-10-29, NEWEST — read first)
 - Signal check (3 runs, next call after each a.py signal): STOP READING -> edit 12%, NO EDIT YET 3%, DECIDE 6%,
   PING-PONG -> show/outline 65%. The prompt already said "your next call is the edit": the model obeys read-signals only.
