@@ -32,6 +32,11 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
+### NEXT RUN BUILT: sk_nav_s6_32r_n2k alone, all 16, 1 pass (2026-10-29, NEWEST — read first)
+- User picks s6_32r + n2k (T0.2, top_p 0.8, top_k 20, thinking 2048, max_output 4096) for a full dev16 pass.
+- kaggle/cells_skill_rn2k (only cell2 differs from cells_skill_think), 16 runs, saved version, about 1 h = about 2 h quota.
+  Sim: requests carry the n2k sampling. Compare with s6_32 (6, 2), s6_32i 3, s6_32r 4 on all 16; watch mean agent s.
+
 ### THINKING 2048 / 4096 RESULT: 13/32 (2026-10-29, NEWEST — read first)
 - Kernel ziad23samer/fork-of-generation-all-shards-gpu, 116 min. data/results/2026-10-29_skill_think, reference r14.
 - On the 8 tasks: s6_32_n2k 3, s6_32_n4k 2, s6_32r_n2k 5 (incl. rich_4079 + rich_3521), s6_32r_n4k 3.
