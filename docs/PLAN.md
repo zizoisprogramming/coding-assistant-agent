@@ -32,6 +32,17 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
+### NEXT RUN BUILT: n sampling with thinking 2048 / 4096 on s6_32 and s6_32r, 8 tasks, 1 pass (2026-10-28, NEWEST — read first)
+- top_p/top_k analysis of r13: g (T0) and n (T0.2, top_p 0.8, top_k 20) behave the same on every measure (reply length,
+  cap hits, calls, probes, first edit); both moved away from old by the same amount, so the shift was the 1024 cap.
+  At T0.2 probabilities are raised to the 5th power, so top_p 0.8-0.95 / top_k 20 almost never cut a likely word.
+- Arms (SAMPLING n2k / n4k in scripts/make_skill_arms.py; only configs/sampling.yaml differs from the base):
+  sk_nav_s6_32_n2k, sk_nav_s6_32r_n2k = T0.2, top_p 0.8, top_k 20, thinking 2048, max_output 4096;
+  sk_nav_s6_32_n4k, sk_nav_s6_32r_n4k = same with thinking 4096, max_output 6144.
+- kaggle/cells_skill_think (only cell2 differs from cells_skill_samp), 32 runs on the 8 tasks, saved version, about 4 h
+  quota (n4k may be slower). Sim: requests carry thinking_token_budget 2048 / 4096 and max_completion_tokens 4096 / 6144.
+- Read: n2k vs old (15/32 over 4 runs) checks that the 1024 cap explained r13; n4k tests more room on hard steps.
+
 ### SAMPLING ARMS RESULT: 10/32, worse than old sampling (2026-10-28, NEWEST — read first)
 - Kernel ziad23samer/fork-of-generation-all-shards-gpu (2nd account), 112.8 min. data/results/2026-10-28_skill_samp, r13.
 - On the 8 tasks: g 3, n 3, r_g 1, r_n 3 = 10/32. Old sampling (4 runs of s6_32 / i / r) = 15/32.

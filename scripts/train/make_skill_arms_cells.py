@@ -31,8 +31,8 @@ sys.path.insert(0, str(ROOT / "scripts/train"))
 import make_gen_cells as G  # noqa: E402
 from make_test_cells import must_replace  # noqa: E402
 
-OUT = ROOT / "kaggle/cells_skill_samp"
-ARMS = ["sk_nav_s6_32_g", "sk_nav_s6_32_n", "sk_nav_s6_32r_g", "sk_nav_s6_32r_n"]
+OUT = ROOT / "kaggle/cells_skill_think"
+ARMS = ["sk_nav_s6_32_n2k", "sk_nav_s6_32_n4k", "sk_nav_s6_32r_n2k", "sk_nav_s6_32r_n4k"]
 # the winnable dev16 tasks: tier 1 (mix 55-95%) + tier 2 (14-35% over all arms); the other 9 were 0 in ~150 runs
 WINNABLE7 = ["rich_3882", "fastapi_15589", "fastapi_11194", "rich_4079", "rich_3521", "fastapi_14419", "rich_3470"]
 TASKS = sorted(WINNABLE7 + ["rich_3180"])  # the 8 dev16 tasks solved at least once (rich_3180: once, by sk_nav_s6_32)

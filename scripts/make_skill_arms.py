@@ -809,6 +809,14 @@ SAMPLING = {
     "n": "temperature: 0.2\ntop_p: 0.8\ntop_k: 20\nmax_output_tokens: 4096\nthinking_config:\n  thinking_budget: 1024\n"
          "  include_thoughts: true\n",
 }
+# user 2026-10-28 (after g / n: 10/32, the 1024 cap cut 70% of capped thoughts mid-sentence): n's sampling with thinking
+# 2048 and 4096; max_output_tokens must hold the thinking plus the reply, so 6144 for 4096
+SAMPLING.update({
+    "n2k": "temperature: 0.2\ntop_p: 0.8\ntop_k: 20\nmax_output_tokens: 4096\nthinking_config:\n  thinking_budget: 2048\n"
+           "  include_thoughts: true\n",
+    "n4k": "temperature: 0.2\ntop_p: 0.8\ntop_k: 20\nmax_output_tokens: 6144\nthinking_config:\n  thinking_budget: 4096\n"
+           "  include_thoughts: true\n",
+})
 SAMPLING_VARIANTS = {f"{b}_{k}": (b, k) for b in ("sk_nav_s6_32", "sk_nav_s6_32r") for k in SAMPLING}
 
 
