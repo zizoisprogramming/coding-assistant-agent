@@ -38,7 +38,7 @@ WINNABLE7 = ["rich_3882", "fastapi_15589", "fastapi_11194", "rich_4079", "rich_3
 TASKS = sorted(WINNABLE7 + ["rich_3180"])  # the 8 winnable (or all 16: sorted(json.load(open(ROOT / "data/splits_public.json"))["dev16"]))
 PASSES = 2  # 2 passes on 8 tasks: one pass is +-2 noise
 CONCURRENCY = 2
-EARLY_STOP_MAX = -1  # -1: every arm always runs pass 2 (was 3: stop after pass 1 if every arm solved 3 or fewer)
+EARLY_STOP_MAX = 3  # user: after pass 1, an arm that solved 3 or fewer stops (mix: 3.67 per pass)
 
 
 def arm_files(arm):

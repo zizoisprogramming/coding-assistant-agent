@@ -46,8 +46,8 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
 - pub024 = the public 0.24 package unchanged (submissions/pub024, from research/raw/notebooks/honghanhhh_0.24).
   sk_a2b = sk_a2_32 + a.py batch (show up to 3 places per call, find up to 3 terms, one look per call) + thinking
   4096 / out 8192; prompt rewritten from sk_a2's to read in batches.
-- kaggle/cells_skill_b (cell2 differs; cell2 tolerates an arm without a skill), EARLY_STOP_MAX -1 (both passes always),
-  32 runs, saved version, about 2.5 h = about 5 h quota. Sim clean.
+- kaggle/cells_skill_b (cell2 differs; cell2 tolerates an arm without a skill), EARLY_STOP_MAX 3 (user: an arm with 3 or fewer after pass 1 stops),
+  16-32 runs, saved version, about 1.3-2.5 h = about 2.5-5 h quota. Sim clean.
 
 ### PACKED for LB: sk_a2_32 = sk_a2 + 32-call config, prompt unchanged (2026-10-29, NEWEST — read first)
 - submissions/sk_a2_32 differs from the submitted sk_a2 (byte-identical to dist/sk_a2_submitted.zip) only in
