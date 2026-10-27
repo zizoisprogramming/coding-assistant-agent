@@ -32,6 +32,14 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
+### sk_nav_s6_32 RERUN 2/16 + sk_nav_s6_32r 4/16 (2026-10-28, NEWEST — read first)
+- kaggle/cells_skill_s6r, 32 runs, 116 min. Results data/results/2026-10-28_skill_s6r; reference column r12.
+- **The identical arm sk_nav_s6_32 went 6 -> 2.** Its 6 was luck; over 2 passes it is 4.0 per pass. s6_32r 4, s6_32i 3,
+  mix 3.67. Dev noise for one 16-task pass is about +-2: one pass cannot rank these arms.
+- Time is the real problem: mean agent s per run s6_32 344 / 401, s6_32i 386, s6_32r 370 (sk_a2, scored 0.18 on LB: 343).
+  2,000+ token replies: 12 / 26 (s6_32), 17 (i), 16 (r). Compactions 28 / 32 / 37 / 33.
+- sk_nav_s6_32 NOT submitted (slot free). At 370-400 s/task it risks the 12 h LB limit (le5 at 347 s timed out).
+
 ### LB: sk_a2 = 0.18 (best so far; mix 0.17) + NEXT RUN BUILT: sk_nav_s6_32 vs sk_nav_s6_32r (2026-10-28, NEWEST — read first)
 - sk_a2 (submitted 10-26 09:16 UTC) COMPLETE, public 0.18. The slot is free: dist/submission.zip = sk_nav_s6_32.
 - s6_32i analysis: after call 1 the route is the same as s6_32 (install mentioned in 2/470 later replies); the runs split
