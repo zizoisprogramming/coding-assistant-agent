@@ -31,14 +31,14 @@ sys.path.insert(0, str(ROOT / "scripts/train"))
 import make_gen_cells as G  # noqa: E402
 from make_test_cells import must_replace  # noqa: E402
 
-OUT = ROOT / "kaggle/cells_skill_a2n"
-ARMS = ["sk_a2n", "sk_a2nr"]
+OUT = ROOT / "kaggle/cells_skill_b"
+ARMS = ["pub024", "sk_a2b"]
 # the winnable dev16 tasks: tier 1 (mix 55-95%) + tier 2 (14-35% over all arms); the other 9 were 0 in ~150 runs
 WINNABLE7 = ["rich_3882", "fastapi_15589", "fastapi_11194", "rich_4079", "rich_3521", "fastapi_14419", "rich_3470"]
 TASKS = sorted(WINNABLE7 + ["rich_3180"])  # the 8 winnable (or all 16: sorted(json.load(open(ROOT / "data/splits_public.json"))["dev16"]))
-PASSES = 1  # 1: no early stop needed (EARLY_STOP_MAX only acts between pass 1 and pass 2)
+PASSES = 2  # 2 passes on 8 tasks: one pass is +-2 noise
 CONCURRENCY = 2
-EARLY_STOP_MAX = 3  # user: stop after pass 1 if every arm solved 3 or fewer (mix: 3.67 per pass, all on these 7 tasks)
+EARLY_STOP_MAX = -1  # -1: every arm always runs pass 2 (was 3: stop after pass 1 if every arm solved 3 or fewer)
 
 
 def arm_files(arm):
@@ -86,7 +86,8 @@ for arm, files in ARM_FILES.items():
         (SUB_ROOT / arm / rel).parent.mkdir(parents=True, exist_ok=True)
         (SUB_ROOT / arm / rel).write_text(text, encoding='utf-8')
     _ev = (SUB_ROOT / arm / 'eval_config.yaml').read_text()
-    _cmds = (SUB_ROOT / arm / 'skills/agent/scripts/commands.txt').read_text().split()
+    _cp = SUB_ROOT / arm / 'skills/agent/scripts/commands.txt'
+    _cmds = _cp.read_text().split() if _cp.exists() else ['(no skill)']
     print(arm, '| tools', [l.split('#')[0].strip()[2:] for l in (SUB_ROOT / arm / 'agent.yaml').read_text().splitlines() if l.strip().startswith('- ')][:8],
           '| skill commands', _cmds, '| budgets', ' '.join(l.strip() for l in _ev.splitlines() if ':' in l and 'evaluation' not in l))
     assert 'max_time_minutes: 8' in _ev, 'arms run with the 8-minute limit (as mix\\'s dev16 runs)'

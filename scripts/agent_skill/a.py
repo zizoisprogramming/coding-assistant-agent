@@ -35,8 +35,22 @@ solved runs edit at call ~14 and failed ones at ~27, after find / line-peek ping
   navigate  while the repository has no change: a whole-function show ends with the function's callers (CALLED FROM)
             and a DECIDE line (edit these lines, or show the one caller that feeds them); PING_PONG finds / line-range
             shows in a row without a whole function print PING-PONG (open the most likely file whole)
+Options (2026-10-29, from 292 runs on the 8 winnable dev16 tasks vs the gold patches: failed patches sit in the gold
+file, mostly within 15 lines of the gold edit, but change the wrong thing (the behaviour misread: rich_3470's own test
+asserted the opposite of the hidden one) or too much (fastapi_15589: the one gold line plus a rewrite around it)):
+  tests     a whole-function show ends with the existing tests closest to the function (CLOSEST TESTS: its name and
+            the distinctive names of its body; internal helpers are rarely called by tests directly) and, once per
+            test, the closest one: the hidden tests are added to these files, so they show the expected behaviour
+  batch     one call reads up to BATCH_MAX places: show FILE NAME, FILE2 START END, ... (commas between places;
+            show FILE NAME1 NAME2 reads several functions of one file) and find "a" "b" "c" (each term searched,
+            the hits shared out); the whole call counts as one look (2026-10-29: the public LB-0.24 prompt reads up to
+            3 regions per call; 50 vs 25 tool calls solved 14 more of 129 public tasks, forum 746250)
+  diffview  once the repository has a change, every output ends with YOUR PATCH: the functions it changes and, when
+            the patch changed since it was last shown, the diff itself (at most DIFF_SHOW lines)
 """
 import ast
+import collections
+import hashlib
 import json
 import os
 import re
@@ -53,7 +67,9 @@ NO_EDIT_LOOKS, NO_EDIT_SECONDS, STOP_LOOKS, STOP_SECONDS, RESHOW_MAX = 10, 210, 
 PLAN_AFTER, EDIT_AFTER_PLAN, TEST_SHOW_MAX = 8, 5, 40
 RUN_TIMEOUT, RUN_TAIL = 30, 30
 PING_PONG, CALLERS_MAX = 4, 4
-OPTIONS = {"banner", "reshow", "brake", "plangate", "debugflag", "navigate"}
+TESTS_MAX, TEST_BODY_MAX, DIFF_SHOW, DF_MAX = 4, 25, 40, 30
+BATCH_MAX, BATCH_LINES = 3, 220
+OPTIONS = {"banner", "reshow", "brake", "plangate", "debugflag", "navigate", "tests", "diffview", "batch"}
 DEBUG_RE = re.compile(r"DEBUG|breakpoint\(|pdb\.set_trace|^\s*print\(\s*f?[\"'](>>>|---|XXX|here|HERE)")
 READS = {"find", "outline", "show"}
 TEST_RE = re.compile(r"(^|/)(tests?|testing)/|(^|/)test_[^/]*\.py$|_test\.py$|(^|/)conftest\.py$")
@@ -160,8 +176,17 @@ def outline_items(path):
     return items
 
 
-def cmd_find(st, args):
+def cmd_find(st, args, cap=None):
     path_args = [a for a in args[1:] if os.path.exists(os.path.join(WS, rel(a)))]
+    terms = [a for a in args if a not in path_args]
+    if "batch" in OPTS and cap is None and len(terms) > 1:
+        looks = st["looks"]
+        each = max(8, FIND_MAX // min(len(terms), BATCH_MAX))
+        outs = [f'----- find "{t}"\n' + cmd_find(st, [t] + path_args, each) for t in terms[:BATCH_MAX]]
+        st["looks"] = looks + 1
+        extra = f"\n(only the first {BATCH_MAX} terms are searched in one call)" if len(terms) > BATCH_MAX else ""
+        return "\n".join(outs) + extra
+    cap = cap or FIND_MAX
     text = " ".join([args[0]] + [a for a in args[1:] if a not in path_args]) if args else ""  # unquoted words
     if not text:
         return 'usage: find "exact text" [PATH]'
@@ -186,13 +211,13 @@ def cmd_find(st, args):
     order = sorted(groups, key=lambda f: (bool(TEST_RE.search(f)), f))
     shown, lines = 0, [note + f'{len(hits)} matches for "{text}" in {len(groups)} files:']
     for f in order:
-        if shown >= FIND_MAX:
+        if shown >= cap:
             break
         lines.append(f + (" [TEST]" if TEST_RE.search(f) else ""))
-        for r in groups[f][:max(1, FIND_MAX - shown)]:
+        for r in groups[f][:max(1, cap - shown)]:
             lines.append("   " + r[:200])
             shown += 1
-            if shown >= FIND_MAX:
+            if shown >= cap:
                 break
     if len(hits) > shown:
         lines.append(f"... {len(hits) - shown} more: add a PATH or use a more exact text")
@@ -227,6 +252,50 @@ def no_file(path):
 
 
 def cmd_show(st, args):
+    segs = show_segments(args) if "batch" in OPTS else [args]
+    if len(segs) < 2:
+        return show_one(st, args)
+    looks, outs, total = st["looks"], [], 0
+    for seg in segs[:BATCH_MAX]:
+        out = show_one(st, seg)
+        n = out.count("\n") + 1
+        if total and total + n > BATCH_LINES:
+            outs.append(f"----- show {' '.join(seg)}: not shown ({BATCH_LINES} lines per call); ask for it in the next call")
+            continue
+        total += n
+        outs.append(f"----- show {' '.join(seg)}\n" + out)
+    st["looks"] = looks + 1
+    if len(segs) > BATCH_MAX:
+        outs.append(f"(only the first {BATCH_MAX} places are shown in one call)")
+    return "\n".join(outs)
+
+
+def show_segments(args):
+    """show a.py foo, b.py 10 40 -> [[a.py, foo], [b.py, 10, 40]]; show a.py foo bar -> [[a.py, foo], [a.py, bar]]."""
+    segs, cur = [], []
+    for a in args:
+        for part in re.split(r"(,)", a):
+            if part == ",":
+                if cur:
+                    segs.append(cur)
+                cur = []
+            elif part.strip():
+                cur.append(part.strip())
+    if cur:
+        segs.append(cur)
+    out = []
+    for seg in segs:
+        names = seg[1:]
+        if len(names) > 1 and not any(re.search(r"\d", n) for n in names):
+            out += [[seg[0], n] for n in names]
+        elif out and not os.path.isfile(os.path.join(WS, rel(re.sub(r":\d.*$", "", seg[0])))):
+            out.append([out[-1][0]] + seg)  # "show a.py foo, bar": bar is in the same file
+        else:
+            out.append(seg)
+    return out
+
+
+def show_one(st, args):
     if not args:
         return "usage: show FILE NAME | show FILE START END"
     path, rest = args[0], args[1:]
@@ -275,7 +344,74 @@ def cmd_show(st, args):
     body = extra + "\n".join(f"{i:6}| {src[i - 1]}" for i in range(a, b + 1))
     if whole and "navigate" in OPTS and not has_change():
         body += "\n" + callers(path, whole, a, b)
+    if whole and "tests" in OPTS:
+        body += "\n" + tests_using(st, path, whole, a, b)
     return body
+
+
+def code_names(path, a, b):
+    """Names used by the code in lines a..b (variables, attributes, keyword arguments; no comments or docstrings)."""
+    try:
+        tree = ast.parse("\n".join(file_lines(path)))
+    except SyntaxError:
+        return set()
+    names = set()
+    for node in ast.walk(tree):
+        if not a <= getattr(node, "lineno", 0) <= b:
+            continue
+        if isinstance(node, ast.Name):
+            names.add(node.id)
+        elif isinstance(node, ast.Attribute):
+            names.add(node.attr)
+        elif isinstance(node, ast.keyword) and node.arg:
+            names.add(node.arg)
+    return {n.lstrip("_") for n in names if len(n.lstrip("_")) >= 4 and not n.startswith("__")} - STOP
+
+
+def tests_using(st, path, qual, a, b):
+    """CLOSEST TESTS + the closest existing test (once per test): the expected behaviour and the conventions. A test
+    function scores 3 per use of the function's name, plus 1/df for each distinctive name of the function's body it
+    uses (df = how many test functions use it; names in more than DF_MAX of them say nothing)."""
+    parts = qual.split(".")
+    name = parts[-2] if parts[-1].startswith("__") and len(parts) > 1 else parts[-1]
+    words = code_names(path, a, b)
+    if len(name) >= 3 and not name.startswith("__"):
+        words.add(name)
+    if not words:
+        return f"CLOSEST TESTS for {qual}: (no searchable names)"
+    fns = {}  # test file -> [(name, start, end)] of its test functions
+    hits = collections.defaultdict(set)  # (file, test function, start, end) -> names it uses
+    out = run("git grep -n -w -F " + " ".join("-e " + q(w) for w in sorted(words)) + " -- '*.py'", 30)
+    for h in out.split("\n"):
+        f, _, rest = h.partition(":")
+        ln, _, text = rest.partition(":")
+        if not ln.isdigit() or not TEST_RE.search(f) or f.endswith("conftest.py"):
+            continue
+        if f not in fns:
+            fns[f] = [(n, x, y) for n, x, y, k in reversed(outline_items(f) or [])
+                      if k == "def" and n.split(".")[-1].startswith("test")]
+        fn = next(((n, x, y) for n, x, y in fns[f] if x <= int(ln) <= y), None)
+        if fn:
+            hits[(f,) + fn] |= {w for w in words if re.search(r"\b" + re.escape(w) + r"\b", text)}
+    df = collections.Counter(w for used in hits.values() for w in used)
+    score = {k: 3 * (name in used) + sum(1 / df[w] for w in used if df[w] <= DF_MAX) for k, used in hits.items()}
+    order = [k for k in sorted(score, key=lambda k: (-score[k], k[0], k[2])) if score[k] > 0]
+    if not order:
+        return f"CLOSEST TESTS for {qual}: none found (no existing test uses its names)"
+    lines = [f"CLOSEST TESTS for {qual} (by the names they share with it; the hidden tests are added to files like these):"]
+    lines += [f"  {f}:{x} {n}  (uses {', '.join(sorted(hits[(f, n, x, y)], key=lambda w: df[w])[:3])})"
+              for f, n, x, y in order[:TESTS_MAX]]
+    seen = st.setdefault("tests_shown", [])
+    best = next((k for k in order if f"{k[0]}:{k[1]}" not in seen), None)
+    if best:
+        f, n, x, y = best
+        seen.append(f"{f}:{n}")
+        src = file_lines(f)
+        b = min(y, x + TEST_BODY_MAX - 1)
+        lines.append(f"The closest one ({f} {x}-{y}{', first ' + str(TEST_BODY_MAX) + ' lines' if b < y else ''}): "
+                     f"what it asserts is the behaviour the project expects; copy its conventions in your fix.")
+        lines += [f"{i:6}| {src[i - 1]}" for i in range(x, b + 1)]
+    return "\n".join(lines)
 
 
 def callers(path, qual, a, b):
@@ -604,6 +740,37 @@ def debug_lines():
             + "\n".join(hits[:5]))
 
 
+def patch_view(st):
+    """YOUR PATCH: the functions the current diff changes (always) and the diff itself when it changed."""
+    if "diffview" not in OPTS or not has_change():
+        return ""
+    diff = run("git diff -U0", 20)
+    funcs, cur = [], None
+    for line in diff.split("\n"):
+        if line.startswith("+++ b/"):
+            cur = line[6:]
+            items = outline_items(cur) if cur.endswith(".py") and os.path.isfile(os.path.join(WS, cur)) else None
+        elif line.startswith("@@") and cur:
+            m = re.search(r"\+(\d+)(?:,(\d+))?", line)
+            a = int(m.group(1)) if m else 0
+            inner = [n for n, x, y, k in (items or []) if x <= max(a, 1) <= y]
+            where = f"{cur} {inner[-1]}" if inner else f"{cur} (module level)"
+            if where not in funcs:
+                funcs.append(where)
+    added = sum(1 for l in diff.split("\n") if l.startswith("+") and not l.startswith("+++"))
+    removed = sum(1 for l in diff.split("\n") if l.startswith("-") and not l.startswith("---"))
+    out = [f"YOUR PATCH: +{added} -{removed} lines in {len(funcs)} place(s): " + " | ".join(funcs[:6])
+           + (f" | ... {len(funcs) - 6} more" if len(funcs) > 6 else "")]
+    key = hashlib.md5(diff.encode()).hexdigest()
+    if st.get("diff_shown") != key:
+        st["diff_shown"] = key
+        rows = [l for l in diff.split("\n") if not l.startswith(("diff ", "index "))]
+        out += rows[:DIFF_SHOW] + ([f"... {len(rows) - DIFF_SHOW} more diff lines (git diff)"] if len(rows) > DIFF_SHOW else [])
+    if len(funcs) > 1:
+        out.append(f"Each of these {len(funcs)} places is graded: the hidden tests run the existing tests too.")
+    return "\n".join(out)
+
+
 def has_change():
     """Any change in the working tree (git status never lists .git, so the tool's own files do not count)."""
     out = run("git status --porcelain --untracked-files=all", 20)
@@ -640,6 +807,8 @@ def main(argv):
     if argv and argv[0].lstrip("-").lower() in ("find", "show") and not body.startswith("BLOCKED"):
         pp = ping_pong(st)
         body = body + "\n" + pp if pp else body
+    pv = patch_view(st)
+    body = body + "\n" + pv if pv else body
     save(st)
     warn = "" if body.startswith("BLOCKED") else banner(st)
     if warn:

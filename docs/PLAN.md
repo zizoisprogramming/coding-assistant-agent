@@ -32,6 +32,23 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
+### NEXT RUN BUILT: pub024 vs sk_a2b, 8 tasks x 2 passes (2026-10-29, NEWEST — read first)
+- Research (forum + public notebooks): LB public is ~58 tasks (0.24 = 14, our 0.18 = ~10-11); identical packages
+  scored 0.17/0.15/0.13/0.15 (748051), the score spread fits binomial noise; most 0.22s are forks.
+  honghanhhh/gemma-4-baseline-lb-0-24 = prompt-only fork of flexonafft v2 (0.22): plain tools, thinking 4096,
+  max output 8192, 28 calls / 8 min, "edit by call 12", batches up to 3 greps / sed regions per call.
+  Forum 746250: 50 vs 25 tool calls solved 14 more of 129 public tasks.
+- The study before it (292 runs on the 8 winnable): failed patches sit in the gold file, mostly within 15 lines of the
+  gold edit: the change is wrong (behaviour misread on terse PR titles), not the place. A post-edit test does not help
+  (42% vs 41% with first edit by 18). "Show the existing tests" (a.py option tests, kept opt-in, unused) is unreliable:
+  internal helpers have no tests by name, and rich_3470's existing test_capture_and_record asserts the OLD behaviour.
+  a.py option diffview (YOUR PATCH after an edit) built and tested, unused.
+- pub024 = the public 0.24 package unchanged (submissions/pub024, from research/raw/notebooks/honghanhhh_0.24).
+  sk_a2b = sk_a2_32 + a.py batch (show up to 3 places per call, find up to 3 terms, one look per call) + thinking
+  4096 / out 8192; prompt rewritten from sk_a2's to read in batches.
+- kaggle/cells_skill_b (cell2 differs; cell2 tolerates an arm without a skill), EARLY_STOP_MAX -1 (both passes always),
+  32 runs, saved version, about 2.5 h = about 5 h quota. Sim clean.
+
 ### PACKED for LB: sk_a2_32 = sk_a2 + 32-call config, prompt unchanged (2026-10-29, NEWEST — read first)
 - submissions/sk_a2_32 differs from the submitted sk_a2 (byte-identical to dist/sk_a2_submitted.zip) only in
   eval_config max_tool_calls 32 (+ agent.yaml comment). dist/submission.zip = dist/sk_a2_32.zip, pack.py OK.
