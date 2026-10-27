@@ -35,6 +35,11 @@ solved runs edit at call ~14 and failed ones at ~27, after find / line-peek ping
   navigate  while the repository has no change: a whole-function show ends with the function's callers (CALLED FROM)
             and a DECIDE line (edit these lines, or show the one caller that feeds them); PING_PONG finds / line-range
             shows in a row without a whole function print PING-PONG (open the most likely file whole)
+Options (2026-10-29, from 3 runs of the nav arms: after STOP READING the next call was an edit 12% of the time, after
+PING-PONG a show / outline 65%: the model follows signals to read, not signals to stop; 6 of 16 runs edited at call 25+):
+  template  at the STOP READING point (and while the repository has no change) a whole-function show ends with the
+            replace command for exactly those lines, ready to fill in
+  brake     (with replace taught) the BLOCKED answer carries the same replace command for the last whole function read
 """
 import ast
 import json
@@ -53,7 +58,7 @@ NO_EDIT_LOOKS, NO_EDIT_SECONDS, STOP_LOOKS, STOP_SECONDS, RESHOW_MAX = 10, 210, 
 PLAN_AFTER, EDIT_AFTER_PLAN, TEST_SHOW_MAX = 8, 5, 40
 RUN_TIMEOUT, RUN_TAIL = 30, 30
 PING_PONG, CALLERS_MAX = 4, 4
-OPTIONS = {"banner", "reshow", "brake", "plangate", "debugflag", "navigate"}
+OPTIONS = {"banner", "reshow", "brake", "plangate", "debugflag", "navigate", "template"}
 DEBUG_RE = re.compile(r"DEBUG|breakpoint\(|pdb\.set_trace|^\s*print\(\s*f?[\"'](>>>|---|XXX|here|HERE)")
 READS = {"find", "outline", "show"}
 TEST_RE = re.compile(r"(^|/)(tests?|testing)/|(^|/)test_[^/]*\.py$|_test\.py$|(^|/)conftest\.py$")
@@ -273,9 +278,23 @@ def cmd_show(st, args):
         whole = next((n for n, x, y, k in outline_items(path) or [] if k == "def" and a <= x and y <= b and y - x >= 3), None)
     st["peeks"] = 0 if whole else st.get("peeks", 0) + 1
     body = extra + "\n".join(f"{i:6}| {src[i - 1]}" for i in range(a, b + 1))
+    if whole:
+        st["last_whole"] = {"file": path, "name": whole, "a": a, "b": b}
     if whole and "navigate" in OPTS and not has_change():
         body += "\n" + callers(path, whole, a, b)
+    if whole and "template" in OPTS and at_stop(st) and not has_change():
+        body += "\n" + edit_template(st["last_whole"])
     return body
+
+
+def at_stop(st):
+    return st["looks"] >= STOP_LOOKS or time.time() - st.get("t0", time.time()) >= STOP_SECONDS
+
+
+def edit_template(w):
+    return (f"EDIT NOW: to change {w['name']}, your next call is this command with the new lines {w['a']}-{w['b']} "
+            f"(keep the indentation):\n"
+            f"python3 .git/agent/a.py replace {w['file']} {w['a']} {w['b']} << 'EOF'\n<new lines {w['a']}-{w['b']}>\nEOF")
 
 
 def callers(path, qual, a, b):
@@ -579,8 +598,13 @@ def gate(st, cmd):
             return (f"BLOCKED: your plan is saved and you have read {EDIT_AFTER_PLAN} more times. Reading reopens after "
                     f"your edit: make it now with edit_file (your plan is in MEMORY above).")
     if "brake" in OPTS and (st["looks"] >= STOP_LOOKS or secs >= STOP_SECONDS):
-        return (f"BLOCKED: {st['looks']} looks, {secs // 60}:{secs % 60:02d} of the 8 minutes used, and no edit. "
-                f"Reading reopens after your edit: make your best edit now with edit_file.")
+        msg = f"BLOCKED: {st['looks']} looks, {secs // 60}:{secs % 60:02d} of the 8 minutes used, and no edit. "
+        if "replace" in COMMANDS and st.get("last_whole"):
+            return msg + "Reading reopens after your first edit. " + edit_template(st["last_whole"])
+        if "replace" in COMMANDS:
+            return msg + ("Reading reopens after your first edit: make your best edit now with "
+                          "python3 .git/agent/a.py replace FILE START END << 'EOF' ... EOF")
+        return msg + "Reading reopens after your edit: make your best edit now with edit_file."
     return ""
 
 

@@ -32,6 +32,17 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
+### NEXT RUN BUILT: fix arms sk_nav_tmpl / sk_nav_brake vs sk_nav_s6_32r_n2k, 8 tasks, 1 pass (2026-10-29, NEWEST — read first)
+- Signal check (3 runs, next call after each a.py signal): STOP READING -> edit 12%, NO EDIT YET 3%, DECIDE 6%,
+  PING-PONG -> show/outline 65%. The prompt already said "your next call is the edit": the model obeys read-signals only.
+- F1 (both fix arms): new prompt HEAD_FIX in scripts/make_skill_arms.py (full text): "Tool call 1: run_skill_script,
+  whatever the issue says" as the first section; a section listing a.py's signals as orders for the next call.
+- F2a sk_nav_tmpl: a.py option template = after STOP READING (15 looks / 300 s, no change) a whole-function show ends
+  with "EDIT NOW" + the replace command for those lines. F2b sk_nav_brake: option brake = find/outline/show BLOCKED
+  until the first edit; the message carries the same replace command (scripts/agent_skill/a.py, scratch-repo tested).
+- Both: base sk_nav_s6_32r_n2k (n2k sampling, 32 calls / 8 min). kaggle/cells_skill_fix (only cell2 differs from
+  cells_skill_rn2k), 24 runs on the 8 tasks, saved version, about 1.5 h = about 3 h quota.
+
 ### sk_nav_s6_32r_n2k on ALL 16: 3/16, 353 s/task (2026-10-29, NEWEST — read first)
 - data/results/2026-10-29_skill_rn2k, reference r15. Solved rich_3882, fastapi_11194, rich_3521. Ends ok 12, time 4.
 - Failure groups: (a) never installed: fastapi_15589 + fastapi_14487 (same 2 tasks as s6_32i 19/25 and s6_32r 22 for
