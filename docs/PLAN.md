@@ -32,6 +32,16 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
+### LB: sk_a2 = 0.18 (best so far; mix 0.17) + NEXT RUN BUILT: sk_nav_s6_32 vs sk_nav_s6_32r (2026-10-28, NEWEST — read first)
+- sk_a2 (submitted 10-26 09:16 UTC) COMPLETE, public 0.18. The slot is free: dist/submission.zip = sk_nav_s6_32.
+- s6_32i analysis: after call 1 the route is the same as s6_32 (install mentioned in 2/470 later replies); the runs split
+  on hard reasoning steps. s6_32i had more 2,000+ token replies (17 vs 12, 1,226 s vs 894 s) and more compactions
+  (37 vs 28; rich_3521 1 -> 3, rich_4079 2 -> 3).
+- User: drop the contract timing, the new Avoid line and the new example; keep only install as route step 1 =
+  sk_nav_s6_32r (scripts/make_skill_arms.py ROUTE_EDITS). Rerun it next to sk_nav_s6_32 unchanged (is the 6 luck?).
+- kaggle/cells_skill_s6r: 2 arms x 16 tasks, 1 pass, 2 at once, saved version; about 110 min = about 3.6 h quota.
+  Sim (armsim) OK.
+
 ### sk_nav_s6_32i RESULT: 3/16 (2026-10-28, NEWEST — read first)
 - Run: kaggle/cells_skill_s6i, 16 runs, 61.9 min session (about 2 h quota), mean agent 386 s (s6_32: 344 s), ends ok 11, time 5
   (s6_32: 0 time-outs). Results in data/results/2026-10-28_skill_s6i; reference column r11.

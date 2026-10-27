@@ -753,7 +753,6 @@ def call_variant(arm):
 
 # arm -> arm it copies file for file; the prompt gets sk_nav2's install-first wording (sk_nav2: call 1 wrong 0/14;
 # sk_nav_s6_32: 16/16, three runs installed at call 19-21 "I forgot to run the skill script first", one never)
-INSTALL_FIRST = {"sk_nav_s6_32i": "sk_nav_s6_32"}
 INSTALL_EDITS = (
     ("""## Call 1: run_skill_script
 Your first tool call is run_skill_script with skill_name agent and file_path scripts/install.py, and nothing else. It
@@ -785,16 +784,25 @@ Starting
   without MEMORY and the hints, and ran out of calls without an edit.
 Reading"""),
 )
+# sk_nav_s6_32r: only the route change of sk_nav_s6_32i (install = route step 1); the contract timing, the Avoid
+# line and the example stay as in sk_nav_s6_32
+ROUTE_EDITS = (("""## Call 1: run_skill_script
+Your first tool call is run_skill_script with skill_name agent and file_path scripts/install.py, and nothing else. It
+puts your tool at .git/agent/a.py and prints READY. It is not a package install: the sandbox has no internet and
+every dependency is already installed.
+
+## Before call 2""", "## Before call 2"),) + INSTALL_EDITS[1:7]
+INSTALL_FIRST = {"sk_nav_s6_32i": ("sk_nav_s6_32", INSTALL_EDITS), "sk_nav_s6_32r": ("sk_nav_s6_32", ROUTE_EDITS)}
 
 
 def install_first(arm):
-    base = INSTALL_FIRST[arm]
+    base, edits = INSTALL_FIRST[arm]
     out = ROOT / "submissions" / arm
     shutil.rmtree(out, ignore_errors=True)
     shutil.copytree(ROOT / "submissions" / base, out)
     sp = out / "prompts/system.md"
     text = sp.read_text()
-    for old, new in INSTALL_EDITS:
+    for old, new in edits:
         assert text.count(old) == 1, old[:60]
         text = text.replace(old, new)
     sp.write_text(text)
