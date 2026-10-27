@@ -32,6 +32,14 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
+### sk_nav_s6_32r_n2k on ALL 16: 3/16, 353 s/task (2026-10-29, NEWEST — read first)
+- data/results/2026-10-29_skill_rn2k, reference r15. Solved rich_3882, fastapi_11194, rich_3521. Ends ok 12, time 4.
+- Failure groups: (a) never installed: fastapi_15589 + fastapi_14487 (same 2 tasks as s6_32i 19/25 and s6_32r 22 for
+  14487); first thought goes straight to "Let's start by searching for X" from the issue text. (b) first edit at call
+  25-33 in 6 runs (14306, 15280, 15800, 3470, 3934, 4079) after 16-22 whole-function shows; 3934 / 4079 no patch.
+  (c) slow thinking 17-32 s/call: rich_3180 (no edit), fastapi_14419, rich_3468 timed out.
+- User: rerun it for consistency next to a variant that fixes the errors (design under discussion).
+
 ### NEXT RUN BUILT: sk_nav_s6_32r_n2k alone, all 16, 1 pass (2026-10-29, NEWEST — read first)
 - User picks s6_32r + n2k (T0.2, top_p 0.8, top_k 20, thinking 2048, max_output 4096) for a full dev16 pass.
 - kaggle/cells_skill_rn2k (only cell2 differs from cells_skill_think), 16 runs, saved version, about 1 h = about 2 h quota.
