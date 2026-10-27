@@ -32,6 +32,14 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
+### sk_a2n / sk_a2nr RESULT: 3/8 and 3/8, 388 s (2026-10-29, NEWEST — read first)
+- data/results/2026-10-29_skill_a2n, 16 runs, 0.9 h. sk_a2 on the same 8 (r3): 4 then 3, 331 / 413 s.
+- vs sk_a2: + rich_3180 (sk_a2nr, edit at 13); - fastapi_15589 (both: no edit, timeout; sk_a2 solved it once at call
+  13). rich_3470: the 32 calls let both edit (call 29, 30) but the fix was wrong. 14419 still E.
+- Navigate in sk_a2's prompt turns into walking: rich_3470 showed 15-16 whole functions one after another
+  (_enter_buffer, _exit_buffer, _check_buffer, _write_buffer, ...), 3 compactions; 15589 re-showed
+  _get_multidict_value 3-4 times after compactions and ran 3-4 own scripts (check.py, which sk_a2's prompt invites).
+
 ### NEXT RUN BUILT: sk_a2n / sk_a2nr, back to sk_a2 + navigate + 32 calls, 8 tasks, 1 pass (2026-10-29, NEWEST — read first)
 - Fix arms undone (commit 7adcc55). top_p/top_k: old 0.95/none 4.00 per 8 (24 runs) vs 0.8/20 3.50 (32), same T and
   thinking: no effect. Back to sk_a2 (LB 0.18), keeping the two nav pieces behind the new solves:
