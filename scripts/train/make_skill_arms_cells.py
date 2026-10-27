@@ -1,6 +1,6 @@
-"""Writes kaggle/cells_skill_s6/: sk_nav_s6 (sk_nav; the prompt says 28 calls / 6 minutes, config 28 / 8 min) vs
-sk_nav_s6_32 (same prompt, config 32 calls / 8 min) on all 16 dev16 tasks, 1 pass (user 2026-10-28; the 7-task set:
-TASKS = WINNABLE7, PASSES = 2). Earlier: kaggle/cells_skill_nav32 = 8750b35 (sk_nav_32 4/16, 387 s/task). Arms may differ only in
+"""Writes kaggle/cells_skill_s6i/: sk_nav_s6_32i (sk_nav_s6_32 + install as route step 1) alone on all 16 dev16
+tasks, 1 pass (user 2026-10-28; the 7-task set: TASKS = WINNABLE7, PASSES = 2). Earlier: kaggle/cells_skill_s6 =
+b57d56d (sk_nav_s6 3/16, sk_nav_s6_32 6/16). Earlier: kaggle/cells_skill_nav32 = 8750b35 (sk_nav_32 4/16, 387 s/task). Arms may differ only in
 max_tool_calls. Earlier: kaggle/cells_skill_nav2 = 8220cc6 (sk_nav2 2/7, sk_nav2_32 3/7, pass 1 only). Earlier: kaggle/cells_skill_nav = 329307b (sk_nav 5 + 3 of 7). Earlier: kaggle/cells_skill_a5 = 3bef97a (sk_a5 3/16, sk_a5r 3/16).
 Earlier: kaggle/cells_skill_a4p1 = 32f7f2a (sk_a4 2/16, sk_p1 6/32, sk_a2_t05 3/16). Earlier runs: kaggle/cells_skill_a3 = 6c5d224 (sk_a3 2/16), kaggle/cells_skill_a2 = 6216e2e
 (sk_a2 7/32, sk_ad2 3/32), kaggle/cells_skill_ad = 333285f, kaggle/cells_skill_arms = 82c8d56.
@@ -31,8 +31,8 @@ sys.path.insert(0, str(ROOT / "scripts/train"))
 import make_gen_cells as G  # noqa: E402
 from make_test_cells import must_replace  # noqa: E402
 
-OUT = ROOT / "kaggle/cells_skill_s6"
-ARMS = ["sk_nav_s6", "sk_nav_s6_32"]
+OUT = ROOT / "kaggle/cells_skill_s6i"
+ARMS = ["sk_nav_s6_32i"]
 # the winnable dev16 tasks: tier 1 (mix 55-95%) + tier 2 (14-35% over all arms); the other 9 were 0 in ~150 runs
 WINNABLE7 = ["rich_3882", "fastapi_15589", "fastapi_11194", "rich_4079", "rich_3521", "fastapi_14419", "rich_3470"]
 TASKS = sorted(json.load(open(ROOT / "data/splits_public.json"))["dev16"])  # all 16 (or WINNABLE7)

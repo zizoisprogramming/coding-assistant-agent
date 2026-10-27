@@ -40,6 +40,7 @@
   sk_nav_s6 / sk_nav_s6_32  sk_nav file for file; the prompt and a.py's banner say 28 calls and 6 minutes while the
            config is 28 calls / 8 min and 32 calls / 8 min (user 2026-10-28: the model does not count its calls; a
            stated budget below the real one leaves a cushion)
+  sk_nav_s6_32i  sk_nav_s6_32 (6/16) file for file + sk_nav2's install-first wording in the prompt (user 2026-10-28)
   sk_p1    new design from all runs so far (user 2026-10-26): look (8 looks) -> plan "FILE:LINES what and why" (gated:
            reading BLOCKED until the plan; the plan shows the closest existing test, for location and conventions) ->
            5 more looks -> edit (gated) -> one targeted test -> submit; no scripts; brake + debugflag; own prompt
@@ -750,14 +751,69 @@ def call_variant(arm):
           f"{said_min} minutes")
 
 
+# arm -> arm it copies file for file; the prompt gets sk_nav2's install-first wording (sk_nav2: call 1 wrong 0/14;
+# sk_nav_s6_32: 16/16, three runs installed at call 19-21 "I forgot to run the skill script first", one never)
+INSTALL_FIRST = {"sk_nav_s6_32i": "sk_nav_s6_32"}
+INSTALL_EDITS = (
+    ("""## Call 1: run_skill_script
+Your first tool call is run_skill_script with skill_name agent and file_path scripts/install.py, and nothing else. It
+puts your tool at .git/agent/a.py and prints READY. It is not a package install: the sandbox has no internet and
+every dependency is already installed.
+
+## Before call 2: the contract
+From the problem statement, list""", """## Before your first tool call: the contract
+Think, without any tool: from the problem statement, list"""),
+    ("""## The route: search, open, read whole, decide, edit (about 14 calls)
+Use the tool through run_command. For an issue about a Panel margin in a package pkg (an invented example: use the
+names from YOUR issue):
+1. Search,""", """## The route: install, search, open, read whole, decide, edit (about 14 calls)
+1. Install, always tool call 1: run_skill_script with skill_name agent and file_path scripts/install.py, and nothing
+   else. It is a tool of its own, not a shell command: never run_command python3 -m run_skill_script, and never a.py
+   before it (a.py does not exist until this call). It puts your tool at .git/agent/a.py and prints READY. It is not a
+   package install: the sandbox has no internet and every dependency is already installed.
+From call 2 on, use the tool through run_command. For an issue about a Panel margin in a package pkg (an invented
+example: use the names from YOUR issue):
+2. Search,"""),
+    ("\n2. Open, 1 call", "\n3. Open, 1 call"), ("\n3. Read whole functions", "\n4. Read whole functions"),
+    ("\n4. Probe only", "\n5. Probe only"), ("\n5. Decide in writing", "\n6. Decide in writing"),
+    ("\n6. Test once, repair once", "\n7. Test once, repair once"),
+    ("Call 1: run_skill_script. Call 2:", "Call 1: run_skill_script (skill_name agent, file_path scripts/install.py). Call 2:"),
+    ("""## Avoid (each of these has cost earlier runs their score)
+Reading""", """## Avoid (each of these has cost earlier runs their score)
+Starting
+- Any first call other than run_skill_script: runs that searched first forgot the install for 20 calls, read
+  without MEMORY and the hints, and ran out of calls without an edit.
+Reading"""),
+)
+
+
+def install_first(arm):
+    base = INSTALL_FIRST[arm]
+    out = ROOT / "submissions" / arm
+    shutil.rmtree(out, ignore_errors=True)
+    shutil.copytree(ROOT / "submissions" / base, out)
+    sp = out / "prompts/system.md"
+    text = sp.read_text()
+    for old, new in INSTALL_EDITS:
+        assert text.count(old) == 1, old[:60]
+        text = text.replace(old, new)
+    sp.write_text(text)
+    ay = out / "agent.yaml"
+    ay.write_text(ay.read_text().replace("# ", f"# {arm} = {base} with install as route step 1; ", 1))
+    print("wrote", out.relative_to(ROOT), f"| copy of {base}, install-first prompt |", len(text.split()), "words")
+
+
 def main():
     import sys
-    wanted = sys.argv[1:] or list(ARMS) + list(VARIANTS) + list(CALL_VARIANTS)
+    wanted = sys.argv[1:] or list(ARMS) + list(VARIANTS) + list(CALL_VARIANTS) + list(INSTALL_FIRST)
     for arm in [a for a in wanted if a in VARIANTS]:
         variant(arm)
     for arm in [a for a in wanted if a in CALL_VARIANTS]:
         call_variant(arm)
-    for arm, cmds in ((a, ARMS[a]) for a in wanted if a not in VARIANTS and a not in CALL_VARIANTS):
+    for arm in [a for a in wanted if a in INSTALL_FIRST]:
+        install_first(arm)
+    for arm, cmds in ((a, ARMS[a]) for a in wanted if a not in VARIANTS and a not in CALL_VARIANTS
+                              and a not in INSTALL_FIRST):
         out = ROOT / "submissions" / arm
         shutil.rmtree(out, ignore_errors=True)
         (out / "prompts").mkdir(parents=True)

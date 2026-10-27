@@ -32,6 +32,15 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
+### NEXT RUN BUILT: sk_nav_s6_32i alone, all 16, 1 pass (2026-10-28, NEWEST — read first)
+- Why: s6_32 lost fastapi_15589 (mix 6/6) and fastapi_14419 by forgetting the install ("I forgot to run the skill
+  script first", calls 19 / 21): ~20 calls without MEMORY / banners / DECIDE, whole-file read_file, 7 probes in
+  15589. Install at call 2-3 in 12/16 runs, 19-21 in 3, never in 1.
+- sk_nav_s6_32i = sk_nav_s6_32 file for file + sk_nav2's install-first wording (contract thought out before any tool;
+  route step 1 = install, "always tool call 1", never python3 -m run_skill_script or a.py before it; Avoid: Starting).
+  scripts/make_skill_arms.py INSTALL_FIRST. Notebook kaggle/cells_skill_s6i (only cell2 differs). Simulated: OK.
+- Read: call 1 wrong (s6_32 16/16 -> ~0?), solved vs 6/16, mean agent s (s6_32 344).
+
 ### sk_nav_s6 / sk_nav_s6_32 RESULT: 6/16 (2026-10-28, NEWEST — read first)
 - sk_nav_s6_32 (prompt says 28 calls / 6 min; config 32 calls / 8 min) 6/16 = best 16-task pass ever (mix 3.67, best
   before 4): 11194, 3882, 3521, 3470, 4079 + rich_3180 (tier 3: never solved before, ~150 runs; real fix in
