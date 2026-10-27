@@ -32,6 +32,16 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
+### THINKING 2048 / 4096 RESULT: 13/32 (2026-10-29, NEWEST — read first)
+- Kernel ziad23samer/fork-of-generation-all-shards-gpu, 116 min. data/results/2026-10-29_skill_think, reference r14.
+- On the 8 tasks: s6_32_n2k 3, s6_32_n4k 2, s6_32r_n2k 5 (incl. rich_4079 + rich_3521), s6_32r_n4k 3.
+- Pooled over all 12 arm-runs on these 8 tasks (per 8 tasks): thinking 1024 2.5 (10/32), 2048 3.83 (23/48),
+  4096 2.5 (5/16). top_p/top_k at 2048: old 0.95/none 3.75 (15/32) vs 0.8/20 4.0 (8/16) = no effect.
+  Prompt: s6_32 3.17 (19/48) vs s6_32r 3.2 (16/40) = no difference.
+- 4096 gave 3 replies of 4,000+ tokens per arm and no hard-task solves. fastapi_14419 solved 3x here (0 in the 8 earlier
+  nav runs). Time unchanged everywhere: mean agent s 375-405, 2-4 time-outs per 8 tasks.
+- Keep: thinking 2048. top_p 0.8 / top_k 20 are harmless, not a gain. The remaining problem is time per task.
+
 ### NEXT RUN BUILT: n sampling with thinking 2048 / 4096 on s6_32 and s6_32r, 8 tasks, 1 pass (2026-10-28, NEWEST — read first)
 - top_p/top_k analysis of r13: g (T0) and n (T0.2, top_p 0.8, top_k 20) behave the same on every measure (reply length,
   cap hits, calls, probes, first edit); both moved away from old by the same amount, so the shift was the 1024 cap.
