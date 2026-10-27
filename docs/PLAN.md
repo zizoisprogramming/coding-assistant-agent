@@ -32,6 +32,18 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
+### sk_nav_s6_32i RESULT: 3/16 (2026-10-28, NEWEST — read first)
+- Run: kaggle/cells_skill_s6i, 16 runs, 61.9 min session (about 2 h quota), mean agent 386 s (s6_32: 344 s), ends ok 11, time 5
+  (s6_32: 0 time-outs). Results in data/results/2026-10-28_skill_s6i; reference column r11.
+- The install fix worked: 14/16 installed at call 1 (s6_32: 0/16). The two misses (fastapi_15589 at 19, fastapi_14487 at 25)
+  started with run_command grep anyway. fastapi_15589's patch is only a stray repro.py (no source edit).
+- Solved: rich_3882, fastapi_11194, rich_3470. Lost vs s6_32: rich_3180 (solved once in all history), rich_3521 and
+  rich_4079 (coin flips across arms). No new solves.
+- Call 1 is not the cost (100-270 output tokens, about 5-10 s, same as s6_32). The runs wrote more overall: 10.7k vs 9.1k
+  output tokens per run, 374 vs 334 model s, so 5 hit the 8-minute cap (13920, 14419, 15280, 3468, 3180).
+- Read: install-first does not raise the score; 6 vs 3 is mostly dev noise on the 3 hard rich tasks, and s6_32i is slower
+  (386 s is over the about 345 s LB safety line). Keep dist/submission.zip = sk_nav_s6_32.
+
 ### NEXT RUN BUILT: sk_nav_s6_32i alone, all 16, 1 pass (2026-10-28, NEWEST — read first)
 - Why: s6_32 lost fastapi_15589 (mix 6/6) and fastapi_14419 by forgetting the install ("I forgot to run the skill
   script first", calls 19 / 21): ~20 calls without MEMORY / banners / DECIDE, whole-file read_file, 7 probes in
