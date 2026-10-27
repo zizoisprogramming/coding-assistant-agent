@@ -32,6 +32,12 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
+### PACKED for LB: sk_a2_32 = sk_a2 + 32-call config, prompt unchanged (2026-10-29, NEWEST — read first)
+- submissions/sk_a2_32 differs from the submitted sk_a2 (byte-identical to dist/sk_a2_submitted.zip) only in
+  eval_config max_tool_calls 32 (+ agent.yaml comment). dist/submission.zip = dist/sk_a2_32.zip, pack.py OK.
+  The scorer reads max_tool_calls from eval_config.yaml (HARNESS_README 7.1). Never ran on dev: time risk (sk_a2 dev
+  331-413 s, LB OK at 343; le5 timed out at 347).
+
 ### sk_a2n / sk_a2nr RESULT: 3/8 and 3/8, 388 s (2026-10-29, NEWEST — read first)
 - data/results/2026-10-29_skill_a2n, 16 runs, 0.9 h. sk_a2 on the same 8 (r3): 4 then 3, 331 / 413 s.
 - vs sk_a2: + rich_3180 (sk_a2nr, edit at 13); - fastapi_15589 (both: no edit, timeout; sk_a2 solved it once at call

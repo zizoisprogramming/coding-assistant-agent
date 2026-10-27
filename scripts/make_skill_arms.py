@@ -46,6 +46,8 @@
            sk_a2, used it) and a 32-call config while the prompt says 28 (every nav solve of rich_3470 made its first
            edit at call 28-32, which sk_a2 refuses); prompt rewritten from sk_a2's; sk_a2nr edits with a.py replace
            (sk_a5r's paragraph), sk_a2n with edit_file (sk_a2's)
+  sk_a2_32  an exact copy of the submitted sk_a2 (LB 0.18) with a 32-call config; the prompt still says 28 (user
+           2026-10-29, after sk_a2n / sk_a2nr 3/8: keep only the cushion, so edits at calls 29-32 are not refused)
   sk_p1    new design from all runs so far (user 2026-10-26): look (8 looks) -> plan "FILE:LINES what and why" (gated:
            reading BLOCKED until the plan; the plan shows the closest existing test, for location and conventions) ->
            5 more looks -> edit (gated) -> one targeted test -> submit; no scripts; brake + debugflag; own prompt
@@ -933,6 +935,22 @@ def sampling_variant(arm):
     print("wrote", out.relative_to(ROOT), f"| copy of {base}, sampling {key}:", SAMPLING[key].replace(chr(10), " "))
 
 
+CUSHION = {"sk_a2_32": ("sk_a2", 32)}  # arm -> (arm it copies file for file, real max_tool_calls); the prompt is unchanged
+
+
+def cushion(arm):
+    base, calls = CUSHION[arm]
+    out = ROOT / "submissions" / arm
+    shutil.rmtree(out, ignore_errors=True)
+    shutil.copytree(ROOT / "submissions" / base, out)
+    ev = out / "eval_config.yaml"
+    assert ev.read_text().count("max_tool_calls: 28") == 1
+    ev.write_text(ev.read_text().replace("max_tool_calls: 28", f"max_tool_calls: {calls}"))
+    ay = out / "agent.yaml"
+    ay.write_text(ay.read_text().replace(f"# {base}: ", f"# {arm} = {base} with a {calls}-call config (prompt says 28); {base}: ", 1))
+    print("wrote", out.relative_to(ROOT), f"| copy of {base}, max_tool_calls {calls}, prompt unchanged")
+
+
 def install_first(arm):
     base, edits = INSTALL_FIRST[arm]
     out = ROOT / "submissions" / arm
@@ -960,8 +978,10 @@ def main():
         install_first(arm)
     for arm in [a for a in wanted if a in SAMPLING_VARIANTS]:
         sampling_variant(arm)
+    for arm in [a for a in wanted if a in CUSHION]:
+        cushion(arm)
     for arm, cmds in ((a, ARMS[a]) for a in wanted if a not in VARIANTS and a not in CALL_VARIANTS
-                              and a not in INSTALL_FIRST and a not in SAMPLING_VARIANTS):
+                              and a not in INSTALL_FIRST and a not in SAMPLING_VARIANTS and a not in CUSHION):
         out = ROOT / "submissions" / arm
         shutil.rmtree(out, ignore_errors=True)
         (out / "prompts").mkdir(parents=True)
