@@ -1,8 +1,0 @@
-# sk_nav_s6_32r_n2k: sk_nav_s6_32r with sampling 'n2k' (scripts/make_skill_arms.py SAMPLING)
-temperature: 0.2
-top_p: 0.8
-top_k: 20
-max_output_tokens: 4096
-thinking_config:
-  thinking_budget: 2048
-  include_thoughts: true
