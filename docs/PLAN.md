@@ -32,6 +32,16 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
+### SAMPLING ARMS RESULT: 10/32, worse than old sampling (2026-10-28, NEWEST — read first)
+- Kernel ziad23samer/fork-of-generation-all-shards-gpu (2nd account), 112.8 min. data/results/2026-10-28_skill_samp, r13.
+- On the 8 tasks: g 3, n 3, r_g 1, r_n 3 = 10/32. Old sampling (4 runs of s6_32 / i / r) = 15/32.
+  Hard tier (rich_4079, rich_3521, rich_3180): old 4/12, new 0/12. Easy tier unchanged.
+- Thinking cap 1024 did not save time: mean agent s 373-391 (old 344-406), output tokens about the same (10.4-11.0k);
+  the 2,000+ token replies vanished but replies of 1,000+ tokens rose from 22-27 to 29-37 per arm (same total seconds).
+  The model splits the same thinking over more calls and loses depth on hard steps.
+- Temperature 0 did not loop (2 back-to-back repeats per arm, as before) and was no better than n.
+- Decision basis: revert to thinking 2048; sampling is not the lever for time. sk_a2 (0.18) stays the LB best.
+
 ### NEXT RUN BUILT: sampling arms g / n on s6_32 and s6_32r, 8 tasks, 1 pass (2026-10-28, NEWEST — read first)
 - User: s6_32's 6 (first rich_3180 solve in months) shows the method can work; control variance and time via sampling.
 - scripts/make_skill_arms.py SAMPLING / SAMPLING_VARIANTS: file-for-file copies, only configs/sampling.yaml replaced:
