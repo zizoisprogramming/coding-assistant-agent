@@ -41,6 +41,11 @@
            config is 28 calls / 8 min and 32 calls / 8 min (user 2026-10-28: the model does not count its calls; a
            stated budget below the real one leaves a cushion)
   sk_nav_s6_32i  sk_nav_s6_32 (6/16) file for file + sk_nav2's install-first wording in the prompt (user 2026-10-28)
+  sk_a2n / sk_a2nr  back to sk_a2 (LB 0.18) with the two nav pieces behind the new solves (user 2026-10-29): a.py
+           navigate (CALLED FROM + DECIDE after a whole function: every nav solve of fastapi_14419, never solved by
+           sk_a2, used it) and a 32-call config while the prompt says 28 (every nav solve of rich_3470 made its first
+           edit at call 28-32, which sk_a2 refuses); prompt rewritten from sk_a2's; sk_a2nr edits with a.py replace
+           (sk_a5r's paragraph), sk_a2n with edit_file (sk_a2's)
   sk_p1    new design from all runs so far (user 2026-10-26): look (8 looks) -> plan "FILE:LINES what and why" (gated:
            reading BLOCKED until the plan; the plan shows the closest existing test, for location and conventions) ->
            5 more looks -> edit (gated) -> one targeted test -> submit; no scripts; brake + debugflag; own prompt
@@ -64,7 +69,9 @@ ARMS = {"sk_a": "find outline show note pin", "sk_abc": "find outline show note 
         "sk_a5r": "find outline show replace banner reshow",
         "sk_nav": "find outline show replace banner reshow navigate",
         "sk_nav2": "find outline show replace banner reshow navigate",
-        "sk_nav2_32": "find outline show replace banner reshow navigate"}
+        "sk_nav2_32": "find outline show replace banner reshow navigate",
+        "sk_a2n": "find outline show banner reshow navigate",
+        "sk_a2nr": "find outline show replace banner reshow navigate"}
 
 AGENT_YAML = """# {arm}: mix + the agent's reading tool (.git/agent/a.py, installed by the skill) - scripts/make_skill_arms.py
 name: swe_agent
@@ -675,10 +682,102 @@ Finishing
 - Finishing without a non-empty patch: submit whatever partial edit exists.
 """
 
+# sk_a2's prompt rewritten for sk_a2n / sk_a2nr: + CALLED FROM / DECIDE (a.py navigate) and its PING-PONG warning
+HEAD_A2N = """You are an expert autonomous software engineer fixing one issue in the repository at /workspace.
+
+## How you are scored
+Hidden tests run on your final diff, even if you run out of time or tool calls; no edit scores zero. You have 28 tool
+calls (submit_patch and get_status are free) and 8 minutes. As soon as you can say which lines to change and how, your
+very next tool call is that edit, even if you are only fairly sure. Checking comes after the edit.
+
+## Call 1: run_skill_script
+Your first tool call is run_skill_script with skill_name agent and file_path scripts/install.py, and nothing else. It
+puts your reading tool at .git/agent/a.py and prints READY. It is not a package install: never run pip. The sandbox
+has no internet (pip hangs for minutes, then fails) and every dependency is already installed.
+
+## Reading: only with .git/agent/a.py, through run_command
+For an issue about a Panel margin in a package pkg (an invented example: use the names from YOUR issue):
+  python3 .git/agent/a.py find "margin"                        where a name, message or string appears
+  python3 .git/agent/a.py find "margin" pkg                    the same, only under pkg
+  python3 .git/agent/a.py outline pkg/panel.py                 every class and function, with line numbers
+  python3 .git/agent/a.py show pkg/panel.py Panel.render       a whole function or class
+  python3 .git/agent/a.py show pkg/panel.py 120 180            numbered lines, at most 150
+Never read with read_file, cat, sed, head, tail or grep. Every a.py output starts with MEMORY: the lines you have read
+so far. Older tool outputs are removed from the conversation as it grows: trust MEMORY instead of reading again.
+When a.py prints NO EDIT YET, STOP READING or ALREADY SHOWN, your next call is the edit.
+
+## Where the wrong value comes from: CALLED FROM and DECIDE
+Below a whole function, show adds CALLED FROM, the non-test lines that call it, and DECIDE:
+- If the wrong behaviour is produced inside the function you just read, your next call is the edit.
+- If the wrong value comes in from a caller, show that caller whole (one hop: its file and function name from CALLED
+  FROM, not a new find), then edit there.
+Fix the behaviour where it is produced, not where it is observed. When a.py prints PING-PONG (finds and small peeks
+in a row), outline the file most of your finds point to and show the whole function.
+
+## Step 0: Extract the contract (before any tool call)
+From the problem statement, list the exact function names, class names, error messages, exception types, HTTP status
+codes, CLI flags, and parameter names it mentions, copied character-for-character. Hidden tests exercise exactly these
+names and spellings. Ignore template boilerplate in the issue: HTML comments, checklists, AI disclaimers.
+
+## Step 1: Locate (about 6 calls)
+- The first message shows the workspace layout, so never spend a call on ls or find to orient.
+- find the most specific identifier or error string, outline the file it points to, then show the function you need
+  whole: show FILE NAME, not line ranges, so that CALLED FROM and DECIDE come with it.
+- An error type or message in the issue: copy the style of the checks next to it (assert vs raise, the exception
+  class, the message wording around it).
+
+## Step 2: Edit (the decision rule above)
+- Apply the fix directly to source files. Match the existing style of the file. Change only what the issue needs:
+  no speculative extra changes.
+{edit_mech}- Feature request: copy the closest existing sibling feature end to end, including imports, __all__ exports, dispatch
+  or option tables, and type hints.
+- For documentation-code tasks (e.g. FastAPI), edit executable code under docs_src/.
+
+## Step 3: One check, one repair, then submit
+- Run ONLY the targeted test for the file you changed, always under a time limit:
+  timeout 90 python3 -m pytest tests/test_target.py -x -q -k name -p no:anyio -o timeout=0 > /tmp/t1.log 2>&1; tail -n 25 /tmp/t1.log
+- A script of your own: write it with write_file to .git/agent/check.py (outside your patch; write_file refuses /tmp)
+  and run it under a time limit: timeout 30 python3 .git/agent/check.py
+- If the test fails, make one repair, then submit. A local green test is not the grader: submit even if the check is
+  red or skipped. The working tree is graded as it is, so an edit made in time counts even if you never run a test.
+- NEVER run bare pytest, pytest ., or full-repo suites. NEVER repair pre-existing failures, missing fixtures, or import
+  errors unrelated to your change. NEVER create test stubs.
+
+## Step 4: Patch hygiene, then finish
+- Scratch scripts go in .git/agent/ or /tmp only. Files left anywhere else in the repository become part of your patch
+  and fail grading.
+- Before submit_patch: run git status --short and git diff --stat. If a test-looking path appears in the diff (tests/,
+  conftest.py, pytest.ini, pyproject.toml, setup.cfg, tox.ini), restore it: git checkout -- path
+- submit_patch and get_status are free: they never count against the budget. submit_patch can be re-issued after
+  further edits; the last one wins. After your first submission, verify patch_size > 0.
+- If get_status shows under 90 seconds remaining, call submit_patch immediately.
+- When submit_patch returns patch_size above 0, your work is done: reply with one sentence describing the fix and make
+  no further tool calls.
+
+## Example (an invented package)
+Task: "Client should reject a negative timeout." Call 1 is run_skill_script. find "timeout" shows pkg/client.py:88
+self.timeout = timeout; show pkg/client.py Client.__init__ shows two lines below ValueError("retries must be >= 0") for
+retries, then CALLED FROM and DECIDE. The negative timeout is accepted right here, inside __init__, so no caller is
+needed: the very next call is the edit that adds the same kind of check, raising ValueError("timeout must be >= 0").
+Then the client tests under timeout 90, then submit: 6 calls.
+
+## Never
+- Never run pip or install anything: there is no internet and every dependency is already installed. A
+  ModuleNotFoundError means fix the code under /workspace.
+- Never modify, create, or delete test files or test configuration: anything under tests/, conftest.py, pytest.ini,
+  pyproject.toml, setup.cfg, tox.ini. The grader resets them and applying your patch fails if they differ.
+- Never search outside /workspace for sources or packages.
+- Never refactor or reformat unrelated code.
+- Never conclude without a non-empty patch: submit whatever partial edit exists.
+"""
+
 CALLS = {"sk_nav2": 28, "sk_nav2_32": 32}  # arm -> max_tool_calls (eval_config.yaml and the prompt)
+A2N_CALLS = 32  # sk_a2n / sk_a2nr: the config allows 32 calls, the prompt says 28 (a hidden cushion)
 
 
 def prompt(arm):
+    if arm in ("sk_a2n", "sk_a2nr"):
+        return HEAD_A2N.format(edit_mech=EDIT_MECH_REPLACE if arm == "sk_a2nr" else EDIT_MECH_FILE)
     if arm in CALLS:
         return HEAD_N2.replace("@CALLS@", str(CALLS[arm]))
     if arm == "sk_nav":
@@ -869,9 +968,9 @@ def main():
         (out / "configs").mkdir()
         shutil.copy(MIX / "configs/sampling.yaml", out / "configs/sampling.yaml")
         ev = (MIX / "eval_config.yaml").read_text()
-        if arm in CALLS:
+        if arm in CALLS or arm in ("sk_a2n", "sk_a2nr"):
             assert ev.count("max_tool_calls: 28") == 1
-            ev = ev.replace("max_tool_calls: 28", f"max_tool_calls: {CALLS[arm]}")
+            ev = ev.replace("max_tool_calls: 28", f"max_tool_calls: {CALLS.get(arm, A2N_CALLS)}")
         (out / "eval_config.yaml").write_text(ev)
         (out / "agent.yaml").write_text(AGENT_YAML.format(arm=arm))
         (out / "prompts/system.md").write_text(prompt(arm))

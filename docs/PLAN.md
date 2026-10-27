@@ -32,6 +32,16 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
+### NEXT RUN BUILT: sk_a2n / sk_a2nr, back to sk_a2 + navigate + 32 calls, 8 tasks, 1 pass (2026-10-29, NEWEST — read first)
+- Fix arms undone (commit 7adcc55). top_p/top_k: old 0.95/none 4.00 per 8 (24 runs) vs 0.8/20 3.50 (32), same T and
+  thinking: no effect. Back to sk_a2 (LB 0.18), keeping the two nav pieces behind the new solves:
+  every nav solve of rich_3470 made its first edit at call 28-32 (sk_a2's config refuses them; its own two runs edited
+  at 29 and 30, no patch); every nav solve of fastapi_14419 (sk_a2 0/3) used CALLED FROM 3-5 times.
+- sk_a2n: sk_a2's prompt rewritten + a CALLED FROM / DECIDE section (one hop to a caller, PING-PONG), a.py navigate,
+  config 32 calls (prompt says 28 / 8 min), sk_a2's sampling and edit_file. sk_a2nr: the same + a.py replace (sk_a5r's
+  edit paragraph instead of edit_file's). a.py DECIDE says "(replace)" only when replace is installed.
+- kaggle/cells_skill_a2n (only cell2 differs), 16 runs, saved version, about 1 h = about 2 h quota. Sim clean.
+
 ### FIX ARMS RESULT: control 3/8, tmpl 3/8, brake 4/8 (2026-10-29, NEWEST — read first)
 - data/results/2026-10-29_skill_fix, 24 runs, 1.3 h. Mean agent s: control (r_n2k rerun) 356, tmpl 392 (4 timeouts),
   brake 374 (1 timeout). r_n2k over 3 passes on these 8 tasks: 5, 3, 3.

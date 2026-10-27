@@ -295,8 +295,8 @@ def callers(path, qual, a, b):
     lines = [f"CALLED FROM ({len(hits)} non-test places):" if hits else
              f"CALLED FROM: no direct calls of {name}( outside tests (it is used by name, e.g. registered, a hook or an override)"]
     lines += hits[:CALLERS_MAX] + ([f"  ... {len(hits) - CALLERS_MAX} more"] if len(hits) > CALLERS_MAX else [])
-    lines.append(f"DECIDE: if the wrong behaviour is produced in {path} {a}-{b}, your next call is the edit (replace). If "
-                 f"the wrong value comes in from a caller, show that caller whole (one hop), then edit.")
+    lines.append(f"DECIDE: if the wrong behaviour is produced in {path} {a}-{b}, your next call is the edit"
+                 f"{' (replace)' if 'replace' in COMMANDS else ''}. If the wrong value comes in from a caller, show that caller whole (one hop), then edit.")
     return "\n".join(lines)
 
 
