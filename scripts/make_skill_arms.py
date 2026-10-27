@@ -911,9 +911,11 @@ conversation as it grows: trust MEMORY. a.py also prints signals, and each one i
 - DECIDE (after a whole function, under CALLED FROM): if the wrong behaviour is produced in these lines, the edit; if
   the wrong value comes in from a caller, show that caller whole (one hop, not a new search), then the edit.
 - PING-PONG: outline the file most of your finds point to, then show the whole function.
-- NO EDIT YET, STOP READING, ALREADY SHOWN: you have read enough. The edit.
+- NO EDIT YET, ALREADY SHOWN: if you can name the lines to change, the edit.
+- STOP READING: you have read enough. The edit, on the lines you think most likely.
 @SIGNAL@
-In earlier runs the agent read on after STOP READING 9 times out of 10, and those runs ended without a working edit.
+In earlier runs the agent read on after STOP READING 9 times out of 10. Runs that made their first edit by call 20
+passed half the time; after call 25, about 1 in 8; with no edit, never.
 
 ## Choosing the change
 - Fix the behaviour where it is produced, not where it is observed.

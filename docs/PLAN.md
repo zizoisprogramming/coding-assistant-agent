@@ -40,6 +40,8 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
 - F2a sk_nav_tmpl: a.py option template = after STOP READING (15 looks / 300 s, no change) a whole-function show ends
   with "EDIT NOW" + the replace command for those lines. F2b sk_nav_brake: option brake = find/outline/show BLOCKED
   until the first edit; the message carries the same replace command (scripts/agent_skill/a.py, scratch-repo tested).
+- Prompt review fix: NO EDIT YET / ALREADY SHOWN conditional like a.py's own text; the closing evidence line is measured
+  (204 nav runs: first edit by call 20 solved 50%, 21-24 29%, 25+ 13%, no edit 0%).
 - Both: base sk_nav_s6_32r_n2k (n2k sampling, 32 calls / 8 min). kaggle/cells_skill_fix (only cell2 differs from
   cells_skill_rn2k), 24 runs on the 8 tasks, saved version, about 1.5 h = about 3 h quota.
 
