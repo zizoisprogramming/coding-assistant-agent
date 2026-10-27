@@ -791,7 +791,14 @@ Your first tool call is run_skill_script with skill_name agent and file_path scr
 puts your tool at .git/agent/a.py and prints READY. It is not a package install: the sandbox has no internet and
 every dependency is already installed.
 
-## Before call 2""", "## Before call 2"),) + INSTALL_EDITS[1:7]
+## Before call 2""", "## Before call 2"),
+               (INSTALL_EDITS[1][0], INSTALL_EDITS[1][1].replace(
+                   """never run_command python3 -m run_skill_script, and never a.py
+   before it (a.py does not exist until this call). It puts your tool at .git/agent/a.py and prints READY. It is not a
+   package install: the sandbox has no internet and every dependency is already installed.""",
+                   """never run_command python3 -m run_skill_script. It puts your
+   tool at .git/agent/a.py and prints READY. It is not a package install: the sandbox has no internet and every
+   dependency is already installed."""))) + INSTALL_EDITS[2:7]
 INSTALL_FIRST = {"sk_nav_s6_32i": ("sk_nav_s6_32", INSTALL_EDITS), "sk_nav_s6_32r": ("sk_nav_s6_32", ROUTE_EDITS)}
 
 

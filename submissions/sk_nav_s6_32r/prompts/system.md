@@ -15,9 +15,9 @@ names and spellings. Ignore template boilerplate in the issue: HTML comments, ch
 
 ## The route: install, search, open, read whole, decide, edit (about 14 calls)
 1. Install, always tool call 1: run_skill_script with skill_name agent and file_path scripts/install.py, and nothing
-   else. It is a tool of its own, not a shell command: never run_command python3 -m run_skill_script, and never a.py
-   before it (a.py does not exist until this call). It puts your tool at .git/agent/a.py and prints READY. It is not a
-   package install: the sandbox has no internet and every dependency is already installed.
+   else. It is a tool of its own, not a shell command: never run_command python3 -m run_skill_script. It puts your
+   tool at .git/agent/a.py and prints READY. It is not a package install: the sandbox has no internet and every
+   dependency is already installed.
 From call 2 on, use the tool through run_command. For an issue about a Panel margin in a package pkg (an invented
 example: use the names from YOUR issue):
 2. Search, 1 to 3 calls: the most specific name or string of the contract.
