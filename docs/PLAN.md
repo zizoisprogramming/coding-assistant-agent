@@ -32,6 +32,16 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
+### NEXT RUN BUILT: sampling arms g / n on s6_32 and s6_32r, 8 tasks, 1 pass (2026-10-28, NEWEST — read first)
+- User: s6_32's 6 (first rich_3180 solve in months) shows the method can work; control variance and time via sampling.
+- scripts/make_skill_arms.py SAMPLING / SAMPLING_VARIANTS: file-for-file copies, only configs/sampling.yaml replaced:
+  g = temperature 0.0, top_p 1.0 (greedy: top_p/top_k do nothing), thinking_budget 1024;
+  n = temperature 0.2, top_p 0.8, top_k 20, thinking_budget 1024. Old: 0.2 / 0.95 / no top_k / 2048. max_output 4096 kept.
+- Arms sk_nav_s6_32_g, _n, sk_nav_s6_32r_g, _n on the 8 tasks solved at least once (WINNABLE7 + rich_3180):
+  kaggle/cells_skill_samp (only cell2 differs from cells_skill_s6r), 32 runs, saved version, about 2 h = about 4 h quota.
+- Sim: requests carry temperature 0.0 / thinking_token_budget 1024 / top_p 1.0 (g) and 0.2 / 0.8 / top_k 20 / 1024 (n).
+- Baseline on these 8 tasks (old sampling): s6_32 6 then 2, s6_32i 3, s6_32r 4 (all from the 16-task runs).
+
 ### sk_nav_s6_32 RERUN 2/16 + sk_nav_s6_32r 4/16 (2026-10-28, NEWEST — read first)
 - kaggle/cells_skill_s6r, 32 runs, 116 min. Results data/results/2026-10-28_skill_s6r; reference column r12.
 - **The identical arm sk_nav_s6_32 went 6 -> 2.** Its 6 was luck; over 2 passes it is 4.0 per pass. s6_32r 4, s6_32i 3,

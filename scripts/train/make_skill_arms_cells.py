@@ -31,11 +31,11 @@ sys.path.insert(0, str(ROOT / "scripts/train"))
 import make_gen_cells as G  # noqa: E402
 from make_test_cells import must_replace  # noqa: E402
 
-OUT = ROOT / "kaggle/cells_skill_s6r"
-ARMS = ["sk_nav_s6_32", "sk_nav_s6_32r"]
+OUT = ROOT / "kaggle/cells_skill_samp"
+ARMS = ["sk_nav_s6_32_g", "sk_nav_s6_32_n", "sk_nav_s6_32r_g", "sk_nav_s6_32r_n"]
 # the winnable dev16 tasks: tier 1 (mix 55-95%) + tier 2 (14-35% over all arms); the other 9 were 0 in ~150 runs
 WINNABLE7 = ["rich_3882", "fastapi_15589", "fastapi_11194", "rich_4079", "rich_3521", "fastapi_14419", "rich_3470"]
-TASKS = sorted(json.load(open(ROOT / "data/splits_public.json"))["dev16"])  # all 16 (or WINNABLE7)
+TASKS = sorted(WINNABLE7 + ["rich_3180"])  # the 8 dev16 tasks solved at least once (rich_3180: once, by sk_nav_s6_32)
 PASSES = 1  # 1: no early stop needed (EARLY_STOP_MAX only acts between pass 1 and pass 2)
 CONCURRENCY = 2
 EARLY_STOP_MAX = 3  # user: stop after pass 1 if every arm solved 3 or fewer (mix: 3.67 per pass, all on these 7 tasks)

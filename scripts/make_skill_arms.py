@@ -801,6 +801,30 @@ every dependency is already installed.
    dependency is already installed."""))) + INSTALL_EDITS[2:7]
 INSTALL_FIRST = {"sk_nav_s6_32i": ("sk_nav_s6_32", INSTALL_EDITS), "sk_nav_s6_32r": ("sk_nav_s6_32", ROUTE_EDITS)}
 
+# user 2026-10-28: same prompts, other sampling. g = greedy (temperature 0: top_p / top_k have no effect), n = narrow
+# sampling; both cap thinking at 1024 (was 2048: the 2,000+ token replies that cost about 70 s each)
+SAMPLING = {
+    "g": "temperature: 0.0\ntop_p: 1.0\nmax_output_tokens: 4096\nthinking_config:\n  thinking_budget: 1024\n"
+         "  include_thoughts: true\n",
+    "n": "temperature: 0.2\ntop_p: 0.8\ntop_k: 20\nmax_output_tokens: 4096\nthinking_config:\n  thinking_budget: 1024\n"
+         "  include_thoughts: true\n",
+}
+SAMPLING_VARIANTS = {f"{b}_{k}": (b, k) for b in ("sk_nav_s6_32", "sk_nav_s6_32r") for k in SAMPLING}
+
+
+def sampling_variant(arm):
+    """A file-for-file copy with only configs/sampling.yaml replaced."""
+    base, key = SAMPLING_VARIANTS[arm]
+    out = ROOT / "submissions" / arm
+    shutil.rmtree(out, ignore_errors=True)
+    shutil.copytree(ROOT / "submissions" / base, out)
+    samp = out / "configs/sampling.yaml"
+    assert "temperature: 0.2\ntop_p: 0.95\nmax_output_tokens: 4096" in samp.read_text()
+    samp.write_text(f"# {arm}: {base} with sampling '{key}' (scripts/make_skill_arms.py SAMPLING)\n" + SAMPLING[key])
+    ay = out / "agent.yaml"
+    ay.write_text(ay.read_text().replace("# ", f"# {arm} = {base} with sampling {key}; ", 1))
+    print("wrote", out.relative_to(ROOT), f"| copy of {base}, sampling {key}:", SAMPLING[key].replace(chr(10), " "))
+
 
 def install_first(arm):
     base, edits = INSTALL_FIRST[arm]
@@ -820,15 +844,17 @@ def install_first(arm):
 
 def main():
     import sys
-    wanted = sys.argv[1:] or list(ARMS) + list(VARIANTS) + list(CALL_VARIANTS) + list(INSTALL_FIRST)
+    wanted = sys.argv[1:] or list(ARMS) + list(VARIANTS) + list(CALL_VARIANTS) + list(INSTALL_FIRST) + list(SAMPLING_VARIANTS)
     for arm in [a for a in wanted if a in VARIANTS]:
         variant(arm)
     for arm in [a for a in wanted if a in CALL_VARIANTS]:
         call_variant(arm)
     for arm in [a for a in wanted if a in INSTALL_FIRST]:
         install_first(arm)
+    for arm in [a for a in wanted if a in SAMPLING_VARIANTS]:
+        sampling_variant(arm)
     for arm, cmds in ((a, ARMS[a]) for a in wanted if a not in VARIANTS and a not in CALL_VARIANTS
-                              and a not in INSTALL_FIRST):
+                              and a not in INSTALL_FIRST and a not in SAMPLING_VARIANTS):
         out = ROOT / "submissions" / arm
         shutil.rmtree(out, ignore_errors=True)
         (out / "prompts").mkdir(parents=True)

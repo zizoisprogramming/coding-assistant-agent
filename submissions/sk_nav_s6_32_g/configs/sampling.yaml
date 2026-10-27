@@ -1,0 +1,7 @@
+# sk_nav_s6_32_g: sk_nav_s6_32 with sampling 'g' (scripts/make_skill_arms.py SAMPLING)
+temperature: 0.0
+top_p: 1.0
+max_output_tokens: 4096
+thinking_config:
+  thinking_budget: 1024
+  include_thoughts: true
