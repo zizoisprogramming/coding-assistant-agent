@@ -32,6 +32,13 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
+### PROPOSED (not built, user: tomorrow): a 40-task eval set (2026-10-29)
+- Public 129 = dev16 + val 16 + test 16 + train 52 + 29 not gradable. The 84 non-dev tasks have 1 mix run each
+  (2026-10-24_gen_combined, T1.0, 15 min, regrade.json): 32/84 = 38% (train 19/52, val 7/16, test 6/16); val's two
+  runs (+ gemma_val) agree 16/16. dev16 is the hard end (mix 23%/pass) and matches the LB (0.17) better.
+- Problem is sample size: on 8 tasks two arms differ by +-2 from chance. Proposal: 8 winnable dev + val + test = 40
+  tasks, ~2.4 h wall (~5 h quota) per arm-pass; first run a baseline (sk_a2 or mix) at LB settings on it.
+
 ### RUN BUILT: sk_a2b2k alone, 8 tasks x 2 passes, early stop 3 (2026-10-29, NEWEST — read first)
 - User: tweak sk_a2b, thinking 2048. sk_a2b2k = sk_a2b with thinking_budget 2048 (only change; max output 8192,
   T0.2, top_p 0.95, 32 calls, batch). kaggle/cells_skill_b2k (only cell2 differs). 8-16 runs, ~0.6-1.2 h.
