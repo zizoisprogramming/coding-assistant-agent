@@ -32,7 +32,21 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
-### ANALYSIS d40 (r20 + r21, 80 runs) (2026-10-29, NEWEST — read first)
+### RUN BUILT: sk_fr (fixer -> reviewer) on d40, 1 pass (2026-10-29, NEWEST — read first)
+- submissions/sk_fr: root SequentialAgent [fixer.yaml, reviewer.yaml], both = sk_a2 tools + skill + sampling. Fixer
+  prompt (fresh): sk_a2 workflow, told 20 calls, never submit, end with a plain-text HANDOVER (CHANGED / TASK ITEMS /
+  CHECKED / UNSURE, or WHERE / WHAT with no edit). Reviewer (include_contents none, {problem_description}): told 6
+  calls; git diff -> item-by-item check vs the issue -> one test -> change only a missing/wrong item -> git status ->
+  submit. max_tool_calls 34 (user: tell lower numbers than the real budget), 8 min. submit_patch declared on both
+  (the harness task message names it; undeclared -> ValueError -> runner's outer except -> patch dropped).
+- Digest: review_at / review_calls / review_edits / fixer_submit; cell 5 prints REVIEW reached / fixer submitted.
+- Sim (data/sim/armsim.py, SIM_CELLS=cells_skill_d40_fr): reviewer's first request = 2 messages (system with the task
+  + the HANDOVER), no fixer tool history; empty diff -> reviewer applied the fix; SIM_FR_SUBMIT=1 -> fixer submits,
+  patch kept, no review. pack.py: compile_submission OK. Not simulated: reviewer ending without submit -> harness nudge
+  re-runs the SequentialAgent from the fixer (full history); the working-tree diff is captured on limits anyway.
+- kaggle/cells_skill_d40_fr: cell2, cell3b (digest) and cell5 differ from d40. ~2 h wall, ~4 h quota.
+
+### ANALYSIS d40 (r20 + r21, 80 runs) (2026-10-29)
 - Union of the two runs = 20/40 (pass@2) vs 17-18 per run. 35 wrong patches: 33 in the gold file, 25 within 15
   lines -> place found, change wrong. Kinds: hidden exact text/names (14479: task text shows a DIFFERENT message than
   the tests; 15588 message; 13713 param named openapi_external_docs, task says external_docs); partial fix (rich_3535

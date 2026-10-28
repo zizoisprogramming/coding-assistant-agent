@@ -1,0 +1,7 @@
+# sk_fr: SequentialAgent [fixer -> reviewer] (scripts/make_skill_arms.py sk_fr): the fixer is told not to submit
+# and hands over with a plain-text HANDOVER; the reviewer (fresh context) checks the diff against the issue and submits.
+name: swe_agent
+agent_class: SequentialAgent
+sub_agents:
+  - config_path: fixer.yaml
+  - config_path: reviewer.yaml

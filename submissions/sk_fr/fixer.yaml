@@ -1,0 +1,13 @@
+name: fixer
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/fixer.md
+tools:
+  - run_command
+  - read_file  # declared so a habitual call never ends the task (the task message names it)
+  - edit_file
+  - write_file
+  - get_status
+  - submit_patch  # declared on both: the harness task message names it; an undeclared call drops the patch
+skills:
+  - skills/agent
+generate_content_config: !include configs/sampling.yaml

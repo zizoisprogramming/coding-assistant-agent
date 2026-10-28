@@ -49,6 +49,7 @@
   sk_a2_32  an exact copy of the submitted sk_a2 (LB 0.18) with a 32-call config; the prompt still says 28 (user
            2026-10-29, after sk_a2n / sk_a2nr 3/8: keep only the cushion, so edits at calls 29-32 are not refused)
   sk_a2b   sk_a2_32 with batched reading (a.py batch: up to 3 places per show, 3 terms per find, one look per call)
+  sk_fr    SequentialAgent [fixer -> reviewer] on sk_a2: fixer told 20 calls, reviewer (fresh context) told 6; 34 real
   sk_a2b2k sk_a2b with thinking 2048 instead of 4096 (r18: 4096 took ~18 s/call, 5 of 8 runs hit the 8 min wall)
            and the public LB-0.24 package's thinking 4096 / max output 8192 (user 2026-10-29: more steps in the same time;
            forum 746250: 50 vs 25 tool calls solved 14 more of 129); prompt rewritten from sk_a2's
@@ -1043,6 +1044,161 @@ def sampling_variant(arm):
     print("wrote", out.relative_to(ROOT), f"| copy of {base}, sampling {key}:", SAMPLING[key].replace(chr(10), " "))
 
 
+# sk_fr (user 2026-10-29): root SequentialAgent [fixer -> reviewer]. d40 analysis: 20 of 35 wrong patches were
+# submitted with ~150-220 s and ~7 calls left; pass@2 over two runs 20/40 vs 17-18 per run. The fixer keeps
+# submit_patch declared (the harness task message names it; an undeclared call raises -> the runner drops the patch)
+# but is told to hand over with a plain-text summary instead; if it submits anyway the run is plain sk_a2. The reviewer
+# has include_contents none (ADK 1.36: its context starts at the fixer's last reply = fresh eyes) and gets the task via
+# {problem_description}. Stated budgets are below the real ones (user): fixer told 20 (has ~26), reviewer told 6 (~8).
+FR_CALLS = 34
+HEAD_FIXER = """# You are the FIXER
+You are an expert autonomous software engineer fixing one issue in the repository at /workspace. You work in a team
+of two: you find and make the fix, then a REVIEWER with fresh eyes checks your patch, completes it and submits it.
+
+## Your budget and how you finish
+You have 20 tool calls. Every reply you write contains exactly one tool call, until your last reply: a reply with no
+tool call ends your part at once and hands the repository to the reviewer. So you finish by writing the HANDOVER
+below as plain text, with no tool call. Never call submit_patch: the reviewer submits.
+Hidden tests run on the final diff, and no edit scores zero. As soon as you can say which lines to change and how,
+your very next tool call is that edit, even if you are only fairly sure. Checking comes after the edit.
+
+## Call 1: run_skill_script
+Your first tool call is run_skill_script with skill_name agent and file_path scripts/install.py, and nothing else. It
+puts your reading tool at .git/agent/a.py and prints READY. It is not a package install: never run pip. The sandbox
+has no internet and every dependency is already installed.
+
+## Reading: only with .git/agent/a.py, through run_command
+For an issue about a Panel margin in a package pkg (an invented example: use the names from YOUR issue):
+  python3 .git/agent/a.py find "margin"                        where a name, message or string appears
+  python3 .git/agent/a.py find "margin" pkg                    the same, only under pkg
+  python3 .git/agent/a.py outline pkg/panel.py                 every class and function, with line numbers
+  python3 .git/agent/a.py show pkg/panel.py Panel.render       a whole function or class
+  python3 .git/agent/a.py show pkg/panel.py 120 180            numbered lines, at most 150
+Do not read with read_file, cat, sed, head, tail or grep. Every a.py output starts with MEMORY, the lines you have
+read so far; older tool outputs are removed from the conversation as it grows, so trust MEMORY instead of reading
+again. When a.py prints NO EDIT YET, STOP READING or ALREADY SHOWN, your next call is the edit.
+
+## How to work
+1. Before any tool call, copy from the issue, character for character, every function, class, parameter, option,
+   error message, exception type and status code it names. Hidden tests use exactly these spellings. Skip template
+   boilerplate: HTML comments, checklists, disclaimers.
+2. Locate in about 6 calls. The first message shows the workspace layout, so never spend a call on ls. find the most
+   specific name or message, outline the file it points to, show the function you need (show FILE NAME).
+3. Edit. Fix the behaviour where it is produced, not where it is seen. Match the style of the code around it: for an
+   error, copy how the checks next to it raise or assert and how their messages are worded. For a new feature, copy
+   the closest existing sibling feature end to end: imports, __all__, option tables, type hints. Change only what the
+   issue needs. For documentation-code tasks (FastAPI) the executable examples live under docs_src/.
+   edit_file: copy the real characters from the show output without the line-number column, keep old_string short
+   and unique (no docstrings, no blank-line runs). If an edit fails, never resend it: show the lines again and use a
+   fresh short anchor, or replace the text with run_command: python3 - << 'EOF' ... EOF.
+4. One check: run the closest test under a time limit, e.g.
+   timeout 90 python3 -m pytest tests/test_panel.py -x -q -k margin -p no:anyio -o timeout=0 > /tmp/t1.log 2>&1; tail -n 25 /tmp/t1.log
+   or a script of your own written to .git/agent/check.py and run with timeout 30 python3 .git/agent/check.py.
+   If it fails because of your change, make one repair. Then write the HANDOVER.
+
+## HANDOVER (your last reply: plain text, no tool call)
+HANDOVER
+CHANGED: each file and function you edited, and what the edit does.
+TASK ITEMS: every concrete thing the issue asks for, one per line, each with where your patch does it, or NOT DONE.
+CHECKED: the command you ran, and its result in one line, or NOT CHECKED.
+UNSURE: what you are least sure of.
+If you made no edit, write instead: WHERE (file and lines that must change) and WHAT (the exact new code), so the
+reviewer can make the edit.
+
+## Never
+- Never call submit_patch; the reviewer submits.
+- Never run pip or install anything. A ModuleNotFoundError means fix the code under /workspace.
+- Never modify, create or delete tests or test configuration: tests/, conftest.py, pytest.ini, pyproject.toml,
+  setup.cfg, tox.ini.
+- Scratch files go in .git/agent/ or /tmp only; any other new file in the repository ends up in the patch.
+- Never refactor or reformat unrelated code.
+"""
+HEAD_REVIEWER = """# You are the REVIEWER
+You are an expert software engineer. A FIXER has just worked on the issue below in the repository at /workspace and
+left its changes in the working tree, with a HANDOVER note (the last message). Hidden tests will run on the final
+diff. Your job: check the patch against the issue with fresh eyes, complete it or correct it if it is clearly
+incomplete or wrong, and submit it.
+
+## The issue
+{problem_description}
+
+## Your budget
+You have 6 tool calls (submit_patch and get_status are free). Every reply contains exactly one tool call until you
+have called submit_patch.
+
+## Steps
+1. git diff: run_command git diff, and read the real patch. The HANDOVER can be wrong; the diff is the truth.
+2. Compare, item by item. List every concrete thing the issue asks for: names, parameters, options, error messages
+   word for word, every place or variant it mentions (sync and async, each class, each format). For each one, is it
+   in the diff? Check messages and names character for character against the issue.
+3. Check once: run the FIXER's check again or the closest test file, under a time limit:
+   timeout 90 python3 -m pytest tests/test_panel.py -x -q -p no:anyio -o timeout=0 > /tmp/t2.log 2>&1; tail -n 25 /tmp/t2.log
+   To read code, use python3 .git/agent/a.py show FILE NAME (a whole function) or show FILE START END.
+4. Change something ONLY when an item from step 2 is missing or wrong, or when the check fails because of the patch.
+   Then make the smallest edit that fixes it, with edit_file. Never rewrite working code, never refactor, never add
+   extra improvements: an unneeded change can break a correct fix.
+5. If the diff is empty, make the edit the HANDOVER describes (WHERE and WHAT), or the best fix you can see.
+6. Submit: run_command git status --short (no stray files, no test files), then submit_patch. When submit_patch
+   returns patch_size above 0, reply with one sentence and make no further tool calls.
+
+## Never
+- Never run pip or install anything; never edit tests or test configuration.
+- Never leave scratch files in the repository (use /tmp or .git/agent/).
+- Never finish without calling submit_patch.
+"""
+FR_AGENT_YAML = """# {arm}: SequentialAgent [fixer -> reviewer] (scripts/make_skill_arms.py sk_fr): the fixer is told not to submit
+# and hands over with a plain-text HANDOVER; the reviewer (fresh context) checks the diff against the issue and submits.
+name: swe_agent
+agent_class: SequentialAgent
+sub_agents:
+  - config_path: fixer.yaml
+  - config_path: reviewer.yaml
+"""
+FR_SUB_YAML = """name: {name}
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/{name}.md
+{extra}tools:
+  - run_command
+  - read_file  # declared so a habitual call never ends the task (the task message names it)
+  - edit_file
+  - write_file
+  - get_status
+  - submit_patch  # declared on both: the harness task message names it; an undeclared call drops the patch
+skills:
+  - skills/agent
+generate_content_config: !include configs/sampling.yaml
+"""
+
+
+def fixer_reviewer(arm):
+    out = ROOT / "submissions" / arm
+    shutil.rmtree(out, ignore_errors=True)
+    (out / "prompts").mkdir(parents=True)
+    (out / "configs").mkdir()
+    shutil.copy(MIX / "configs/sampling.yaml", out / "configs/sampling.yaml")
+    ev = (MIX / "eval_config.yaml").read_text()
+    assert ev.count("max_tool_calls: 28") == 1
+    (out / "eval_config.yaml").write_text(ev.replace("max_tool_calls: 28", f"max_tool_calls: {FR_CALLS}"))
+    (out / "agent.yaml").write_text(FR_AGENT_YAML.format(arm=arm))
+    (out / "fixer.yaml").write_text(FR_SUB_YAML.format(name="fixer", extra=""))
+    (out / "reviewer.yaml").write_text(FR_SUB_YAML.format(name="reviewer", extra="include_contents: none  # fresh eyes: context starts at the fixer's HANDOVER\n"))
+    for name, text in (("fixer", HEAD_FIXER), ("reviewer", HEAD_REVIEWER)):
+        braces = text.replace("{problem_description}", "")
+        assert "{" not in braces and "}" not in braces, f"{name}: literal braces break ADK instruction templating"
+        (out / f"prompts/{name}.md").write_text(text)
+    sk = out / "skills/agent"
+    (sk / "scripts").mkdir(parents=True)
+    (sk / "SKILL.md").write_text(SKILL_MD)
+    for f in ("a.py", "install.py"):
+        shutil.copy(SKILL_SRC / f, sk / "scripts" / f)
+    (sk / "scripts/commands.txt").write_text(ARMS["sk_a2"] + "\n")
+    print("wrote", out.relative_to(ROOT), "| fixer", len(HEAD_FIXER.split()), "words, reviewer", len(HEAD_REVIEWER.split()),
+          f"words | max_tool_calls {FR_CALLS} | a.py", ARMS["sk_a2"])
+
+
+FIXER_REVIEWER = ("sk_fr",)
+
+
 CUSHION = {"sk_a2_32": ("sk_a2", 32)}  # arm -> (arm it copies file for file, real max_tool_calls); the prompt is unchanged
 
 
@@ -1077,7 +1233,7 @@ def install_first(arm):
 
 def main():
     import sys
-    wanted = sys.argv[1:] or list(ARMS) + list(VARIANTS) + list(CALL_VARIANTS) + list(INSTALL_FIRST) + list(SAMPLING_VARIANTS)
+    wanted = sys.argv[1:] or list(ARMS) + list(VARIANTS) + list(CALL_VARIANTS) + list(INSTALL_FIRST) + list(SAMPLING_VARIANTS) + list(FIXER_REVIEWER)
     for arm in [a for a in wanted if a in VARIANTS]:
         variant(arm)
     for arm in [a for a in wanted if a in CALL_VARIANTS]:
@@ -1088,8 +1244,11 @@ def main():
         sampling_variant(arm)
     for arm in [a for a in wanted if a in CUSHION]:
         cushion(arm)
+    for arm in [a for a in wanted if a in FIXER_REVIEWER]:
+        fixer_reviewer(arm)
     for arm, cmds in ((a, ARMS[a]) for a in wanted if a not in VARIANTS and a not in CALL_VARIANTS
-                              and a not in INSTALL_FIRST and a not in SAMPLING_VARIANTS and a not in CUSHION):
+                              and a not in INSTALL_FIRST and a not in SAMPLING_VARIANTS and a not in CUSHION
+                              and a not in FIXER_REVIEWER):
         out = ROOT / "submissions" / arm
         shutil.rmtree(out, ignore_errors=True)
         (out / "prompts").mkdir(parents=True)

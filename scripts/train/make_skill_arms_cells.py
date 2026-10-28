@@ -31,8 +31,8 @@ sys.path.insert(0, str(ROOT / "scripts/train"))
 import make_gen_cells as G  # noqa: E402
 from make_test_cells import must_replace  # noqa: E402
 
-OUT = ROOT / "kaggle/cells_skill_d40_pub"
-ARMS = ["pub024"]  # d40: sk_a2 = kaggle/cells_skill_d40 (17/40), sk_a2_32 = kaggle/cells_skill_d40_32
+OUT = ROOT / "kaggle/cells_skill_d40_fr"
+ARMS = ["sk_fr"]  # d40: sk_a2 = kaggle/cells_skill_d40 (17/40), sk_a2_32 = kaggle/cells_skill_d40_32 (18/40), pub024 = kaggle/cells_skill_d40_pub
 # the winnable dev16 tasks: tier 1 (mix 55-95%) + tier 2 (14-35% over all arms); the other 9 were 0 in ~150 runs
 WINNABLE7 = ["rich_3882", "fastapi_15589", "fastapi_11194", "rich_4079", "rich_3521", "fastapi_14419", "rich_3470"]
 SPLITS = json.load(open(ROOT / "data/splits_public.json"))
@@ -151,6 +151,13 @@ for arm in ARMS:
               f"{sum(1 for x in d if x.get('call1_wrong'))} | pip {m('pip'):.1f} | repro {m('repro'):.1f} pytest {m('pytest'):.1f} | edited {len(fe)}/{len(d)}, median "
               f"first edit at call {fe[len(fe) // 2] if fe else '-'} | compactions {m('compactions'):.1f} | model "
               f"{m('model_s'):.0f}s + tools {m('tool_s'):.0f}s")
+        rv = [x for x in d if x.get('review_at')]
+        if rv or any(x.get('fixer_submit') for x in d):  # sk_fr: fixer -> reviewer
+            sv = lambda xs: sum(1 for x in xs if x.get('resolved'))
+            print(f"  {arm:8} REVIEW reached {len(rv)}/{len(d)} (solved {sv(rv)}), fixer submitted itself "
+                  f"{sum(1 for x in d if x.get('fixer_submit'))}, neither {sum(1 for x in d if not x.get('review_at') and not x.get('fixer_submit'))} "
+                  f"| review at call median {sorted(x['review_at'] for x in rv)[len(rv) // 2] if rv else '-'} | reviewer replies "
+                  f"{sum(x['review_calls'] for x in rv) / max(len(rv), 1):.1f}, edited in {sum(1 for x in rv if x.get('review_edits'))} runs")
 req = WORKING_DIR / 'requests' / 'requests.jsonl'
 print('request log:', f'{req.stat().st_size / 1e6:.0f} MB' if req.exists() else 'MISSING')
 '''
@@ -187,6 +194,13 @@ def _text(content):
 def _digest(job, messages, resp, seconds):
     d = DIGEST[job]
     d['model_calls'] += 1
+    first = _dump(messages[0]) if messages else {}
+    review = first.get('role') == 'system' and 'You are the REVIEWER' in _text(first.get('content'))
+    if review:  # sk_fr: the reviewer stage (fresh context) of a SequentialAgent [fixer -> reviewer]
+        d['review_calls'] += 1
+        if not d['review_at']:
+            d['review_at'] = d['tool_calls'] + 1  # the first reviewer reply comes after this many tool calls
+            d['last_prompt'] = 0  # its short fresh context is not a compaction
     d['model_ms'] += int(seconds * 1000)
     last = _dump(messages[-1]) if messages else {}
     if last.get('role') == 'tool':
@@ -250,6 +264,10 @@ def _digest(job, messages, resp, seconds):
             d['install_at'] = d['install_at'] or n
         else:
             d[name] += 1
+            if name == 'submit_patch' and not review and not d['review_at']:
+                d['fixer_submit'] = 1  # the fixer submitted itself: the run ended as plain sk_a2
+        if review and edit:
+            d['review_edits'] += 1
         if n == 1 and name != 'run_skill_script':
             d['call1_wrong'] = 1
         if edit and not d['first_edit']:
@@ -276,7 +294,8 @@ def digest_row(job, agent_s):
     n = max(d['tool_calls'], 1)
     keys = ('install', 'install_at', 'find', 'outline', 'show', 'note', 'pin', 'impact', 'check', 'a_other', 'raw_read',
             'read_file', 'pre_edit_runs', 'plan', 'blocked', 'debug_flag', 'replace', 'run', 'callers', 'pingpong', 'where_at', 'edit_fail', 'refused', 'reshown', 'banner', 'stop_banner', 'pip', 'call1_wrong', 'repro', 'pytest', 'edit_file', 'write_file', 'first_edit', 'compactions',
-            'max_prompt', 'out_tokens', 'model_calls', 'tool_calls', 'get_status', 'submit_patch', 'digest_errors')
+            'max_prompt', 'out_tokens', 'model_calls', 'tool_calls', 'get_status', 'submit_patch', 'digest_errors',
+            'review_at', 'review_calls', 'review_edits', 'fixer_submit')
     row = {k: d[k] for k in keys}
     row.update(model_s=round(model_s), tool_s=round(max(agent_s - model_s, 0)),
                model_s_per_call=round(model_s / max(d['model_calls'], 1), 1),
@@ -293,7 +312,8 @@ def digest_line(r):
             f"edit_file/write_file {r['edit_file'] + r['write_file']}, first edit at call {r['first_edit'] or '-'} | "
             f"repro {r['repro']} pytest {r['pytest']} | compactions {r['compactions']} max prompt {r['max_prompt']} | "
             f"model {r['model_s']}s ({r['model_s_per_call']}s/call) tools {r['tool_s']}s ({r['tool_s_per_call']}s/call) "
-            f"| out tokens {r['out_tokens']}" + (f" | DIGEST ERRORS {r['digest_errors']}" if r['digest_errors'] else ''))
+            f"| out tokens {r['out_tokens']}" + (f" | REVIEW at call {r['review_at']}, {r['review_calls']} replies, {r['review_edits']} edits"
+                                              if r['review_at'] else (' | fixer submitted itself' if r['fixer_submit'] else '')) + (f" | DIGEST ERRORS {r['digest_errors']}" if r['digest_errors'] else ''))
 print('DIGEST on: one line per run after its result line (results/digest.jsonl)')
 '''
 
