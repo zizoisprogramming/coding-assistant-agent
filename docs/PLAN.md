@@ -32,7 +32,16 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
-### RUN BUILT: sk_fr (fixer -> reviewer) on d40, 1 pass (2026-10-29, NEWEST — read first)
+### RESULT r22: sk_fr on s20 = 15/20 (sk_a2 17, sk_a2_32 18), mean 371 s vs 232/252 (2026-10-29, NEWEST — read first)
+- data/results/2026-10-29_skill_s20_fr, 1.12 h. Fixer obeyed the structure: 16/20 handed over, 0 self-submits;
+  4 timed out inside the fixer (12942 reverted its own edit, 15589/3521 no edit, 3278). Losses vs both refs: 12942,
+  15589, 3278 (time). s/request unchanged (9.9 vs 9.7) -> the cost is more calls: fixer told 20 used up to 34-40
+  (review_at 35-37 in 4 runs = no budget left), reviewer told 6 used 4-25 replies (median ~14).
+- Reviewer misbehaviour: test-file edits in 5 runs (14492, 14786, 3006 x3, 3067 x4), scratch repro.py written IN the
+  repo (9555), revert + re-apply of the fixer's correct line (3006, 3905), submit loop (14786: 5 submits + git add/
+  restore). No case seen where the reviewer corrected a wrong fix. Still solved those (grader resets test files).
+
+### RUN BUILT: sk_fr (fixer -> reviewer) on d40, 1 pass (2026-10-29)
 - submissions/sk_fr: root SequentialAgent [fixer.yaml, reviewer.yaml], both = sk_a2 tools + skill + sampling. Fixer
   prompt (fresh): sk_a2 workflow, told 20 calls, never submit, end with a plain-text HANDOVER (CHANGED / TASK ITEMS /
   CHECKED / UNSURE, or WHERE / WHAT with no edit). Reviewer (include_contents none, {problem_description}): told 6
