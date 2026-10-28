@@ -32,7 +32,11 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
-### RESULT r18: pub024 3/8, sk_a2b 2/8, early stop after pass 1 (2026-10-29, NEWEST — read first)
+### RUN BUILT: sk_a2b2k alone, 8 tasks x 2 passes, early stop 3 (2026-10-29, NEWEST — read first)
+- User: tweak sk_a2b, thinking 2048. sk_a2b2k = sk_a2b with thinking_budget 2048 (only change; max output 8192,
+  T0.2, top_p 0.95, 32 calls, batch). kaggle/cells_skill_b2k (only cell2 differs). 8-16 runs, ~0.6-1.2 h.
+
+### RESULT r18: pub024 3/8, sk_a2b 2/8, early stop after pass 1 (2026-10-29)
 - data/results/2026-10-29_skill_b, 16 runs, 1.1 h. pub024 solved 14419, 3180, 3882 (missed 11194, 15589);
   sk_a2b solved 11194, 15589 (missed 3882: its repro called Prompt.ask, read stdin and hit the 240 s command timeout
   twice, 408 s inside tools). sk_a2_32's sibling sk_a2 scored 4 and 3 on the same 8: pub024 is not better here;

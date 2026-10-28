@@ -49,6 +49,7 @@
   sk_a2_32  an exact copy of the submitted sk_a2 (LB 0.18) with a 32-call config; the prompt still says 28 (user
            2026-10-29, after sk_a2n / sk_a2nr 3/8: keep only the cushion, so edits at calls 29-32 are not refused)
   sk_a2b   sk_a2_32 with batched reading (a.py batch: up to 3 places per show, 3 terms per find, one look per call)
+  sk_a2b2k sk_a2b with thinking 2048 instead of 4096 (r18: 4096 took ~18 s/call, 5 of 8 runs hit the 8 min wall)
            and the public LB-0.24 package's thinking 4096 / max output 8192 (user 2026-10-29: more steps in the same time;
            forum 746250: 50 vs 25 tool calls solved 14 more of 129); prompt rewritten from sk_a2's
   sk_p1    new design from all runs so far (user 2026-10-26): look (8 looks) -> plan "FILE:LINES what and why" (gated:
@@ -77,7 +78,8 @@ ARMS = {"sk_a": "find outline show note pin", "sk_abc": "find outline show note 
         "sk_nav2_32": "find outline show replace banner reshow navigate",
         "sk_a2n": "find outline show banner reshow navigate",
         "sk_a2nr": "find outline show replace banner reshow navigate",
-        "sk_a2b": "find outline show banner reshow batch"}
+        "sk_a2b": "find outline show banner reshow batch",
+        "sk_a2b2k": "find outline show banner reshow batch"}
 
 AGENT_YAML = """# {arm}: mix + the agent's reading tool (.git/agent/a.py, installed by the skill) - scripts/make_skill_arms.py
 name: swe_agent
@@ -882,7 +884,7 @@ thinking_config:
 
 
 def prompt(arm):
-    if arm == "sk_a2b":
+    if arm in ("sk_a2b", "sk_a2b2k"):
         return HEAD_A2B
     if arm in ("sk_a2n", "sk_a2nr"):
         return HEAD_A2N.format(edit_mech=EDIT_MECH_REPLACE if arm == "sk_a2nr" else EDIT_MECH_FILE)
@@ -1095,8 +1097,11 @@ def main():
         shutil.copy(MIX / "configs/sampling.yaml", out / "configs/sampling.yaml")
         if arm == "sk_a2b":
             (out / "configs/sampling.yaml").write_text(SAMPLING_4K)
+        if arm == "sk_a2b2k":
+            (out / "configs/sampling.yaml").write_text(SAMPLING_4K.replace("# sk_a2b: the public LB-0.24 package's sampling (thinking 4096, max output 8192)", "# sk_a2b2k: sk_a2b sampling with thinking 2048 (was 4096), max output 8192")
+                                                       .replace("thinking_budget: 4096", "thinking_budget: 2048"))
         ev = (MIX / "eval_config.yaml").read_text()
-        if arm in CALLS or arm in ("sk_a2n", "sk_a2nr", "sk_a2b"):
+        if arm in CALLS or arm in ("sk_a2n", "sk_a2nr", "sk_a2b", "sk_a2b2k"):
             assert ev.count("max_tool_calls: 28") == 1
             ev = ev.replace("max_tool_calls: 28", f"max_tool_calls: {CALLS.get(arm, A2N_CALLS)}")
         (out / "eval_config.yaml").write_text(ev)

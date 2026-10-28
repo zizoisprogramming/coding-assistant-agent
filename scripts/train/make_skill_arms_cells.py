@@ -31,8 +31,8 @@ sys.path.insert(0, str(ROOT / "scripts/train"))
 import make_gen_cells as G  # noqa: E402
 from make_test_cells import must_replace  # noqa: E402
 
-OUT = ROOT / "kaggle/cells_skill_b"
-ARMS = ["pub024", "sk_a2b"]
+OUT = ROOT / "kaggle/cells_skill_b2k"
+ARMS = ["sk_a2b2k"]
 # the winnable dev16 tasks: tier 1 (mix 55-95%) + tier 2 (14-35% over all arms); the other 9 were 0 in ~150 runs
 WINNABLE7 = ["rich_3882", "fastapi_15589", "fastapi_11194", "rich_4079", "rich_3521", "fastapi_14419", "rich_3470"]
 TASKS = sorted(WINNABLE7 + ["rich_3180"])  # the 8 winnable (or all 16: sorted(json.load(open(ROOT / "data/splits_public.json"))["dev16"]))
