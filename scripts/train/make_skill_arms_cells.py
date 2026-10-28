@@ -31,8 +31,8 @@ sys.path.insert(0, str(ROOT / "scripts/train"))
 import make_gen_cells as G  # noqa: E402
 from make_test_cells import must_replace  # noqa: E402
 
-OUT = ROOT / "kaggle/cells_skill_s20_fr2_pub"
-ARMS = ["sk_fr2", "pub024"]  # sk_fr2 alone = kaggle/cells_skill_s20_fr2; sk_fr = kaggle/cells_skill_s20_fr (r22 15/20); d40: sk_a2 = kaggle/cells_skill_d40 (17/40), sk_a2_32 = kaggle/cells_skill_d40_32 (18/40), pub024 = kaggle/cells_skill_d40_pub
+OUT = ROOT / "kaggle/cells_skill_u20"
+ARMS = ["sk_a2_32", "sk_fr2", "pub024"]  # s20 (r23) = kaggle/cells_skill_s20_fr2_pub; sk_fr2 alone = kaggle/cells_skill_s20_fr2; sk_fr = kaggle/cells_skill_s20_fr (r22 15/20); d40: sk_a2 = kaggle/cells_skill_d40 (17/40), sk_a2_32 = kaggle/cells_skill_d40_32 (18/40), pub024 = kaggle/cells_skill_d40_pub
 # the winnable dev16 tasks: tier 1 (mix 55-95%) + tier 2 (14-35% over all arms); the other 9 were 0 in ~150 runs
 WINNABLE7 = ["rich_3882", "fastapi_15589", "fastapi_11194", "rich_4079", "rich_3521", "fastapi_14419", "rich_3470"]
 SPLITS = json.load(open(ROOT / "data/splits_public.json"))
@@ -42,7 +42,11 @@ TASKS = sorted(WINNABLE7 + ["rich_3180"] + SPLITS["val"] + SPLITS["test"])  # th
 # d40 solved (user 2026-10-29, saves quota): only the d40 tasks that sk_a2 (r20) or sk_a2_32 (r21) solved = 20 tasks
 SOLVED_D40 = sorted({r["instance_id"] for d in ("2026-10-29_skill_d40", "2026-10-29_skill_d40_32")
                      for r in map(json.loads, open(ROOT / f"data/results/{d}/results/gen_per_task.jsonl")) if r["resolved"]})
-TASKS = SOLVED_D40
+# u20 (user 2026-10-29): the other 20 d40 tasks (wrong or no patch in both r20 and r21), to see rescues; with a fresh
+# sk_a2_32 control (those tasks were picked as failures, so a rerun regains some by luck)
+D40 = sorted(WINNABLE7 + ["rich_3180"] + SPLITS["val"] + SPLITS["test"])
+UNSOLVED_D40 = [t for t in D40 if t not in SOLVED_D40]
+TASKS = UNSOLVED_D40  # s20: SOLVED_D40
 PASSES = 1  # d40 baseline: one pass (~2.4 h); early stop needs a pass 2, so it does nothing here
 CONCURRENCY = 2
 EARLY_STOP_MAX = 3  # user: after pass 1, an arm that solved 3 or fewer stops (mix: 3.67 per pass)

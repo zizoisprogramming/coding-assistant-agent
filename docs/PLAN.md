@@ -32,7 +32,12 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
-### RESULT r23: s20 = sk_fr2 17/20 (330 s), pub024 18/20 (270 s) (2026-10-29, NEWEST — read first)
+### RUN BUILT: u20 = the 20 d40 tasks unsolved in r20 and r21; sk_a2_32 (fresh control), sk_fr2, pub024 (2026-10-29, NEWEST — read first)
+- kaggle/cells_skill_u20 (only cell2 differs from s20_fr2_pub). Dev 4 (14419, 3180, 3470, 4079), val 8, test 8.
+  60 runs, ~3.5 h wall / ~7 h quota. Fresh control needed: the set was picked as failures, a rerun regains some by
+  luck. Question: does the reviewer rescue partial fixes / no-edit runs (r23: rich_3521)?
+
+### RESULT r23: s20 = sk_fr2 17/20 (330 s), pub024 18/20 (270 s) (2026-10-29)
 - data/results/2026-10-29_skill_s20_fr2_pub (ziad23samer/fork-of-fork-of-generation-all-shards-gpu v363262706),
   1.77 h. Refs on s20: sk_a2 17 (232 s), sk_a2_32 18 (252 s), sk_fr 15 (371 s). All within noise on a set chosen
   as solved (ceiling 20).
