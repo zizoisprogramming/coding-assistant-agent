@@ -32,7 +32,13 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
-### RUN BUILT: sk_a2 on d40 (8 winnable dev + val 16 + test 16), 1 pass (2026-10-29, NEWEST — read first)
+### RESULT r20: sk_a2 on d40 = 17/40 (dev 3/8, val 7/16, test 7/16), 1.71 h, mean 272 s (2026-10-29, NEWEST)
+- data/results/2026-10-29_skill_d40. Same per-task outcome as earlier runs on 14/16 val (mix T0.2 7/16) and 15/16
+  test (gen T1.0): most val/test tasks are near-deterministic, so the d40 noise is mostly the 8 dev tasks + ~2-3 flips.
+- 28-call cap ended 8 unsolved runs with 1-4 min left (12942, 13713, 14099, 14246, 14479, rich_3063, 4075, 4079):
+  what sk_a2_32 (cells_skill_d40_32, running) can change. Prediction: 18 (17-20).
+
+### RUN BUILT: sk_a2 on d40 (8 winnable dev + val 16 + test 16), 1 pass (2026-10-29)
 - r19 result first: sk_a2b2k 2/8 (11194, 3882), 0.47 h; thinking 2048 brought calls back to 13.0 s / 382 tokens, but
   3 of 8 still hit the wall without a patch (3521, 3180 never edited; 4079 edit at call 33). Every arm stays 2-5/8.
 - d40 baseline: sk_a2 (the LB-0.18 package, 28 calls) once on 40 tasks, kaggle/cells_skill_d40 (cell2 + cell5 differ),
@@ -91,7 +97,7 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   (_enter_buffer, _exit_buffer, _check_buffer, _write_buffer, ...), 3 compactions; 15589 re-showed
   _get_multidict_value 3-4 times after compactions and ran 3-4 own scripts (check.py, which sk_a2's prompt invites).
 
-### NEXT RUN BUILT: sk_a2n / sk_a2nr, back to sk_a2 + navigate + 32 calls, 8 tasks, 1 pass (2026-10-29, NEWEST — read first)
+### NEXT RUN BUILT: sk_a2n / sk_a2nr, back to sk_a2 + navigate + 32 calls, 8 tasks, 1 pass (2026-10-29)
 - Fix arms undone (commit 7adcc55). top_p/top_k: old 0.95/none 4.00 per 8 (24 runs) vs 0.8/20 3.50 (32), same T and
   thinking: no effect. Back to sk_a2 (LB 0.18), keeping the two nav pieces behind the new solves:
   every nav solve of rich_3470 made its first edit at call 28-32 (sk_a2's config refuses them; its own two runs edited
@@ -113,7 +119,7 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   (fastapi_14419 with first edit 16, rich_3521 with first edit 11) had no block, so they are prompt or noise.
 - Brake gap: it blocks a.py reads only; probes (inspect.getsource, python - << EOF) and grep/sed get around it.
 
-### NEXT RUN BUILT: fix arms sk_nav_tmpl / sk_nav_brake vs sk_nav_s6_32r_n2k, 8 tasks, 1 pass (2026-10-29, NEWEST — read first)
+### NEXT RUN BUILT: fix arms sk_nav_tmpl / sk_nav_brake vs sk_nav_s6_32r_n2k, 8 tasks, 1 pass (2026-10-29)
 - Signal check (3 runs, next call after each a.py signal): STOP READING -> edit 12%, NO EDIT YET 3%, DECIDE 6%,
   PING-PONG -> show/outline 65%. The prompt already said "your next call is the edit": the model obeys read-signals only.
 - F1 (both fix arms): new prompt HEAD_FIX in scripts/make_skill_arms.py (full text): "Tool call 1: run_skill_script,
@@ -134,7 +140,7 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   (c) slow thinking 17-32 s/call: rich_3180 (no edit), fastapi_14419, rich_3468 timed out.
 - User: rerun it for consistency next to a variant that fixes the errors (design under discussion).
 
-### NEXT RUN BUILT: sk_nav_s6_32r_n2k alone, all 16, 1 pass (2026-10-29, NEWEST — read first)
+### NEXT RUN BUILT: sk_nav_s6_32r_n2k alone, all 16, 1 pass (2026-10-29)
 - User picks s6_32r + n2k (T0.2, top_p 0.8, top_k 20, thinking 2048, max_output 4096) for a full dev16 pass.
 - kaggle/cells_skill_rn2k (only cell2 differs from cells_skill_think), 16 runs, saved version, about 1 h = about 2 h quota.
   Sim: requests carry the n2k sampling. Compare with s6_32 (6, 2), s6_32i 3, s6_32r 4 on all 16; watch mean agent s.
