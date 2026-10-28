@@ -32,7 +32,19 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
-### RESULT r22: sk_fr on s20 = 15/20 (sk_a2 17, sk_a2_32 18), mean 371 s vs 232/252 (2026-10-29, NEWEST — read first)
+### RUN BUILT: sk_fr2 on s20 (2026-10-29, NEWEST — read first)
+- submissions/sk_fr2 = sk_fr structure, prompts rewritten. a.py (commands.txt adds handoff handover review):
+  handoff = after the first change every a.py output ends ">>> PATCH IN PLACE ... your next call is a.py handover";
+  handover = the fixer's last call (patch stat, stray/test files, the HANDOVER format, "next reply: plain text");
+  review = the reviewer's first call (whole diff, new files, REVERT lines with commands for test files and new
+  files outside the package, then: one edit for a missing item or submit). Fixer told 20 calls, reviewer told 3
+  ("never run tests or write scripts", "never undo the fixer's edits", "never submit twice"); 34 real.
+- Digest adds handoff_seen / handover / review / revert_lines. Sim (SIM_FR2=1): PATCH IN PLACE seen, handover ->
+  review -> rm repro.py -> submit, patch = the gold only; empty-diff task: reviewer made the edit.
+- kaggle/cells_skill_s20_fr2: cell2 + cell3b differ from s20_fr. ~1 h wall / ~2 h quota. Refs: sk_a2 17, sk_a2_32
+  18, sk_fr 15 (371 s).
+
+### RESULT r22: sk_fr on s20 = 15/20 (sk_a2 17, sk_a2_32 18), mean 371 s vs 232/252 (2026-10-29)
 - data/results/2026-10-29_skill_s20_fr, 1.12 h. Fixer obeyed the structure: 16/20 handed over, 0 self-submits;
   4 timed out inside the fixer (12942 reverted its own edit, 15589/3521 no edit, 3278). Losses vs both refs: 12942,
   15589, 3278 (time). s/request unchanged (9.9 vs 9.7) -> the cost is more calls: fixer told 20 used up to 34-40

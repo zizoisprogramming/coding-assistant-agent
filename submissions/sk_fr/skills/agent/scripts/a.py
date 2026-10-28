@@ -47,6 +47,13 @@ asserted the opposite of the hidden one) or too much (fastapi_15589: the one gol
             3 regions per call; 50 vs 25 tool calls solved 14 more of 129 public tasks, forum 746250)
   diffview  once the repository has a change, every output ends with YOUR PATCH: the functions it changes and, when
             the patch changed since it was last shown, the diff itself (at most DIFF_SHOW lines)
+Fixer -> reviewer (2026-10-29, sk_fr on s20: the fixer obeyed the hand-over but read on to call 22-37 when told 20;
+the reviewer used ~14 replies when told 6: wrote test files and a repro.py inside the repo, re-did the fixer's line):
+  handoff   once the repository has a change, every output (until handover) ends with PATCH IN PLACE and the next
+            call to make: python3 .git/agent/a.py handover (an event to obey, not a budget to count)
+  handover  the fixer's last call: the patch summary, files to clean up, and the HANDOVER format to write next
+  review    the reviewer's first call: the whole diff, git status, and REVERT lines for test files and stray new
+            files in the patch, then the one decision left (one edit for a missing item, or submit_patch)
 """
 import ast
 import collections
@@ -69,7 +76,8 @@ RUN_TIMEOUT, RUN_TAIL = 30, 30
 PING_PONG, CALLERS_MAX = 4, 4
 TESTS_MAX, TEST_BODY_MAX, DIFF_SHOW, DF_MAX = 4, 25, 40, 30
 BATCH_MAX, BATCH_LINES = 3, 220
-OPTIONS = {"banner", "reshow", "brake", "plangate", "debugflag", "navigate", "tests", "diffview", "batch"}
+REVIEW_DIFF_MAX = 150
+OPTIONS = {"banner", "reshow", "brake", "plangate", "debugflag", "navigate", "tests", "diffview", "batch", "handoff"}
 DEBUG_RE = re.compile(r"DEBUG|breakpoint\(|pdb\.set_trace|^\s*print\(\s*f?[\"'](>>>|---|XXX|here|HERE)")
 READS = {"find", "outline", "show"}
 TEST_RE = re.compile(r"(^|/)(tests?|testing)/|(^|/)test_[^/]*\.py$|_test\.py$|(^|/)conftest\.py$")
@@ -771,6 +779,68 @@ def patch_view(st):
     return "\n".join(out)
 
 
+def stray_files():
+    """(path, how to undo) for patch entries that fail grading or pollute it: test files, new non-source files."""
+    out = []
+    for line in run("git status --porcelain --untracked-files=all", 20).split("\n"):
+        if len(line) < 4 or line.startswith("(timed out"):
+            continue
+        code, path = line[:2], line[3:].strip().split(" -> ")[-1]
+        new = code == "??"
+        if TEST_RE.search(path):
+            out.append((path, f"rm {q(path)}" if new else f"git checkout -- {q(path)}", "test file: the grader resets tests"))
+        elif new and (not path.endswith(".py") or re.search(r"(^|/)(repro|check|debug|scratch|tmp)[^/]*\.py$", path)
+                      or "/" not in path):
+            out.append((path, f"rm {q(path)}", "new file outside the package: scratch goes in .git/agent/ or /tmp"))
+    return out
+
+
+def cmd_handover(st, args):
+    st["handed_over"] = True
+    lines = ["HANDOVER POINT: no more tool calls from you. Your next reply is plain text with NO tool call; it ends "
+             "your part and the REVIEWER takes over."]
+    if has_change():
+        lines.append("Your patch: " + (run("git diff --stat", 20).split("\n")[-1].strip() or "?"))
+        for path, fix, why in stray_files():
+            lines.append(f"  in the patch but should not be: {path} ({why}); the reviewer will run: {fix}")
+        lines.append("Write exactly:\nHANDOVER\nCHANGED: each file and function you edited, and what the edit does.\n"
+                     "TASK ITEMS: every concrete thing the issue asks for, one per line, with where the patch does it, "
+                     "or NOT DONE.\nCHECKED: the command you ran and its result in one line, or NOT CHECKED.\n"
+                     "UNSURE: what you are least sure of.")
+    else:
+        lines.append("You made no edit. Write exactly:\nHANDOVER\nWHERE: the file and lines that must change.\n"
+                     "WHAT: the exact new code for those lines.\nWHY: one line.")
+    return "\n".join(lines)
+
+
+def cmd_review(st, args):
+    st["handed_over"] = st["reviewing"] = True
+    if not has_change():
+        return ("REVIEW: the patch is EMPTY. Make the edit the HANDOVER describes (WHERE / WHAT) with edit_file, "
+                "reading first with show FILE START END if you need the exact lines; then submit_patch.")
+    diff = run("git diff", 30).split("\n")
+    new = [l[3:] for l in run("git status --porcelain --untracked-files=all", 20).split("\n") if l.startswith("??")]
+    out = ["REVIEW: the patch as it will be graded" + (f" (first {REVIEW_DIFF_MAX} of {len(diff)} lines)" if len(diff) > REVIEW_DIFF_MAX else "")]
+    out += diff[:REVIEW_DIFF_MAX]
+    if new:
+        out.append("new files in the patch: " + ", ".join(new))
+    strays = stray_files()
+    for path, fix, why in strays:
+        out.append(f"REVERT {path} ({why}): run_command {fix}")
+    out.append("Now compare this diff with the issue, item by item (names, parameters, messages word for word, every "
+               "place or variant the issue names). " + ("First run the REVERT commands above in one run_command. " if strays else "")
+               + "If one item is missing or wrong, fix only that with one edit_file. Otherwise your next call is "
+               "submit_patch.")
+    return "\n".join(out)
+
+
+def handoff_line(st):
+    if "handoff" not in OPTS or st.get("handed_over") or not has_change():
+        return ""
+    return (">>> PATCH IN PLACE. After at most one check of it, your next call is: python3 .git/agent/a.py handover "
+            "(then write your HANDOVER). <<<")
+
+
 def has_change():
     """Any change in the working tree (git status never lists .git, so the tool's own files do not count)."""
     out = run("git status --porcelain --untracked-files=all", 20)
@@ -790,7 +860,8 @@ def banner(st):
     return ""
 
 
-HANDLERS = {"find": cmd_find, "outline": cmd_outline, "show": cmd_show, "note": cmd_note, "pin": cmd_pin,
+HANDLERS = {"handover": cmd_handover, "review": cmd_review,
+            "find": cmd_find, "outline": cmd_outline, "show": cmd_show, "note": cmd_note, "pin": cmd_pin,
             "impact": cmd_impact, "check": cmd_check, "plan": cmd_plan, "replace": cmd_replace, "run": cmd_run}
 
 
@@ -820,6 +891,9 @@ def main(argv):
         print(dbg)
     if warn:
         print(warn)
+    ho = handoff_line(st)
+    if ho:
+        print(ho)
 
 
 if __name__ == "__main__":

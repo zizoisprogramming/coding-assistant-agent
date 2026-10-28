@@ -31,8 +31,8 @@ sys.path.insert(0, str(ROOT / "scripts/train"))
 import make_gen_cells as G  # noqa: E402
 from make_test_cells import must_replace  # noqa: E402
 
-OUT = ROOT / "kaggle/cells_skill_s20_fr"
-ARMS = ["sk_fr"]  # d40: sk_a2 = kaggle/cells_skill_d40 (17/40), sk_a2_32 = kaggle/cells_skill_d40_32 (18/40), pub024 = kaggle/cells_skill_d40_pub
+OUT = ROOT / "kaggle/cells_skill_s20_fr2"
+ARMS = ["sk_fr2"]  # sk_fr = kaggle/cells_skill_s20_fr (r22 15/20); d40: sk_a2 = kaggle/cells_skill_d40 (17/40), sk_a2_32 = kaggle/cells_skill_d40_32 (18/40), pub024 = kaggle/cells_skill_d40_pub
 # the winnable dev16 tasks: tier 1 (mix 55-95%) + tier 2 (14-35% over all arms); the other 9 were 0 in ~150 runs
 WINNABLE7 = ["rich_3882", "fastapi_15589", "fastapi_11194", "rich_4079", "rich_3521", "fastapi_14419", "rich_3470"]
 SPLITS = json.load(open(ROOT / "data/splits_public.json"))
@@ -217,6 +217,8 @@ def _digest(job, messages, resp, seconds):
         d['debug_flag'] += 'DEBUG LINE IN YOUR DIFF' in out
         d['callers'] += 'CALLED FROM' in out
         d['pingpong'] += 'PING-PONG:' in out
+        d['handoff_seen'] += 'PATCH IN PLACE' in out
+        d['revert_lines'] += out.count('REVERT ')
         d['edit_fail'] += any(k in out for k in ('FileEditError', 'old_string not found', 'REPLACE FAILED'))
     r = _dump(resp)
     usage = r.get('usage') or {}
@@ -243,7 +245,7 @@ def _digest(job, messages, resp, seconds):
             cmd = str(a.get('command', ''))
             subs = _A_PY.findall(cmd)
             for c in subs:
-                d[c if c in ('find', 'outline', 'show', 'note', 'pin', 'impact', 'check', 'plan', 'replace', 'run') else 'a_other'] += 1
+                d[c if c in ('find', 'outline', 'show', 'note', 'pin', 'impact', 'check', 'plan', 'replace', 'run', 'handover', 'review') else 'a_other'] += 1
             if not subs and _RAW.search(cmd):
                 d['raw_read'] += 1
             if 'pytest' in cmd:
@@ -299,7 +301,7 @@ def digest_row(job, agent_s):
     keys = ('install', 'install_at', 'find', 'outline', 'show', 'note', 'pin', 'impact', 'check', 'a_other', 'raw_read',
             'read_file', 'pre_edit_runs', 'plan', 'blocked', 'debug_flag', 'replace', 'run', 'callers', 'pingpong', 'where_at', 'edit_fail', 'refused', 'reshown', 'banner', 'stop_banner', 'pip', 'call1_wrong', 'repro', 'pytest', 'edit_file', 'write_file', 'first_edit', 'compactions',
             'max_prompt', 'out_tokens', 'model_calls', 'tool_calls', 'get_status', 'submit_patch', 'digest_errors',
-            'review_at', 'review_calls', 'review_edits', 'fixer_submit')
+            'review_at', 'review_calls', 'review_edits', 'fixer_submit', 'handover', 'review', 'handoff_seen', 'revert_lines')
     row = {k: d[k] for k in keys}
     row.update(model_s=round(model_s), tool_s=round(max(agent_s - model_s, 0)),
                model_s_per_call=round(model_s / max(d['model_calls'], 1), 1),
@@ -316,7 +318,8 @@ def digest_line(r):
             f"edit_file/write_file {r['edit_file'] + r['write_file']}, first edit at call {r['first_edit'] or '-'} | "
             f"repro {r['repro']} pytest {r['pytest']} | compactions {r['compactions']} max prompt {r['max_prompt']} | "
             f"model {r['model_s']}s ({r['model_s_per_call']}s/call) tools {r['tool_s']}s ({r['tool_s_per_call']}s/call) "
-            f"| out tokens {r['out_tokens']}" + (f" | REVIEW at call {r['review_at']}, {r['review_calls']} replies, {r['review_edits']} edits"
+            f"| out tokens {r['out_tokens']}" + (f" | PATCH IN PLACE seen {r['handoff_seen']}x, a.py handover {r['handover']} review {r['review']}, REVERT lines {r['revert_lines']}" if r['handoff_seen'] or r['handover'] or r['review'] else '')
+            + (f" | REVIEW at call {r['review_at']}, {r['review_calls']} replies, {r['review_edits']} edits"
                                               if r['review_at'] else (' | fixer submitted itself' if r['fixer_submit'] else '')) + (f" | DIGEST ERRORS {r['digest_errors']}" if r['digest_errors'] else ''))
 print('DIGEST on: one line per run after its result line (results/digest.jsonl)')
 '''

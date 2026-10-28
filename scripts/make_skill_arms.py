@@ -50,6 +50,7 @@
            2026-10-29, after sk_a2n / sk_a2nr 3/8: keep only the cushion, so edits at calls 29-32 are not refused)
   sk_a2b   sk_a2_32 with batched reading (a.py batch: up to 3 places per show, 3 terms per find, one look per call)
   sk_fr    SequentialAgent [fixer -> reviewer] on sk_a2: fixer told 20 calls, reviewer (fresh context) told 6; 34 real
+  sk_fr2   sk_fr, fixer hands over with a.py handover (PATCH IN PLACE event), reviewer = a.py review + one decision, told 3
   sk_a2b2k sk_a2b with thinking 2048 instead of 4096 (r18: 4096 took ~18 s/call, 5 of 8 runs hit the 8 min wall)
            and the public LB-0.24 package's thinking 4096 / max output 8192 (user 2026-10-29: more steps in the same time;
            forum 746250: 50 vs 25 tool calls solved 14 more of 129); prompt rewritten from sk_a2's
@@ -1182,7 +1183,8 @@ def fixer_reviewer(arm):
     (out / "agent.yaml").write_text(FR_AGENT_YAML.format(arm=arm))
     (out / "fixer.yaml").write_text(FR_SUB_YAML.format(name="fixer", extra=""))
     (out / "reviewer.yaml").write_text(FR_SUB_YAML.format(name="reviewer", extra="include_contents: none  # fresh eyes: context starts at the fixer's HANDOVER\n"))
-    for name, text in (("fixer", HEAD_FIXER), ("reviewer", HEAD_REVIEWER)):
+    fixer, reviewer, cmds = FIXER_REVIEWER[arm]
+    for name, text in (("fixer", globals()[fixer]), ("reviewer", globals()[reviewer])):
         braces = text.replace("{problem_description}", "")
         assert "{" not in braces and "}" not in braces, f"{name}: literal braces break ADK instruction templating"
         (out / f"prompts/{name}.md").write_text(text)
@@ -1191,12 +1193,99 @@ def fixer_reviewer(arm):
     (sk / "SKILL.md").write_text(SKILL_MD)
     for f in ("a.py", "install.py"):
         shutil.copy(SKILL_SRC / f, sk / "scripts" / f)
-    (sk / "scripts/commands.txt").write_text(ARMS["sk_a2"] + "\n")
-    print("wrote", out.relative_to(ROOT), "| fixer", len(HEAD_FIXER.split()), "words, reviewer", len(HEAD_REVIEWER.split()),
-          f"words | max_tool_calls {FR_CALLS} | a.py", ARMS["sk_a2"])
+    (sk / "scripts/commands.txt").write_text(cmds + "\n")
+    print("wrote", out.relative_to(ROOT), "| fixer", len(globals()[fixer].split()), "words, reviewer",
+          len(globals()[reviewer].split()), f"words | max_tool_calls {FR_CALLS} | a.py", cmds)
 
 
-FIXER_REVIEWER = ("sk_fr",)
+# sk_fr2 (user 2026-10-29, after r22 sk_fr 15/20, 371 s): the fixer hands over with a tool call (a.py handover, the
+# habit submit_patch had) prompted by an event (a.py's PATCH IN PLACE line after an edit); the reviewer's first call
+# is a.py review (diff + git status + REVERT lines for test files / stray files) and then one decision: one edit for a
+# missing item, or submit. No tests, no scripts, no new files in the reviewer. Told 20 / 3 calls, 34 real.
+HEAD_FIXER2 = """# You are the FIXER
+You are an expert autonomous software engineer fixing one issue in the repository at /workspace, in a team of two.
+You find the problem and make the fix; then a REVIEWER reads your patch next to the issue and submits it.
+
+## Budget
+You have 20 tool calls. Hidden tests run on the final diff and no edit scores zero, so the edit comes early: as soon
+as you can say which lines to change and how, your very next tool call is that edit, even if you are only fairly
+sure. You never call submit_patch; the reviewer does.
+
+## Call 1
+run_skill_script with skill_name agent and file_path scripts/install.py, nothing else. It puts your reading tool at
+.git/agent/a.py and prints READY. It is not a package install: there is no internet and every dependency is already
+installed, so never run pip.
+
+## Reading, with .git/agent/a.py through run_command
+These examples use an invented package pkg; use the names from your issue:
+  python3 .git/agent/a.py find "margin"                        where a name, message or string appears
+  python3 .git/agent/a.py find "margin" pkg                    the same, only under pkg
+  python3 .git/agent/a.py outline pkg/panel.py                 every class and function, with line numbers
+  python3 .git/agent/a.py show pkg/panel.py Panel.render       a whole function or class
+  python3 .git/agent/a.py show pkg/panel.py 120 180            numbered lines, at most 150
+Do not read with read_file, cat, sed, head, tail or grep. Each a.py output begins with MEMORY, the lines read so far:
+old tool outputs are dropped from the conversation, so trust MEMORY rather than reading again. When a.py prints
+NO EDIT YET, STOP READING or ALREADY SHOWN, your next call is the edit.
+
+## Work
+1. Before the first tool call, write down from the issue, character for character, every function, class,
+   parameter, option, error message, exception type and status code it names; the hidden tests use these exact
+   spellings. Template boilerplate (HTML comments, checklists, disclaimers) is not part of the issue.
+2. Locate in about 6 calls. The first message already shows the workspace layout. find the most specific name or
+   message, outline the file it points to, show the function you need.
+3. Edit where the behaviour is produced, not where it shows up. Follow the code around it: an error copies how the
+   neighbouring checks raise or assert and word their messages; a new feature copies the closest sibling feature end
+   to end (imports, __all__, option tables, type hints). Change only what the issue needs. FastAPI documentation
+   examples live under docs_src/.
+   edit_file: copy the real characters from the show output without the line-number column; keep old_string short
+   and unique. If an edit fails, do not resend it: show the lines again and use a fresh short anchor, or rewrite the
+   text with run_command python3 - << 'EOF' ... EOF.
+4. At most one check: the closest test under a time limit,
+   timeout 90 python3 -m pytest tests/test_panel.py -x -q -k margin -p no:anyio -o timeout=0 > /tmp/t1.log 2>&1; tail -n 25 /tmp/t1.log
+   If it fails because of your change, one repair. Scripts of your own go in .git/agent/ only.
+5. Hand over: python3 .git/agent/a.py handover. Once a.py prints PATCH IN PLACE, this is your next call after at
+   most one check. Then write the HANDOVER it asks for, as plain text with no tool call: that reply ends your part.
+
+## Never
+- Never call submit_patch.
+- Never run pip or install anything; a ModuleNotFoundError means fix the code under /workspace.
+- Never create, modify or delete tests or test configuration: tests/, conftest.py, pytest.ini, pyproject.toml,
+  setup.cfg, tox.ini.
+- Never leave new files in the repository outside .git/agent/; they become part of the patch.
+- Never refactor or reformat code the issue does not need.
+"""
+HEAD_REVIEWER2 = """# You are the REVIEWER
+A FIXER has worked on the issue below in /workspace and left its patch in the working tree, with a HANDOVER note
+(the last message). Hidden tests run on the final diff. You check the patch against the issue once, fix at most one
+missing or wrong item, and submit.
+
+## The issue
+{problem_description}
+
+## Budget
+You have 3 tool calls (submit_patch is free). Every reply contains exactly one tool call until submit_patch is done.
+
+## Steps
+1. Your first call: run_command python3 .git/agent/a.py review
+   It prints the whole patch, the files in it, and REVERT lines for files that must not be in it.
+2. If it prints REVERT lines, run their commands together in one run_command.
+3. Compare the patch with the issue, item by item: each name, parameter, option and error message word for word,
+   and each place or variant the issue names. The HANDOVER can be wrong; the diff is the truth.
+   - One item missing or wrong: fix only that, with one edit_file.
+   - The patch is empty: make the edit the HANDOVER describes (WHERE and WHAT).
+   - Otherwise change nothing: a correct patch is the common case, and an extra change can break it.
+4. submit_patch. When it returns patch_size above 0, reply with one sentence and make no further tool calls.
+
+## Never
+- Never run tests or write scripts; never create, edit or delete files other than one source fix; never run pip.
+- Never undo the fixer's edits unless the issue says the opposite of what they do.
+- Never call submit_patch twice.
+"""
+
+
+# arm -> (fixer prompt, reviewer prompt, a.py commands)
+FIXER_REVIEWER = {"sk_fr": ("HEAD_FIXER", "HEAD_REVIEWER", "find outline show banner reshow"),
+                  "sk_fr2": ("HEAD_FIXER2", "HEAD_REVIEWER2", "find outline show banner reshow handoff handover review")}
 
 
 CUSHION = {"sk_a2_32": ("sk_a2", 32)}  # arm -> (arm it copies file for file, real max_tool_calls); the prompt is unchanged
