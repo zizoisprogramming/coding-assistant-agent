@@ -32,7 +32,13 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
-### RESULT r20: sk_a2 on d40 = 17/40 (dev 3/8, val 7/16, test 7/16), 1.71 h, mean 272 s (2026-10-29, NEWEST)
+### RESULT r21: sk_a2_32 on d40 = 18/40 (dev 3, val 8, test 7), 1.87 h, mean 312 s (2026-10-29, NEWEST)
+- data/results/2026-10-29_skill_d40_32 (notebook ziad23samer/fork-of-fork-of-generation-all-shards-gpu). vs sk_a2
+  17/40: 9 tasks changed. Thanks to calls 29-32: fastapi_12942 (32 calls), rich_4075 (31) solved. Noise both ways:
+  +rich_3521, -fastapi_15589, -rich_3006 (used 32 calls, wrong). 3 runs went E -> no patch using all 32 calls
+  (14099, 3470, 4079: the extra calls went to reading). Mean +40 s/task (still < ~340 s LB budget). Prediction 18 hit.
+
+### RESULT r20: sk_a2 on d40 = 17/40 (dev 3/8, val 7/16, test 7/16), 1.71 h, mean 272 s (2026-10-29)
 - data/results/2026-10-29_skill_d40. Same per-task outcome as earlier runs on 14/16 val (mix T0.2 7/16) and 15/16
   test (gen T1.0): most val/test tasks are near-deterministic, so the d40 noise is mostly the 8 dev tasks + ~2-3 flips.
 - 28-call cap ended 8 unsolved runs with 1-4 min left (12942, 13713, 14099, 14246, 14479, rich_3063, 4075, 4079):
