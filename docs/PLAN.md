@@ -32,7 +32,18 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
-### RUN BUILT: sk_fr2 on s20 (2026-10-29, NEWEST — read first)
+### RESULT r23: s20 = sk_fr2 17/20 (330 s), pub024 18/20 (270 s) (2026-10-29, NEWEST — read first)
+- data/results/2026-10-29_skill_s20_fr2_pub (ziad23samer/fork-of-fork-of-generation-all-shards-gpu v363262706),
+  1.77 h. Refs on s20: sk_a2 17 (232 s), sk_a2_32 18 (252 s), sk_fr 15 (371 s). All within noise on a set chosen
+  as solved (ceiling 20).
+- sk_fr2 vs sk_fr: handover via a.py in 18/20 (PATCH IN PLACE seen in 13 runs), review reached 19/20, reviewer
+  replies mean 6.4 (told 3; sk_fr ~14), no test-file / stray-file REVERTs needed, 0 fixer self-submits; mean -41 s.
+  Reviewer edited in 4 runs: 14786 S, 3006 S, rich_3521 S (fixer handed over at call 4 with no edit, the reviewer
+  made the fix: a rescue; sk_a2 / sk_fr had no patch), rich_4075 E (5 edits, review began at call 42).
+  Losses: 14349 E, 15589 E (handover at call 33), 4075.
+- pub024 on s20: 18, fast (270 s); loses 14349 (time), 3521 (no patch). pub024 = sk_a2 level again (r18: 3/8).
+
+### RUN BUILT: sk_fr2 on s20 (2026-10-29)
 - submissions/sk_fr2 = sk_fr structure, prompts rewritten. a.py (commands.txt adds handoff handover review):
   handoff = after the first change every a.py output ends ">>> PATCH IN PLACE ... your next call is a.py handover";
   handover = the fixer's last call (patch stat, stray/test files, the HANDOVER format, "next reply: plain text");
