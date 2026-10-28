@@ -32,7 +32,17 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
-### NEXT RUN BUILT: pub024 vs sk_a2b, 8 tasks x 2 passes (2026-10-29, NEWEST — read first)
+### RESULT r18: pub024 3/8, sk_a2b 2/8, early stop after pass 1 (2026-10-29, NEWEST — read first)
+- data/results/2026-10-29_skill_b, 16 runs, 1.1 h. pub024 solved 14419, 3180, 3882 (missed 11194, 15589);
+  sk_a2b solved 11194, 15589 (missed 3882: its repro called Prompt.ask, read stdin and hit the 240 s command timeout
+  twice, 408 s inside tools). sk_a2_32's sibling sk_a2 scored 4 and 3 on the same 8: pub024 is not better here;
+  the 0.24 fits LB noise (+ 3 lucky tasks of 58).
+- Thinking 4096 costs time: ~500 output tokens/call and 17.6-18 s/call vs ~370 tokens and 13 s at 2048/1024
+  (r16/r17). Mean 410-428 s; sk_a2b 5 of 8 ended on the 8 min wall, pub024 2 (its hard runs used ~14k tokens).
+- sk_a2b batch: finds used 2-3 terms (3/3 visible), batched shows never (0/20 visible) -> show batching unused.
+- Command timeouts (240 s) are rare: 5 in ~450 runs over all results, so stdin-hang guards are a small lever.
+
+### RUN BUILT: pub024 vs sk_a2b, 8 tasks x 2 passes (2026-10-29)
 - Research (forum + public notebooks): LB public is ~58 tasks (0.24 = 14, our 0.18 = ~10-11); identical packages
   scored 0.17/0.15/0.13/0.15 (748051), the score spread fits binomial noise; most 0.22s are forks.
   honghanhhh/gemma-4-baseline-lb-0-24 = prompt-only fork of flexonafft v2 (0.22): plain tools, thinking 4096,
