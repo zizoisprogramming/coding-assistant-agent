@@ -41,7 +41,8 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   ("never run tests or write scripts", "never undo the fixer's edits", "never submit twice"); 34 real.
 - Digest adds handoff_seen / handover / review / revert_lines. Sim (SIM_FR2=1): PATCH IN PLACE seen, handover ->
   review -> rm repro.py -> submit, patch = the gold only; empty-diff task: reviewer made the edit.
-- kaggle/cells_skill_s20_fr2: cell2 + cell3b differ from s20_fr. ~1 h wall / ~2 h quota. Refs: sk_a2 17, sk_a2_32
+- User: run it together with pub024 (public LB-0.24 package) = kaggle/cells_skill_s20_fr2_pub (only cell2 differs
+  from s20_fr2; 2 arms x 20 tasks, ~2.3 h wall / ~4.6 h quota). sk_fr2 alone: kaggle/cells_skill_s20_fr2: cell2 + cell3b differ from s20_fr. ~1 h wall / ~2 h quota. Refs: sk_a2 17, sk_a2_32
   18, sk_fr 15 (371 s).
 
 ### RESULT r22: sk_fr on s20 = 15/20 (sk_a2 17, sk_a2_32 18), mean 371 s vs 232/252 (2026-10-29)
