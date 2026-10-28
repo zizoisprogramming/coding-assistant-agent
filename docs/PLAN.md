@@ -45,6 +45,9 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   patch kept, no review. pack.py: compile_submission OK. Not simulated: reviewer ending without submit -> harness nudge
   re-runs the SequentialAgent from the fixer (full history); the working-tree diff is captured on limits anyway.
 - kaggle/cells_skill_d40_fr: cell2, cell3b (digest) and cell5 differ from d40. ~2 h wall, ~4 h quota.
+- User (quota): run it on s20 instead = the 20 d40 tasks solved by sk_a2 or sk_a2_32 (dev 4, val 8, test 8):
+  kaggle/cells_skill_s20_fr (only cell2 differs from d40_fr), ~1 h wall / ~2 h quota. Reference: sk_a2 17/20,
+  sk_a2_32 18/20. Measures breakage + time + handover rate; cannot show rescues of never-solved tasks.
 
 ### ANALYSIS d40 (r20 + r21, 80 runs) (2026-10-29)
 - Union of the two runs = 20/40 (pass@2) vs 17-18 per run. 35 wrong patches: 33 in the gold file, 25 within 15

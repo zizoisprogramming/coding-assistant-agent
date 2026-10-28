@@ -31,7 +31,7 @@ sys.path.insert(0, str(ROOT / "scripts/train"))
 import make_gen_cells as G  # noqa: E402
 from make_test_cells import must_replace  # noqa: E402
 
-OUT = ROOT / "kaggle/cells_skill_d40_fr"
+OUT = ROOT / "kaggle/cells_skill_s20_fr"
 ARMS = ["sk_fr"]  # d40: sk_a2 = kaggle/cells_skill_d40 (17/40), sk_a2_32 = kaggle/cells_skill_d40_32 (18/40), pub024 = kaggle/cells_skill_d40_pub
 # the winnable dev16 tasks: tier 1 (mix 55-95%) + tier 2 (14-35% over all arms); the other 9 were 0 in ~150 runs
 WINNABLE7 = ["rich_3882", "fastapi_15589", "fastapi_11194", "rich_4079", "rich_3521", "fastapi_14419", "rich_3470"]
@@ -39,6 +39,10 @@ SPLITS = json.load(open(ROOT / "data/splits_public.json"))
 # d40 (user 2026-10-29): the 8 winnable dev16 + val 16 + test 16 = 40 tasks; 8 tasks alone are +-2 noise per pass
 SPLIT_OF = {t: k for k in ("dev16", "val", "test") for t in SPLITS[k]}
 TASKS = sorted(WINNABLE7 + ["rich_3180"] + SPLITS["val"] + SPLITS["test"])  # the 8 winnable only: sorted(WINNABLE7 + ["rich_3180"])
+# d40 solved (user 2026-10-29, saves quota): only the d40 tasks that sk_a2 (r20) or sk_a2_32 (r21) solved = 20 tasks
+SOLVED_D40 = sorted({r["instance_id"] for d in ("2026-10-29_skill_d40", "2026-10-29_skill_d40_32")
+                     for r in map(json.loads, open(ROOT / f"data/results/{d}/results/gen_per_task.jsonl")) if r["resolved"]})
+TASKS = SOLVED_D40
 PASSES = 1  # d40 baseline: one pass (~2.4 h); early stop needs a pass 2, so it does nothing here
 CONCURRENCY = 2
 EARLY_STOP_MAX = 3  # user: after pass 1, an arm that solved 3 or fewer stops (mix: 3.67 per pass)
