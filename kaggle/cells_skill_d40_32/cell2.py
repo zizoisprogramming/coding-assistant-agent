@@ -1,0 +1,284 @@
+# 2. GENERATION setup (scripts/train/make_gen_cells.py): mode, the task set, the agent, the verified sandbox
+#    environment, and resume from earlier sessions. GPU L4x4, INTERNET OFF.
+import collections, json, random, re, tarfile, time
+from collections import Counter
+
+assert sys.version_info[:2] == (3, 12), (f'Python {sys.version.split()[0]}: generation needs Python 3.12 + torch 2.10 '
+    '(vLLM 0.19.1): Copy & Edit an old GPU notebook and set Environment -> Pin to original environment')
+MODE = 'skill_arms'  # skill arms on a dev16 task set (make_skill_arms_cells.py)
+SAMPLE = []  # MODE 'prompt': the fixed task sample of the prompt experiment
+TRIAL_PHASES = [(4, 8), (6, 12)]  # trial: (concurrency, tasks): measured throughput decides CONCURRENCY below
+CONCURRENCY = 2  # as mix's dev16 runs (rung 3e-3m): 2 at once, 8 min
+STOP_NEW_TASKS_AFTER_H = 10.5  # = min(10.5, this account's GPU quota in hours / 2 - 0.4): L4x4 bills 2x,
+# a run ends within 8 min, Kaggle ends sessions at 12 h; a killed run loses its output
+T_START = time.time()
+WORKING_DIR = Path('/kaggle/working')
+SUB_DIR = WORKING_DIR / 'submission'
+RESULTS = WORKING_DIR / 'results'
+PER_TASK = RESULTS / 'gen_per_task.jsonl'
+WHEEL_SET = f'{__import__("platform").machine()}-cp{sys.version_info.major}{sys.version_info.minor}'
+SUBMISSION = {'agent.yaml': 'name: swe_agent\nmodel: gemma-4-31b-it-qat-w4a16-ct\ninstruction: !include prompts/system.md\ntools:\n  - run_command\n  - read_file\n  - edit_file\n  - write_file\n  - get_status\n  - submit_patch\ngenerate_content_config: !include configs/sampling.yaml\n', 'configs/sampling.yaml': '# Arm mix (rung-3e): bf prompt + r4 decision rule/example/edit fallback; bf tools. Thinking set from rung-3d\n# (placeholder 2048 / max_output 4096, as r4_mid).\ntemperature: 1.0  # generation (user 2026-10-21): varied runs; the submission uses 0.2\ntop_p: 0.95\nmax_output_tokens: 4096\nthinking_config:\n  thinking_budget: 2048\n  include_thoughts: true\n', 'eval_config.yaml': 'evaluation:\n  timeout_seconds: 240\n  max_tool_calls: 28\n  max_time_minutes: 15\n  max_turns: 80\n', 'prompts/system.md': 'You are an expert autonomous software engineer assigned to resolve one issue in a repository, fast and minimally.\n\n## How you are scored, and the one decision rule (from r4)\nHidden tests run on your final diff, even if you run out of time; no edit scores zero. As soon as you can say which\nlines to change and how, your very next tool call is that edit, even if you are only fairly sure. Never re-read,\nsearch again or write a script first. Checking comes after the edit; if the check shows a problem, adjust the edit.\n\n## Step 0: Extract the contract (before any tool call)\nFrom the problem statement, list the exact function names, class names, error messages, exception types, HTTP status codes, CLI flags, and parameter names it mentions, copied character-for-character. Hidden tests exercise exactly these names and spellings. Ignore template boilerplate in the issue: HTML comments, checklists, AI disclaimers.\n\n## Step 1: Locate (calls 1-6)\nThe first user message already contains the workspace layout, so never spend a call on ls or find to orient.\n- Search the most specific identifier or error string: git grep -n "text" -- \'*.py\' | head -20\n- read_file with start and end line, at most 120 lines per read, one follow-up read at most. Never read whole files.\n- Older tool outputs are dropped from your context, so after each important finding write one short line: file, line, what it means, next step.\n\n## Step 2: Edit (the decision rule above)\n- Apply the minimal fix directly to source files. Match the existing style of the file.\n- edit_file mechanics: copy the real characters from read_file output, never JSON-escape backslashes. Keep old_string short and unique: never include docstrings, triple-quoted strings, or blank-line runs. Several small edits beat one large edit. If a call fails validation, never resend the identical call: re-read the exact lines and rebuild from a fresh short anchor, or edit with run_command: python3 - << \'EOF\' (open the file, assert the old text occurs once, replace it, write it back) EOF.\n- Feature request: copy the closest existing sibling feature end to end, including imports, __all__ exports, dispatch or option tables, and type hints.\n- Fix the behaviour where it is produced, not where it is observed.\n- For documentation-code tasks (e.g. FastAPI), edit executable code under docs_src/.\n\n## Step 3: One check, one repair, then submit\n- Run ONLY the targeted test for the file you changed: python3 -m pytest tests/test_target.py -x -q -k name -p no:anyio -o timeout=0 > /tmp/t1.log 2>&1; tail -n 25 /tmp/t1.log\n- If it fails, make one repair, then submit. A local green test is not the grader: submit even if the check is red or skipped. The working tree is graded as it is, so an edit made in time counts even if you never run a test.\n- NEVER run bare pytest, pytest ., or full-repo suites. NEVER repair pre-existing failures, missing fixtures, or import errors unrelated to your change. NEVER create test stubs.\n- To locate a test file: find tests -name "*name*.py"\n\n## Step 4: Patch hygiene, then finish\n- Scratch scripts go in /tmp only. Files left anywhere else in the repository become part of your patch and fail grading.\n- Before submit_patch: run git status --short and git diff --stat. If a test-looking path appears in the diff (tests/, conftest.py, pytest.ini, pyproject.toml, setup.cfg, tox.ini), restore it: git checkout -- path\n- submit_patch and get_status are free: they never count against the budget. submit_patch can be re-issued after further edits; the last one wins. After your first submission, verify patch_size > 0.\n- If get_status shows under 90 seconds remaining, call submit_patch immediately.\n- Do not end a turn with plain prose: keep calling tools or call submit_patch. Finish as soon as the edit is in so later tasks keep their time.\n\n## Example (an invented package)\nTask: "Client should reject a negative timeout." git grep finds pkg/client.py line 88, self.timeout = timeout, and\ntwo lines below ValueError("retries must be >= 0") for retries. Found it: the very next call is the edit that adds\nthe same kind of check, raising ValueError("timeout must be >= 0"). Then the client tests, then submit: 8 calls.\n\n## Never\n- Never modify, create, or delete test files or test configuration: anything under tests/, conftest.py, pytest.ini, pyproject.toml, setup.cfg, tox.ini. The grader resets them and applying your patch fails if they differ.\n- Never search outside /workspace for sources or packages. All dependencies are pre-installed; a ModuleNotFoundError means fix the code under /workspace.\n- Never refactor or reformat unrelated code.\n- Never conclude without a non-empty patch: submit whatever partial edit exists.'}
+
+
+def _first(*cands, pattern=None):
+    for c in cands:
+        if Path(c).exists():
+            return Path(c)
+    hits = sorted(glob.glob(pattern, recursive=True)) if pattern else []
+    assert hits, f'none of {cands} exists: attach it as a notebook input'
+    return Path(hits[0])
+
+
+try:
+    urllib_ok = __import__('urllib.request').request.urlopen('https://pypi.org/simple/pip/', timeout=10)
+    raise SystemExit('INTERNET IS ON: turn Settings -> Internet OFF (generation runs offline, as grading), then re-run')
+except SystemExit:
+    raise
+except Exception:
+    print('internet: off (good)')
+DATA_DIR = _first('/kaggle/input/competitions/gemma-4-developer-agent', '/kaggle/input/gemma-4-developer-agent')
+OOD_DIR = _first('/kaggle/input/datasets/rodrigospalma/ood45-bugfix-split', '/kaggle/input/ood45-bugfix-split',
+                 pattern='/kaggle/input/**/tools/ood45_harness.py')
+OOD_DIR = OOD_DIR.parent.parent if OOD_DIR.name == 'ood45_harness.py' else OOD_DIR
+# The task set = the verification notebook's output (its rebench/ has verify_gate.json next to tasks.jsonl).
+_sets = sorted(Path(p).parent for p in glob.glob('/kaggle/input/**/rebench/verify_gate.json', recursive=True))
+assert len(_sets) == 1, f'attach exactly one final task set (verification output); found {_sets}'
+OUT = _sets[0]
+print('competition:', DATA_DIR, '| OOD-45 tools:', OOD_DIR, '| task set:', OUT)
+
+ROWS = {}
+for l in open(OUT / 'tasks.jsonl'):
+    r = json.loads(l)
+    ROWS[r['instance_id']] = r
+assert (OUT / 'wheels' / WHEEL_SET / 'manifest.json').exists(), f'the task set has no wheel set {WHEEL_SET}'
+print(f"{len(ROWS)} tasks from {len({r['repo'] for r in ROWS.values()})} repos | domains",
+      dict(Counter(r['domain'] for r in ROWS.values())), '| text', dict(Counter(r['text_kind'] for r in ROWS.values())))
+
+shutil.rmtree(SUB_DIR, ignore_errors=True)
+for rel, text in SUBMISSION.items():
+    (SUB_DIR / rel).parent.mkdir(parents=True, exist_ok=True)
+    (SUB_DIR / rel).write_text(text, encoding='utf-8')
+print('agent: submissions/mix with', [l for l in SUBMISSION['configs/sampling.yaml'].splitlines() if l.startswith('temperature')])
+
+# Resume: every earlier session's rows (attached outputs) + this session's own (a re-run of this notebook).
+RESULTS.mkdir(parents=True, exist_ok=True)
+PREV = []
+for p in ([str(PER_TASK)] if PER_TASK.exists() else []):
+    PREV += [json.loads(l) for l in open(p)]
+# Trial rows embedded (2026-10-21): attaching the trial notebook's output from another account hung on 'Preparing to
+# download'. Its request log stays in that output; these rows only make this session skip what the trial did.
+EMBEDDED_PREV = []
+PREV += [r for r in EMBEDDED_PREV if (r['instance_id'], r['attempt']) not in {(x['instance_id'], x['attempt']) for x in PREV}]
+DONE_JOBS = {(r['instance_id'], r['attempt']) for r in PREV if r['end'] != 'runner'}
+SOLVED = {r['instance_id'] for r in PREV if r['resolved']}
+print(f'earlier runs: {len(PREV)} ({len(DONE_JOBS)} done jobs, {len(SOLVED)} tasks solved) | mode {MODE}')
+
+# The verified sandbox environment (as kaggle/cells_rebench_verify): ood45_harness's install step, host pytest plugin
+# wheels shipped with the task set, host-only plugins hidden, network fails fast inside the sandbox.
+sys.path.insert(0, str(OOD_DIR / 'tools'))
+import ood45_harness as ood  # noqa: E402
+print('swegemma', ood.check_swegemma())
+ood._STATE['house'] = OOD_DIR / 'wheels' / 'house'
+ood.ENV_LOG['path'] = str(RESULTS / 'gen_env_install.jsonl')
+from swegemma.harness import container_setup as _cs0
+_HARNESS_INSTALL, _HARNESS_COMPAT = _cs0.install_test_dependencies, _cs0._is_wheel_compatible_py313  # public tasks
+ood.patch_harness()
+WHEEL_ROOT = Path('/tmp/gen_wheels')
+ood.materialize_wheels(OUT, WHEEL_SET, WHEEL_ROOT / WHEEL_SET)
+_host = sorted(str(p) for p in (OUT / 'wheels' / 'host').glob('*.whl'))
+_r = subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', '--no-index', '--no-deps', *_host], capture_output=True, text=True)
+print('host pytest plugins:', [Path(p).name for p in _host], '-> exit', _r.returncode, _r.stderr[-200:])
+
+# SKILL ARMS (scripts/train/make_skill_arms_cells.py): a dev16 task set, pass 1 before pass 2.
+ATTEMPTS = 1  # passes; after pass 1 an arm with EARLY_STOP_MAX or fewer solved is dropped (none left: the run ends)
+EARLY_STOP_MAX = 3
+ARMS = ['sk_a2_32']
+ARM_FILES = {'sk_a2_32': {'agent.yaml': "# sk_a2_32 = sk_a2 with a 32-call config (prompt says 28); sk_a2: mix + the agent's reading tool (.git/agent/a.py, installed by the skill) - scripts/make_skill_arms.py\nname: swe_agent\nmodel: gemma-4-31b-it-qat-w4a16-ct\ninstruction: !include prompts/system.md\ntools:\n  - run_command\n  - read_file  # declared only so a habitual call never ends the task (the task message names it); the prompt says not to use it\n  - edit_file\n  - write_file\n  - get_status\n  - submit_patch\nskills:\n  - skills/agent\ngenerate_content_config: !include configs/sampling.yaml\n", 'configs/sampling.yaml': '# Arm mix (rung-3e): bf prompt + r4 decision rule/example/edit fallback; bf tools. Thinking set from rung-3d\n# (placeholder 2048 / max_output 4096, as r4_mid).\ntemperature: 0.2\ntop_p: 0.95\nmax_output_tokens: 4096\nthinking_config:\n  thinking_budget: 2048\n  include_thoughts: true\n', 'eval_config.yaml': 'evaluation:\n  timeout_seconds: 240\n  max_tool_calls: 32\n  max_time_minutes: 8\n  max_turns: 80\n', 'prompts/system.md': 'You are an expert autonomous software engineer fixing one issue in the repository at /workspace.\n\n## How you are scored\nHidden tests run on your final diff, even if you run out of time or tool calls; no edit scores zero. You have 28 tool\ncalls (submit_patch and get_status are free) and 8 minutes. As soon as you can say which lines to change and how, your\nvery next tool call is that edit, even if you are only fairly sure. Checking comes after the edit.\n\n## Call 1: run_skill_script\nYour first tool call is run_skill_script with skill_name agent and file_path scripts/install.py, and nothing else. It\nputs your reading tool at .git/agent/a.py and prints READY. It is not a package install: never run pip. The sandbox\nhas no internet (pip hangs for minutes, then fails) and every dependency is already installed.\n\n## Reading: only with .git/agent/a.py, through run_command\nFor an issue about a Panel margin in a package pkg (an invented example: use the names from YOUR issue):\n  python3 .git/agent/a.py find "margin"                        where a name, message or string appears\n  python3 .git/agent/a.py find "margin" pkg                    the same, only under pkg\n  python3 .git/agent/a.py outline pkg/panel.py                 every class and function, with line numbers\n  python3 .git/agent/a.py show pkg/panel.py Panel.render       a whole function or class\n  python3 .git/agent/a.py show pkg/panel.py 120 180            numbered lines, at most 150\nNever read with read_file, cat, sed, head, tail or grep. Every a.py output starts with MEMORY: the lines you have read\nso far. Older tool outputs are removed from the conversation as it grows: trust MEMORY instead of reading again.\nWhen a.py prints NO EDIT YET, STOP READING or ALREADY SHOWN, your next call is the edit.\n\n## Step 0: Extract the contract (before any tool call)\nFrom the problem statement, list the exact function names, class names, error messages, exception types, HTTP status\ncodes, CLI flags, and parameter names it mentions, copied character-for-character. Hidden tests exercise exactly these\nnames and spellings. Ignore template boilerplate in the issue: HTML comments, checklists, AI disclaimers.\n\n## Step 1: Locate (about 6 calls)\n- The first message shows the workspace layout, so never spend a call on ls or find to orient.\n- find the most specific identifier or error string, outline the file it points to, then show the function you need.\n  Prefer show FILE NAME (the whole function) to line ranges.\n- An error type or message in the issue: copy the style of the checks next to it (assert vs raise, the exception\n  class, the message wording around it).\n\n## Step 2: Edit (the decision rule above)\n- Apply the fix directly to source files. Match the existing style of the file. Change only what the issue needs:\n  no speculative extra changes.\n- edit_file mechanics: copy the real characters from the show output (without the line-number column), never\n  JSON-escape backslashes. Keep old_string short and unique: never include docstrings, triple-quoted strings, or\n  blank-line runs. Several small edits beat one large edit. If a call fails validation, never resend the identical\n  call: show the exact lines again and rebuild from a fresh short anchor, or edit with run_command:\n  python3 - << \'EOF\' (open the file, assert the old text occurs once, replace it, write it back) EOF.\n- Feature request: copy the closest existing sibling feature end to end, including imports, __all__ exports, dispatch\n  or option tables, and type hints.\n- Fix the behaviour where it is produced, not where it is observed.\n- For documentation-code tasks (e.g. FastAPI), edit executable code under docs_src/.\n\n## Step 3: One check, one repair, then submit\n- Run ONLY the targeted test for the file you changed, always under a time limit:\n  timeout 90 python3 -m pytest tests/test_target.py -x -q -k name -p no:anyio -o timeout=0 > /tmp/t1.log 2>&1; tail -n 25 /tmp/t1.log\n- A script of your own: write it with write_file to .git/agent/check.py (outside your patch; write_file refuses /tmp)\n  and run it under a time limit: timeout 30 python3 .git/agent/check.py\n- If the test fails, make one repair, then submit. A local green test is not the grader: submit even if the check is\n  red or skipped. The working tree is graded as it is, so an edit made in time counts even if you never run a test.\n- NEVER run bare pytest, pytest ., or full-repo suites. NEVER repair pre-existing failures, missing fixtures, or import\n  errors unrelated to your change. NEVER create test stubs.\n\n## Step 4: Patch hygiene, then finish\n- Scratch scripts go in .git/agent/ or /tmp only. Files left anywhere else in the repository become part of your patch\n  and fail grading.\n- Before submit_patch: run git status --short and git diff --stat. If a test-looking path appears in the diff (tests/,\n  conftest.py, pytest.ini, pyproject.toml, setup.cfg, tox.ini), restore it: git checkout -- path\n- submit_patch and get_status are free: they never count against the budget. submit_patch can be re-issued after\n  further edits; the last one wins. After your first submission, verify patch_size > 0.\n- If get_status shows under 90 seconds remaining, call submit_patch immediately.\n- When submit_patch returns patch_size above 0, your work is done: reply with one sentence describing the fix and make\n  no further tool calls.\n\n## Example (an invented package)\nTask: "Client should reject a negative timeout." Call 1 is run_skill_script. find "timeout" shows pkg/client.py:88\nself.timeout = timeout; show pkg/client.py Client.__init__ shows two lines below ValueError("retries must be >= 0") for\nretries. Found it: the very next call is the edit that adds the same kind of check, raising\nValueError("timeout must be >= 0"). Then the client tests under timeout 90, then submit: 6 calls.\n\n## Never\n- Never run pip or install anything: there is no internet and every dependency is already installed. A\n  ModuleNotFoundError means fix the code under /workspace.\n- Never modify, create, or delete test files or test configuration: anything under tests/, conftest.py, pytest.ini,\n  pyproject.toml, setup.cfg, tox.ini. The grader resets them and applying your patch fails if they differ.\n- Never search outside /workspace for sources or packages.\n- Never refactor or reformat unrelated code.\n- Never conclude without a non-empty patch: submit whatever partial edit exists.\n', 'skills/agent/SKILL.md': '---\nname: agent\ndescription: Sets up the reading tool .git/agent/a.py (outside the patch). Call run_skill_script with file_path scripts/install.py once, as the first call. Nothing to pip install.\n---\n\nCall run_skill_script with skill_name agent and file_path scripts/install.py, with no other arguments. It prints\nREADY and the commands. Then use the tool through run_command: python3 .git/agent/a.py COMMAND ...\nNever run pip: the sandbox has no internet and every dependency is already installed.\n', 'skills/agent/scripts/a.py': '"""The agent\'s reading tool with a memory, run through run_command (one flat string, never a garbled tool call).\n\n  python3 .git/agent/a.py find "exact text" [PATH]    where it appears (grouped by file, test files marked)\n  python3 .git/agent/a.py outline FILE                every class / function with its line numbers\n  python3 .git/agent/a.py show FILE NAME              the whole function or class NAME (Class.method works)\n  python3 .git/agent/a.py show FILE START END         numbered lines (at most 150)\n  python3 .git/agent/a.py note "one line"             keep a finding (shown in every later output)\n  python3 .git/agent/a.py pin FILE START END          keep these lines visible in every later output\n  python3 .git/agent/a.py impact                      after an edit: other places that use what you changed\n  python3 .git/agent/a.py check                       after an edit: .git/agent/repro.py + the nearest tests + git status\n\nEvery output starts with the MEMORY header (what was read, notes, pinned lines): older tool outputs get dropped from\nthe conversation, the header in the newest output never is. Installed by the skill into <repo>/.git/agent/ (git never\nputs .git in the patch); its state lives next to it. Never edits the repository. Always exits 0.\n\nOptions (extra words in commands.txt, 2026-10-25, from the sk_a / sk_ad digests):\n  banner   while the repository has no change: after NO_EDIT_LOOKS looks or NO_EDIT_SECONDS since setup, every output\n           starts and ends with NO EDIT YET (later STOP READING): the edit came after call 28 in 6 of 32 runs\n  reshow   a repeat of a recent read is shown again (at most RESHOW_MAX lines, marked ALREADY SHOWN) instead of\n           refused: NOT SHOWN AGAIN cost 2-3 of the 28 calls per run\n"""\nimport ast\nimport json\nimport os\nimport re\nimport subprocess\nimport sys\nimport time\n\nHERE = os.path.dirname(os.path.abspath(__file__))\nREPRO = os.path.join(HERE, "repro.py")  # per task (2 tasks may run at once: a shared /tmp/repro.py would mix them up)\nWS = os.path.dirname(os.path.dirname(HERE))  # <repo>/.git/agent/a.py -> <repo>\nSTATE = os.path.join(HERE, "state.json")\nSHOW_MAX, FIND_MAX, PIN_MAX, NOTES_MAX, RECENT = 150, 30, 40, 20, 3\nNO_EDIT_LOOKS, NO_EDIT_SECONDS, STOP_LOOKS, STOP_SECONDS, RESHOW_MAX = 10, 210, 15, 300, 40\nOPTIONS = {"banner", "reshow"}\nTEST_RE = re.compile(r"(^|/)(tests?|testing)/|(^|/)test_[^/]*\\.py$|_test\\.py$|(^|/)conftest\\.py$")\ntry:  # the commands this agent was taught (written by the skill\'s install.py)\n    COMMANDS = open(os.path.join(HERE, "commands.txt")).read().split()\nexcept OSError:\n    COMMANDS = "find outline show note pin impact check".split()\nOPTS = OPTIONS & set(COMMANDS)\nCOMMANDS = [c for c in COMMANDS if c not in OPTIONS]\nSTOP = {"self", "None", "True", "False", "return", "import", "from", "class", "def", "pass", "raise", "with", "else",\n        "elif", "while", "for", "lambda", "yield", "assert", "async", "await", "print", "str", "int", "bool", "dict",\n        "list", "tuple", "set", "type", "Optional", "Union", "Any", "List", "Dict", "Tuple", "kwargs", "args", "cls",\n        "value", "result", "name", "data", "text", "isinstance", "len", "range", "super", "init", "object", "Exception"}\n\n\ndef load():\n    try:\n        return json.load(open(STATE))\n    except Exception:  # noqa: BLE001\n        return {"looks": 0, "reads": [], "notes": [], "pins": [], "t0": time.time()}\n\n\ndef save(st):\n    tmp = STATE + ".tmp"\n    with open(tmp, "w") as f:\n        json.dump(st, f)\n    os.replace(tmp, STATE)\n\n\ndef run(cmd, timeout=60):\n    try:\n        r = subprocess.run(cmd, cwd=WS, shell=True, capture_output=True, text=True, timeout=timeout)\n        return (r.stdout + r.stderr).rstrip()\n    except subprocess.TimeoutExpired:\n        return f"(timed out after {timeout}s)"\n\n\ndef q(s):\n    return "\'" + s.replace("\'", "\'\\\\\'\'") + "\'"\n\n\ndef rel(path):\n    path = path.strip().removeprefix("/workspace/").removeprefix("./")\n    return os.path.relpath(path, WS) if os.path.isabs(path) else path\n\n\ndef file_lines(path):\n    with open(os.path.join(WS, path), encoding="utf-8", errors="replace") as f:\n        return f.read().split("\\n")\n\n\ndef merge(ranges):\n    out = []\n    for a, b in sorted(ranges):\n        if out and a <= out[-1][1] + 1:\n            out[-1][1] = max(out[-1][1], b)\n        else:\n            out.append([a, b])\n    return out\n\n\ndef header(st):\n    by = {}\n    for r in st["reads"]:\n        by.setdefault(r["file"], []).append((r["a"], r["b"]))\n    if "note" in COMMANDS or st["notes"] or st["pins"]:\n        lines = [f"===== MEMORY (survives context trimming) | looks {st[\'looks\']} | notes {len(st[\'notes\'])} | pinned "\n                 f"lines {sum(p[\'b\'] - p[\'a\'] + 1 for p in st[\'pins\'])} ====="]\n    else:\n        lines = [f"===== MEMORY (survives context trimming) | looks {st[\'looks\']} ====="]\n    if by:\n        lines.append("read so far: " + " | ".join(f"{f} " + ",".join(f"{a}-{b}" for a, b in merge(rs)) for f, rs in by.items()))\n    for i, n in enumerate(st["notes"], 1):\n        lines.append(f"note {i}: {n}")\n    for p in st["pins"]:\n        try:\n            src = file_lines(p["file"])\n            lines.append(f"pinned {p[\'file\']} {p[\'a\']}-{p[\'b\']}:")\n            lines += [f"{i:6}| {src[i - 1]}" for i in range(p["a"], min(p["b"], len(src)) + 1)]\n        except OSError:\n            lines.append(f"pinned {p[\'file\']} {p[\'a\']}-{p[\'b\']}: (file gone)")\n    lines.append("=" * 40)\n    return "\\n".join(lines)\n\n\ndef outline_items(path):\n    """[(qualname, start, end, kind)] for every class / function in a Python file."""\n    try:\n        tree = ast.parse("\\n".join(file_lines(path)))\n    except SyntaxError:\n        return None\n    items = []\n\n    def walk(node, prefix):\n        for ch in ast.iter_child_nodes(node):\n            if isinstance(ch, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):\n                start = min([d.lineno for d in ch.decorator_list] + [ch.lineno])\n                kind = "class" if isinstance(ch, ast.ClassDef) else "def"\n                items.append((prefix + ch.name, start, ch.end_lineno, kind))\n                walk(ch, prefix + ch.name + ".")\n    walk(tree, "")\n    return items\n\n\ndef cmd_find(st, args):\n    path_args = [a for a in args[1:] if os.path.exists(os.path.join(WS, rel(a)))]\n    text = " ".join([args[0]] + [a for a in args[1:] if a not in path_args]) if args else ""  # unquoted words\n    if not text:\n        return \'usage: find "exact text" [PATH]\'\n    st["looks"] += 1\n    where = " ".join(q(rel(p)) for p in path_args) or "."\n    out = run(f"git grep -n -I -F -e {q(text)} -- {where}")\n    note = ""\n    if not out:\n        out = run(f"git grep -n -I -i -F -e {q(text)} -- {where}")\n        note = "(no exact match; case-insensitive matches)\\n" if out else ""\n    if not out:\n        words = [w for w in re.findall(r"[A-Za-z_][A-Za-z0-9_]{3,}", text) if w not in STOP]\n        if len(words) > 1:\n            return f\'(no match for "{text}") try one word at a time: \' + ", ".join(f\'find "{w}"\' for w in words[:4])\n        return f\'(no match for "{text}")\'\n    hits = out.split("\\n")\n    groups = {}\n    for h in hits:\n        f, _, rest = h.partition(":")\n        groups.setdefault(f, []).append(rest)\n    order = sorted(groups, key=lambda f: (bool(TEST_RE.search(f)), f))\n    shown, lines = 0, [note + f\'{len(hits)} matches for "{text}" in {len(groups)} files:\']\n    for f in order:\n        if shown >= FIND_MAX:\n            break\n        lines.append(f + (" [TEST]" if TEST_RE.search(f) else ""))\n        for r in groups[f][:max(1, FIND_MAX - shown)]:\n            lines.append("   " + r[:200])\n            shown += 1\n            if shown >= FIND_MAX:\n                break\n    if len(hits) > shown:\n        lines.append(f"... {len(hits) - shown} more: add a PATH or use a more exact text")\n    return "\\n".join(lines)\n\n\ndef cmd_outline(st, args):\n    if not args:\n        return "usage: outline FILE"\n    path = rel(args[0])\n    if not os.path.isfile(os.path.join(WS, path)):\n        return no_file(path)\n    st["looks"] += 1\n    items = outline_items(path)\n    n = len(file_lines(path))\n    if items is None:\n        defs = [f"{i:6}| {l.strip()[:100]}" for i, l in enumerate(file_lines(path), 1)\n                if re.match(r"\\s*(def|class|async def)\\s", l)]\n        return f"{path} ({n} lines, not parsable as Python; def/class lines):\\n" + "\\n".join(defs[:80])\n    lines = [f"{path} ({n} lines):"]\n    for name, a, b, kind in items[:80]:\n        lines.append(f"  {\'  \' * name.count(\'.\')}{kind} {name.split(\'.\')[-1]}  {a}-{b}")\n    if len(items) > 80:\n        lines.append(f"  ... {len(items) - 80} more")\n    return "\\n".join(lines)\n\n\ndef no_file(path):\n    base = os.path.basename(path)\n    guess = run(f"git ls-files | grep -F {q(base)} | head -5")\n    return f"(no such file: {path})" + (f" did you mean: {guess.replace(chr(10), \', \')}" if guess else "")\n\n\ndef cmd_show(st, args):\n    if not args:\n        return "usage: show FILE NAME | show FILE START END"\n    path, rest = args[0], args[1:]\n    m = re.match(r"^(.*?):(\\d+)(?:-(\\d+))?$", path)\n    if m:\n        path, rest = m.group(1), [m.group(2)] + ([m.group(3)] if m.group(3) else [])\n    path = rel(path)\n    if not os.path.isfile(os.path.join(WS, path)):\n        return no_file(path)\n    src = file_lines(path)\n    extra = ""\n    nums = [int(x) for x in re.findall(r"\\d+", " ".join(rest))]\n    if rest and not nums:  # a name\n        name = rest[0]\n        items = outline_items(path) or []\n        hits = [it for it in items if it[0] == name or it[0].endswith("." + name)]\n        if not hits:\n            return f"(no class or function named {name} in {path}; use outline {path})"\n        _, a, b, _ = hits[0]\n        if len(hits) > 1:\n            extra = "other definitions: " + ", ".join(f"{h[0]} {h[1]}-{h[2]}" for h in hits[1:5]) + "\\n"\n    else:\n        a = max(nums[0] if nums else 1, 1)\n        b = nums[1] if len(nums) > 1 and nums[1] >= a else a + 79\n    b = min(b, len(src))\n    if b - a + 1 > SHOW_MAX:\n        extra += f"(continues to line {b}: show {path} {a + SHOW_MAX} {b})\\n"\n        b = a + SHOW_MAX - 1\n    want = set(range(a, b + 1))\n    for k, r in enumerate(reversed(st["reads"][-RECENT:])):\n        seen = set(range(r["a"], r["b"] + 1))\n        if r["file"] == path and len(want & seen) > 0.5 * len(want):\n            if "reshow" not in OPTS:\n                return (f"NOT SHOWN AGAIN: {path} lines {r[\'a\']}-{r[\'b\']} were shown {k + 1} look(s) ago and are still "\n                        f"above in this conversation. Use them, or ask for lines you have not seen.")\n            b = min(b, a + RESHOW_MAX - 1)\n            extra = extra + (f"ALREADY SHOWN {k + 1} look(s) ago ({path} {r[\'a\']}-{r[\'b\']}); again below, at most {RESHOW_MAX} "\n                     f"lines. If these are the lines to change, your next call is the edit.\\n")\n            break\n    st["looks"] += 1\n    st["reads"].append({"file": path, "a": a, "b": b})\n    return extra + "\\n".join(f"{i:6}| {src[i - 1]}" for i in range(a, b + 1))\n\n\ndef cmd_note(st, args):\n    text = " ".join(args).strip()\n    if not text:\n        return \'usage: note "one line"\'\n    st["notes"] = (st["notes"] + [text[:200]])[-NOTES_MAX:]\n    return f"noted ({len(st[\'notes\'])} notes)"\n\n\ndef cmd_pin(st, args):\n    nums = [int(x) for x in re.findall(r"\\d+", " ".join(args[1:]))] if len(args) > 1 else []\n    if not args or len(nums) < 1:\n        return "usage: pin FILE START END"\n    path = rel(args[0])\n    if not os.path.isfile(os.path.join(WS, path)):\n        return no_file(path)\n    a, b = nums[0], nums[1] if len(nums) > 1 else nums[0]\n    b = min(max(a, b), a + PIN_MAX - 1)\n    st["pins"].append({"file": path, "a": a, "b": b})\n    while sum(p["b"] - p["a"] + 1 for p in st["pins"]) > PIN_MAX and len(st["pins"]) > 1:\n        st["pins"].pop(0)\n    return f"pinned {path} {a}-{b}"\n\n\ndef changed_source():\n    files = [f for f in run("git diff --name-only").split("\\n") if f.endswith(".py") and not TEST_RE.search(f)]\n    return files\n\n\ndef cmd_impact(st, args):\n    files = changed_source()\n    if not files:\n        return "(no edited source file yet: impact lists other places that use what your edit changed)"\n    diff = run("git diff -U3 -- " + " ".join(q(f) for f in files))\n    changed, near, defined = set(), set(), set()\n    cur = None\n    for line in diff.split("\\n"):\n        if line.startswith("+++ b/"):\n            cur = line[6:]\n            continue\n        if line.startswith(("---", "+++", "diff ", "index ")):\n            continue\n        if line.startswith("@@"):\n            m = re.search(r"@@.*@@\\s*(?:async\\s+)?(?:def|class)\\s+(\\w+)", line)\n            if m:\n                changed.add(m.group(1))\n            continue\n        body = line[1:]\n        ids = set(re.findall(r"[A-Za-z_][A-Za-z0-9_]{4,}", body)) - STOP\n        strs = {s for s in re.findall(r"[\\"\']([A-Za-z_][A-Za-z0-9_.-]{4,})[\\"\']", body)}\n        if line.startswith(("+", "-")):\n            defined |= set(re.findall(r"(?:def|class)\\s+(\\w+)", body)) - STOP\n            m = re.findall(r"(?:def|class)\\s+(\\w+)", body) + re.findall(r"self\\.(\\w+)\\s*=", body) + \\\n                re.findall(r"(\\w+)\\s*[:=][^=]", body.split("(")[-1] if "def " in body else "")\n            changed |= set(m) - STOP\n        else:\n            near |= ids | strs\n    near -= changed\n    edited = {}  # file -> line numbers of the edit (+-3): hits there are the edit itself\n    for f in files:\n        for m in re.finditer(r"^@@ -\\d+(?:,\\d+)? \\+(\\d+)(?:,(\\d+))? @@", run("git diff -U0 -- " + q(f)), re.M):\n            a, n = int(m.group(1)), int(m.group(2) or 1)\n            edited.setdefault(f, set()).update(range(a - 3, a + n + 3))\n    strings = set()\n    for line in diff.split("\\n"):\n        if line[:1] == " ":\n            strings |= set(re.findall(r"[\\"\']([A-Za-z_][A-Za-z0-9_.-]{4,})[\\"\']", line))\n    out = []\n    for title, names in (("NAMES YOUR EDIT CHANGED, used elsewhere", changed), ("NAMES NEXT TO YOUR EDIT (siblings), used elsewhere", near)):\n        rows = []\n        for name in names:\n            hits = [h for h in run(f"git grep -n -w -F -e {q(name)} -- \'*.py\'").split("\\n") if h.count(":") >= 2]\n            hits = [h for h in hits if not TEST_RE.search(h.split(":")[0])\n                    and int(h.split(":")[1]) not in edited.get(h.split(":")[0], ())]\n            nfiles = {h.split(":")[0] for h in hits}\n            if not hits or (len(nfiles) > 6 and name not in defined):\n                continue  # unused elsewhere, or everywhere (not specific); a changed def/class always counts\n            other = nfiles - set(files)\n            rank = (name not in defined, name not in strings, not other, len(nfiles), len(hits))\n            cap = 10 if name in defined else 6\n            rows.append((rank, f"  {name}{\' (callers)\' if name in defined else \'\'}: "\n                         + ", ".join(sorted(h.split(\':\')[0] + \':\' + h.split(\':\')[1] for h in hits)[:cap])\n                         + (f" ... {len(hits) - cap} more (find {name})" if len(hits) > cap else "")))\n        rows = [r for _, r in sorted(rows)[:10]]\n        out.append(title + ":\\n" + ("\\n".join(rows) if rows else "  (none)"))\n    out.append("Check each listed place: does it need the same change (a new option passed on, a list or table that names "\n               "the siblings, an export, the other sync/async copy)? Then run check.")\n    return "\\n".join(out)\n\n\ndef cmd_check(st, args):\n    out = []\n    if os.path.exists(REPRO):\n        out.append("$ python3 .git/agent/repro.py\\n" + "\\n".join(run("python3 .git/agent/repro.py 2>&1", 60).split("\\n")[-15:]))\n    else:\n        out.append("(no .git/agent/repro.py: write the issue\'s example there with write_file to check the behaviour itself)")\n    tests = []\n    for f in changed_source()[:3]:\n        stem = os.path.splitext(os.path.basename(f))[0].lstrip("_")\n        cand = [t for t in run(f"git ls-files | grep -E \'(^|/)tests?/(.*/)?test_{re.escape(stem)}\\\\.py$\'").split("\\n") if t]\n        if not cand:\n            mod = os.path.splitext(f)[0].replace("/", ".")\n            pattern = q("(from|import) " + re.escape(mod) + r"\\b")\n            cand = [t for t in run("git grep -l -E " + pattern + " -- \'tests\' \'test\'").split("\\n") if t][:1]\n        if not cand:  # tests that use a function or class the edit changed\n            names = re.findall(r"^@@.*@@\\s*(?:async\\s+)?(?:def|class)\\s+(\\w+)", run("git diff -U0 -- " + q(f)), re.M)\n            for name in dict.fromkeys(names):\n                hit = [t for t in run(f"git grep -l -w -F -e {q(name)} -- \'tests\' \'test\'").split("\\n") if t]\n                if hit:\n                    cand = hit[:1]\n                    break\n        tests += [t for t in cand[:1] if t not in tests]\n    if tests:\n        res = run("python3 -m pytest " + " ".join(q(t) for t in tests) + " -x -q -p no:anyio -o timeout=0 2>&1", 150)\n        out.append("$ pytest " + " ".join(tests) + "\\n" + "\\n".join(res.split("\\n")[-25:]))\n    elif changed_source():\n        out.append("(no existing test file found for the edited modules)")\n    else:\n        out.append("(no edited source file yet)")\n    status = run("git status --short --untracked-files=all")\n    flags = []\n    for line in status.split("\\n"):\n        if not line.strip():\n            continue\n        code, path = line[:2], line[3:]\n        if code.strip() == "??" and not path.startswith(".git/"):\n            flags.append(f"  SCRATCH FILE {path}: it would become part of your patch; delete it (rm {path}) or keep scratch in /tmp")\n        elif TEST_RE.search(path):\n            flags.append(f"  TEST FILE CHANGED {path}: the grader resets tests; restore it (git checkout -- {path})")\n    out.append("$ git status --short\\n" + (status or "(no changes)") + ("\\n" + "\\n".join(flags) if flags else ""))\n    return "\\n\\n".join(out)\n\n\ndef has_change():\n    """Any change in the working tree (git status never lists .git, so the tool\'s own files do not count)."""\n    out = run("git status --porcelain --untracked-files=all", 20)\n    return bool(out.strip()) and not out.startswith("(timed out")\n\n\ndef banner(st):\n    if "banner" not in OPTS or has_change():\n        return ""\n    secs = int(time.time() - st.get("t0", time.time()))\n    used = f"{st[\'looks\']} looks, {secs // 60}:{secs % 60:02d} of the 8 minutes used"\n    if st["looks"] >= STOP_LOOKS or secs >= STOP_SECONDS:\n        return (f">>> STOP READING: {used}, and still no edit. Make your best edit with your next call: no edit scores "\n                f"zero, an imperfect edit can pass. <<<")\n    if st["looks"] >= NO_EDIT_LOOKS or secs >= NO_EDIT_SECONDS:\n        return f">>> NO EDIT YET: {used}. If you know which lines to change, your next call is the edit. <<<"\n    return ""\n\n\nHANDLERS = {"find": cmd_find, "outline": cmd_outline, "show": cmd_show, "note": cmd_note, "pin": cmd_pin,\n            "impact": cmd_impact, "check": cmd_check}\n\n\ndef main(argv):\n    st = load()\n    if not argv or argv[0].lstrip("-").lower() not in COMMANDS:\n        body = "commands: " + ", ".join(COMMANDS) + " (python3 .git/agent/a.py COMMAND ...)"\n    else:\n        try:\n            body = HANDLERS[argv[0].lstrip("-").lower()](st, argv[1:])\n        except Exception as e:  # noqa: BLE001  never crash: the model gets a message and the header\n            body = f"(error in {argv[0]}: {type(e).__name__}: {e})"\n    save(st)\n    warn = banner(st)\n    if warn:\n        print(warn)\n    print(header(st))\n    print(body)\n    if warn:\n        print(warn)\n\n\nif __name__ == "__main__":\n    main(sys.argv[1:])\n', 'skills/agent/scripts/commands.txt': 'find outline show banner reshow\n', 'skills/agent/scripts/install.py': '"""Copy a.py into <repository>/.git/agent/ (git never puts .git in the patch), write the commands this agent uses,\nreset the memory. Run once per task through run_skill_script."""\nimport inspect\nimport json\nimport os\nimport shutil\nimport sys\nimport time\n\n\ndef workspace():\n    """The repository root. The skill wrapper chdirs into a temp dir, so look for the directory it started in."""\n    for frame in inspect.stack():\n        cwd = frame.frame.f_locals.get("_orig_cwd")\n        if isinstance(cwd, str) and os.path.isdir(os.path.join(cwd, ".git")):\n            return cwd\n    for cand in (os.environ.get("PYTHONPATH", "").split(os.pathsep)[0], "/workspace", os.getcwd()):\n        if cand and os.path.isdir(os.path.join(cand, ".git")):\n            return cand\n    sys.exit("agent tool: repository not found")\n\n\nhere = os.path.dirname(os.path.abspath(__file__))\ntarget = os.path.join(workspace(), ".git", "agent")\nos.makedirs(target, exist_ok=True)\nshutil.copyfile(os.path.join(here, "a.py"), os.path.join(target, "a.py"))\nshutil.copyfile(os.path.join(here, "commands.txt"), os.path.join(target, "commands.txt"))\nfor stale in ("state.json", "state.json.tmp", "repro.py"):\n    if os.path.exists(os.path.join(target, stale)):\n        os.remove(os.path.join(target, stale))\nwith open(os.path.join(target, "state.json"), "w") as f:  # the clock for a.py\'s NO EDIT YET banner starts here\n    json.dump({"looks": 0, "reads": [], "notes": [], "pins": [], "t0": time.time()}, f)\ncmds = open(os.path.join(here, "commands.txt")).read().split()\nusage = {\n    "find": \'find "exact text" [PATH]      where it appears\',\n    "outline": "outline FILE                  classes and functions with line numbers",\n    "show": "show FILE NAME | FILE START END   a whole function, or numbered lines",\n    "note": \'note "one line"               keep a finding in your memory\',\n    "pin": "pin FILE START END            keep these lines visible in every output",\n    "impact": "impact                        after an edit: other places using what you changed",\n    "check": "check                         after an edit: .git/agent/repro.py + nearest tests + git status",\n}\nprint("READY. Your reading tool, with run_command: python3 .git/agent/a.py COMMAND ...\\n" +\n      "\\n".join("  " + usage[c] for c in cmds if c in usage) +\n      ("\\nEvery output starts with your MEMORY (what you read, notes, pinned lines)." if "note" in cmds else\n       "\\nEvery output starts with your MEMORY (the lines you have read).") +\n      "\\nNothing to pip install: the sandbox has no internet and every dependency is already installed.")\n'}}
+TASK_SET = ['fastapi_11194', 'fastapi_12942', 'fastapi_13537', 'fastapi_13713', 'fastapi_14099', 'fastapi_14246', 'fastapi_14301', 'fastapi_14349', 'fastapi_14371', 'fastapi_14372', 'fastapi_14419', 'fastapi_14479', 'fastapi_14492', 'fastapi_14609', 'fastapi_14786', 'fastapi_14873', 'fastapi_14953', 'fastapi_14962', 'fastapi_14964', 'fastapi_15588', 'fastapi_15589', 'fastapi_9555', 'rich_3006', 'rich_3063', 'rich_3067', 'rich_3180', 'rich_3278', 'rich_3470', 'rich_3506', 'rich_3518', 'rich_3521', 'rich_3535', 'rich_3676', 'rich_3772', 'rich_3882', 'rich_3894', 'rich_3905', 'rich_4006', 'rich_4075', 'rich_4079']
+MIX_REF = {'fastapi_11194': [5, 0, 6], 'fastapi_12942': [1, 0, 1], 'fastapi_14099': [0, 0, 1], 'fastapi_14349': [1, 0, 1], 'fastapi_14372': [1, 0, 1], 'fastapi_14419': [2, 0, 6], 'fastapi_14492': [1, 0, 1], 'fastapi_14609': [0, 0, 1], 'fastapi_14786': [1, 0, 1], 'fastapi_14962': [0, 0, 1], 'fastapi_15588': [0, 0, 1], 'fastapi_15589': [6, 0, 6], 'rich_3180': [0, 0, 2], 'rich_3278': [0, 0, 1], 'rich_3470': [1, 2, 6], 'rich_3506': [0, 1, 1], 'rich_3518': [1, 0, 1], 'rich_3521': [0, 2, 2], 'rich_3535': [0, 0, 1], 'rich_3772': [0, 0, 1], 'rich_3882': [6, 0, 6], 'rich_3905': [1, 0, 1], 'rich_4006': [0, 0, 1], 'rich_4079': [2, 3, 6]}  # mix (T0.2, 8 min, 2 at once) on these tasks: task -> [solved, no patch, runs]
+GEN_REF = {'fastapi_12942': 1, 'fastapi_13537': 1, 'fastapi_13713': 0, 'fastapi_14099': 0, 'fastapi_14246': 0, 'fastapi_14301': 1, 'fastapi_14349': 1, 'fastapi_14371': 0, 'fastapi_14372': 1, 'fastapi_14479': 0, 'fastapi_14492': 1, 'fastapi_14609': 0, 'fastapi_14786': 1, 'fastapi_14873': 0, 'fastapi_14953': 0, 'fastapi_14962': 0, 'fastapi_14964': 0, 'fastapi_15588': 0, 'fastapi_9555': 1, 'rich_3006': 1, 'rich_3063': 0, 'rich_3067': 1, 'rich_3278': 0, 'rich_3506': 0, 'rich_3518': 1, 'rich_3535': 0, 'rich_3676': 0, 'rich_3772': 0, 'rich_3894': 1, 'rich_3905': 1, 'rich_4006': 0, 'rich_4075': 0}  # val/test: mix at T1.0, 15 min, 1 run each (2026-10-24 generation run, re-graded): task -> solved
+SPLIT_OF = {'fastapi_11194': 'dev16', 'fastapi_12942': 'val', 'fastapi_13537': 'test', 'fastapi_13713': 'test', 'fastapi_14099': 'val', 'fastapi_14246': 'test', 'fastapi_14301': 'test', 'fastapi_14349': 'val', 'fastapi_14371': 'test', 'fastapi_14372': 'val', 'fastapi_14419': 'dev16', 'fastapi_14479': 'test', 'fastapi_14492': 'val', 'fastapi_14609': 'val', 'fastapi_14786': 'val', 'fastapi_14873': 'test', 'fastapi_14953': 'test', 'fastapi_14962': 'val', 'fastapi_14964': 'test', 'fastapi_15588': 'val', 'fastapi_15589': 'dev16', 'fastapi_9555': 'test', 'rich_3006': 'test', 'rich_3063': 'test', 'rich_3067': 'test', 'rich_3180': 'dev16', 'rich_3278': 'val', 'rich_3470': 'dev16', 'rich_3506': 'val', 'rich_3518': 'val', 'rich_3521': 'dev16', 'rich_3535': 'val', 'rich_3676': 'test', 'rich_3772': 'val', 'rich_3882': 'dev16', 'rich_3894': 'test', 'rich_3905': 'val', 'rich_4006': 'val', 'rich_4075': 'test', 'rich_4079': 'dev16'}
+ROWS = {}
+for l in open(DATA_DIR / 'tasks.jsonl'):
+    r = json.loads(l)
+    if r['instance_id'] in TASK_SET:
+        _sp = SPLIT_OF[r['instance_id']]
+        ROWS[r['instance_id']] = {**r, 'src': 'public', 'level': _sp, 'domain': 'public', 'text_kind': 'public',
+                                   'leak': False, 'unfair_names': [], 'env_partial': False, 'split': _sp}
+assert len(ROWS) == len(TASK_SET), f'tasks missing from tasks.jsonl: {sorted(set(TASK_SET) - set(ROWS))}'
+print(f"SKILL ARMS: {len(ROWS)} tasks {dict(Counter(SPLIT_OF[t] for t in ROWS))} {sorted(ROWS)} | arms {ARMS} | {ATTEMPTS} passes | {CONCURRENCY} at once | "
+      f"after pass 1, arms solving {EARLY_STOP_MAX} or fewer stop")
+SUB_ROOT = WORKING_DIR / 'submissions'
+shutil.rmtree(SUB_ROOT, ignore_errors=True)
+for arm, files in ARM_FILES.items():
+    for rel, text in files.items():
+        (SUB_ROOT / arm / rel).parent.mkdir(parents=True, exist_ok=True)
+        (SUB_ROOT / arm / rel).write_text(text, encoding='utf-8')
+    _ev = (SUB_ROOT / arm / 'eval_config.yaml').read_text()
+    _cp = SUB_ROOT / arm / 'skills/agent/scripts/commands.txt'
+    _cmds = _cp.read_text().split() if _cp.exists() else ['(no skill)']
+    print(arm, '| tools', [l.split('#')[0].strip()[2:] for l in (SUB_ROOT / arm / 'agent.yaml').read_text().splitlines() if l.strip().startswith('- ')][:8],
+          '| skill commands', _cmds, '| budgets', ' '.join(l.strip() for l in _ev.splitlines() if ':' in l and 'evaluation' not in l))
+    assert 'max_time_minutes: 8' in _ev, 'arms run with the 8-minute limit (as mix\'s dev16 runs)'
+
+import contextvars, tempfile, threading
+# Host-only pytest plugins (Kaggle image, not the scoring image) are hidden in each sandbox venv (pilot 1: typeguard's
+# plugin broke 16/40 tasks), unless the task ships that distribution itself.
+import importlib.metadata as _md
+KEEP_PLUGIN_DISTS = {'pytest', 'pytest-timeout', 'pytest-asyncio', 'pytest-xdist', 'pytest-httpbin', 'anyio'}
+HOST_PLUGINS = sorted({(ep.value.split(':')[0], (ep.dist.name if ep.dist else '').lower().replace('_', '-'))
+                       for ep in _md.entry_points(group='pytest11')})
+print('host pytest plugins:', HOST_PLUGINS)
+
+
+def shadow_host_plugins(site):
+    shadowed = []
+    for module, dist in HOST_PLUGINS:
+        if dist in KEEP_PLUGIN_DISTS or list(site.glob(f"{dist.replace('-', '_')}-*.dist-info")):
+            continue
+        parts = module.split('.')
+        if (site / parts[0]).exists() or (site / f'{parts[0]}.py').exists():
+            continue
+        if len(parts) == 1:
+            (site / f'{parts[0]}.py').write_text('# hidden by the gate: host-only pytest plugin\n')
+        else:
+            pkg = site.joinpath(*parts[:-1])
+            pkg.mkdir(parents=True, exist_ok=True)
+            for k in range(1, len(parts)):
+                site.joinpath(*parts[:k], '__init__.py').touch()
+            (pkg / f'{parts[-1]}.py').write_text('# hidden by the gate: host-only pytest plugin\n')
+        shadowed.append(module)
+    return shadowed
+
+
+ood._shadow_host_plugins = shadow_host_plugins
+# Tag every install record with the task being gated (the sandbox threads inherit this context) -> env_partial.
+CUR_TASK = contextvars.ContextVar('gate_task', default=None)
+ENV_BY_TASK = collections.defaultdict(list)
+_orig_log_env = ood._log_env
+
+
+def _log_env(record):
+    record['task'] = CUR_TASK.get()
+    ENV_BY_TASK[record['task']].append(record)
+    _orig_log_env(record)
+
+
+ood._log_env = _log_env
+# The harness caches one unpacked-wheel tar per wheel set (in /tmp; hundreds of MB each). Record which tars each
+# running task uses so the cleanup after each task deletes only tars no running task needs (lock: no task can pick
+# up a tar between the cleanup's check and its delete).
+import threading
+from swegemma.harness import container_setup as _cs
+TAR_LOCK, TAR_USERS = threading.Lock(), collections.defaultdict(set)
+_orig_tar = _cs._build_unpacked_wheels_tar
+
+
+def _tar(selected, cache_name, marker):
+    with TAR_LOCK:
+        p = _orig_tar(selected, cache_name, marker)
+        TAR_USERS[Path(p)].add(CUR_TASK.get())
+        return p
+
+
+_cs._build_unpacked_wheels_tar = _tar
+
+# OFFLINE FAIL-FAST (verify run 1, 2026-10-21: with Kaggle's internet off, a connection to the outside HANGS until the
+# TCP timeout instead of failing, so installs (setup.py develop -> easy_install) and network-touching tests took 7-14
+# min per task; ETA 20 h). A .pth hook in each sandbox venv makes every non-local connect / DNS lookup fail at once
+# with "Network is unreachable", as in an offline Docker sandbox (--network none). Loopback stays allowed (local test
+# servers). Applies to every Python process that uses the sandbox venv; the harness itself is not affected.
+OFFLINE_MODULE = """import errno, ipaddress, socket
+_connect, _connect_ex, _getaddrinfo = socket.socket.connect, socket.socket.connect_ex, socket.getaddrinfo
+_LOCAL_NAMES = {'localhost', 'localhost.localdomain', '', None, socket.gethostname()}
+
+
+def _local_host(host):
+    if isinstance(host, bytes):
+        host = host.decode()
+    if host in _LOCAL_NAMES:
+        return True
+    try:
+        ip = ipaddress.ip_address(host.split('%')[0])
+        return ip.is_loopback or ip.is_unspecified
+    except ValueError:
+        return False
+
+
+def _blocked(sock, addr):
+    return sock.family in (socket.AF_INET, socket.AF_INET6) and isinstance(addr, tuple) and not _local_host(addr[0])
+
+
+def connect(self, addr):
+    if _blocked(self, addr):
+        raise OSError(errno.ENETUNREACH, 'Network is unreachable (offline sandbox)')
+    return _connect(self, addr)
+
+
+def connect_ex(self, addr):
+    return errno.ENETUNREACH if _blocked(self, addr) else _connect_ex(self, addr)
+
+
+def getaddrinfo(host, *args, **kwargs):
+    if not _local_host(host):
+        raise socket.gaierror(socket.EAI_NONAME, 'Name or service not known (offline sandbox)')
+    return _getaddrinfo(host, *args, **kwargs)
+
+
+socket.socket.connect, socket.socket.connect_ex, socket.getaddrinfo = connect, connect_ex, getaddrinfo
+"""
+_shadow_plugins = shadow_host_plugins
+
+
+def shadow_host_plugins(site):
+    (site / '_rb_offline.py').write_text(OFFLINE_MODULE)
+    (site / 'zz_rb_offline.pth').write_text('import _rb_offline\n')
+    return _shadow_plugins(site) + ['(offline fail-fast hook)']
+
+
+ood._shadow_host_plugins = shadow_host_plugins
+
+
+def import_name(r):
+    """The package that holds the first patched source file (deepest directory with an __init__.py, src/ aware),
+    read from the snapshot; single-file modules -> their name; fallback: the repo name."""
+    tgz = OUT / 'snapshots' / f"{r['instance_id']}.tgz"
+    names = set()
+    if tgz.exists():
+        with tarfile.open(tgz) as tf:
+            names = {m.name[2:] if m.name.startswith('./') else m.name for m in tf if m.name.endswith('__init__.py')}
+    skip = ('tests/', 'test/', 'testing/', 'docs/', 'doc/', 'examples/', 'example/', 'scripts/', 'tools/', 'benchmarks/')
+    for f in re.findall(r'^diff --git a/(\S+)', r['patch'], re.M):
+        if not f.endswith('.py') or f.startswith(skip) or '/tests/' in f:
+            continue
+        root, parts = ('src/', f.split('/')[1:]) if f.startswith('src/') else ('', f.split('/'))
+        if len(parts) == 1:
+            return parts[0][:-3]
+        for k in range(len(parts) - 1, 0, -1):
+            if root + '/'.join(parts[:k]) + '/__init__.py' in names:
+                return '.'.join(parts[:k])
+    return r['repo'].split('/')[1].lower().replace('-', '_')
+
+
+RUNNING = {}  # task -> start time; caches older than the oldest running task are deleted
+CACHE_DIR = Path(tempfile.gettempdir()) / 'swegemma_sp_cache_v8'
+
+
+def clean_tmp():
+    """Delete the wheel tars no running task uses, and sandbox / staging dirs created before the oldest running
+    task started (a running task's own dirs are newer than its start)."""
+    oldest = min(RUNNING.values(), default=time.time()) - 5
+    with TAR_LOCK:
+        for p in list(TAR_USERS):
+            TAR_USERS[p] &= set(RUNNING)
+            if not TAR_USERS[p]:
+                p.unlink(missing_ok=True)
+                del TAR_USERS[p]
+    for p in list(CACHE_DIR.glob('staging_*')) + [Path(p) for p in glob.glob('/tmp/swegemma_sandbox_*')]:
+        try:
+            if p.stat().st_mtime < oldest:
+                shutil.rmtree(p, ignore_errors=True)
+        except FileNotFoundError:
+            pass
+
+
