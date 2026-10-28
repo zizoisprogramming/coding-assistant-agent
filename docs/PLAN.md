@@ -32,14 +32,21 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
-### PROPOSED (not built, user: tomorrow): a 40-task eval set (2026-10-29)
+### RUN BUILT: sk_a2 on d40 (8 winnable dev + val 16 + test 16), 1 pass (2026-10-29, NEWEST — read first)
+- r19 result first: sk_a2b2k 2/8 (11194, 3882), 0.47 h; thinking 2048 brought calls back to 13.0 s / 382 tokens, but
+  3 of 8 still hit the wall without a patch (3521, 3180 never edited; 4079 edit at call 33). Every arm stays 2-5/8.
+- d40 baseline: sk_a2 (the LB-0.18 package, 28 calls) once on 40 tasks, kaggle/cells_skill_d40 (cell2 + cell5 differ),
+  ~2.4 h wall. References embedded: mix T0.2 8 min = dev 3.67/8 per pass, val 7/16 (1 run); test only gen T1.0 15 min
+  6/16. Expect ~16-17/40. Cell 5 prints solved per split. Sim passes (local grading fails: .venv has no pip; env only).
+
+### PROPOSED (built below): a 40-task eval set (2026-10-29)
 - Public 129 = dev16 + val 16 + test 16 + train 52 + 29 not gradable. The 84 non-dev tasks have 1 mix run each
   (2026-10-24_gen_combined, T1.0, 15 min, regrade.json): 32/84 = 38% (train 19/52, val 7/16, test 6/16); val's two
   runs (+ gemma_val) agree 16/16. dev16 is the hard end (mix 23%/pass) and matches the LB (0.17) better.
 - Problem is sample size: on 8 tasks two arms differ by +-2 from chance. Proposal: 8 winnable dev + val + test = 40
   tasks, ~2.4 h wall (~5 h quota) per arm-pass; first run a baseline (sk_a2 or mix) at LB settings on it.
 
-### RUN BUILT: sk_a2b2k alone, 8 tasks x 2 passes, early stop 3 (2026-10-29, NEWEST — read first)
+### RUN BUILT: sk_a2b2k alone, 8 tasks x 2 passes, early stop 3 (2026-10-29)
 - User: tweak sk_a2b, thinking 2048. sk_a2b2k = sk_a2b with thinking_budget 2048 (only change; max output 8192,
   T0.2, top_p 0.95, 32 calls, batch). kaggle/cells_skill_b2k (only cell2 differs). 8-16 runs, ~0.6-1.2 h.
 

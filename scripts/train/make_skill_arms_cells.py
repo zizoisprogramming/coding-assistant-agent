@@ -31,12 +31,15 @@ sys.path.insert(0, str(ROOT / "scripts/train"))
 import make_gen_cells as G  # noqa: E402
 from make_test_cells import must_replace  # noqa: E402
 
-OUT = ROOT / "kaggle/cells_skill_b2k"
-ARMS = ["sk_a2b2k"]
+OUT = ROOT / "kaggle/cells_skill_d40"
+ARMS = ["sk_a2"]
 # the winnable dev16 tasks: tier 1 (mix 55-95%) + tier 2 (14-35% over all arms); the other 9 were 0 in ~150 runs
 WINNABLE7 = ["rich_3882", "fastapi_15589", "fastapi_11194", "rich_4079", "rich_3521", "fastapi_14419", "rich_3470"]
-TASKS = sorted(WINNABLE7 + ["rich_3180"])  # the 8 winnable (or all 16: sorted(json.load(open(ROOT / "data/splits_public.json"))["dev16"]))
-PASSES = 2  # 2 passes on 8 tasks: one pass is +-2 noise
+SPLITS = json.load(open(ROOT / "data/splits_public.json"))
+# d40 (user 2026-10-29): the 8 winnable dev16 + val 16 + test 16 = 40 tasks; 8 tasks alone are +-2 noise per pass
+SPLIT_OF = {t: k for k in ("dev16", "val", "test") for t in SPLITS[k]}
+TASKS = sorted(WINNABLE7 + ["rich_3180"] + SPLITS["val"] + SPLITS["test"])  # the 8 winnable only: sorted(WINNABLE7 + ["rich_3180"])
+PASSES = 1  # d40 baseline: one pass (~2.4 h); early stop needs a pass 2, so it does nothing here
 CONCURRENCY = 2
 EARLY_STOP_MAX = 3  # user: after pass 1, an arm that solved 3 or fewer stops (mix: 3.67 per pass)
 
@@ -44,6 +47,12 @@ EARLY_STOP_MAX = 3  # user: after pass 1, an arm that solved 3 or fewer stops (m
 def arm_files(arm):
     base = ROOT / "submissions" / arm
     return {p.relative_to(base).as_posix(): p.read_text() for p in sorted(base.rglob("*")) if p.is_file()}
+
+
+def gen_reference():
+    """val/test: the 10-24 generation run (mix, T1.0, 15 min, 1 run each), re-graded on CPU: task -> solved."""
+    g = json.load(open(ROOT / "data/results/2026-10-24_gen_combined/regrade.json"))
+    return {t: int(g[t]["resolved"]) for t in sorted(TASKS) if t in g}
 
 
 def mix_reference():
@@ -70,14 +79,17 @@ ARMS = {arms!r}
 ARM_FILES = {arm_files!r}
 TASK_SET = {dev16!r}
 MIX_REF = {mix_ref!r}  # mix (T0.2, 8 min, 2 at once) on these tasks: task -> [solved, no patch, runs]
+GEN_REF = {gen_ref!r}  # val/test: mix at T1.0, 15 min, 1 run each (2026-10-24 generation run, re-graded): task -> solved
+SPLIT_OF = {split_of!r}
 ROWS = {{}}
 for l in open(DATA_DIR / 'tasks.jsonl'):
     r = json.loads(l)
     if r['instance_id'] in TASK_SET:
-        ROWS[r['instance_id']] = {{**r, 'src': 'public', 'level': 'dev16', 'domain': 'public', 'text_kind': 'public',
-                                   'leak': False, 'unfair_names': [], 'env_partial': False, 'split': 'dev16'}}
+        _sp = SPLIT_OF[r['instance_id']]
+        ROWS[r['instance_id']] = {{**r, 'src': 'public', 'level': _sp, 'domain': 'public', 'text_kind': 'public',
+                                   'leak': False, 'unfair_names': [], 'env_partial': False, 'split': _sp}}
 assert len(ROWS) == len(TASK_SET), f'tasks missing from tasks.jsonl: {{sorted(set(TASK_SET) - set(ROWS))}}'
-print(f"SKILL ARMS: {{len(ROWS)}} dev16 tasks {{sorted(ROWS)}} | arms {{ARMS}} | {{ATTEMPTS}} passes | {{CONCURRENCY}} at once | "
+print(f"SKILL ARMS: {{len(ROWS)}} tasks {{dict(Counter(SPLIT_OF[t] for t in ROWS))}} {{sorted(ROWS)}} | arms {{ARMS}} | {{ATTEMPTS}} passes | {{CONCURRENCY}} at once | "
       f"after pass 1, arms solving {{EARLY_STOP_MAX}} or fewer stop")
 SUB_ROOT = WORKING_DIR / 'submissions'
 shutil.rmtree(SUB_ROOT, ignore_errors=True)
@@ -106,6 +118,11 @@ for n in range(1, ATTEMPTS + 1):
     print(f'\n== PASS {n}: {len(rs)} runs')
     for arm in ARMS:
         a = [r for r in rs if r['arm'] == arm]
+        print('  ' + arm + ' by split: ' + ' | '.join(f"{sp} {sum(r['resolved'] for r in a if SPLIT_OF[r['instance_id']] == sp)}/"
+              f"{sum(1 for r in a if SPLIT_OF[r['instance_id']] == sp)}" for sp in ('dev16', 'val', 'test'))
+              + ' | reference: mix T0.2 8 min ' + ' '.join(f"{sp} {sum(s / n for t, (s, _, n) in MIX_REF.items() if SPLIT_OF.get(t) == sp):.1f}"
+                                                       for sp in ('dev16', 'val'))
+              + f" | gen T1.0 15 min test {sum(v for t, v in GEN_REF.items() if SPLIT_OF.get(t) == 'test')}")
         print(f"  {arm:8} solved {sum(r['resolved'] for r in a):2}/{len(a):2} (mix {mix_solved:.1f}) | no patch "
               f"{sum(not r['patch_chars'] for r in a):2} (mix {mix_nopatch:.1f}) | ends {dict(Counter(r['end'] for r in a))} "
               f"| median tools {sorted(r['tool_calls'] or 0 for r in a)[len(a) // 2] if a else '-'}")
@@ -116,7 +133,8 @@ for iid in sorted(ROWS):
     for arm in ARMS:
         a = sorted((r for r in rows if r['arm'] == arm and r['instance_id'] == iid), key=lambda r: r['attempt'])
         cells.append(''.join('S' if r['resolved'] else ('E' if r['patch_chars'] else '0') for r in a) or '-')
-    print(f'  {iid:16} mix {s}/{n} ({p})   ' + '   '.join(f'{c:>4}' for c in cells))
+    ref = f'mix {s}/{n} ({p})' if n else f"gen {'S' if GEN_REF.get(iid) else '-'}"
+    print(f'  {iid:16} {SPLIT_OF.get(iid, "?"):5} {ref:12}  ' + '   '.join(f'{c:>4}' for c in cells))
 dig = [json.loads(l) for l in open(RESULTS / 'digest.jsonl')] if (RESULTS / 'digest.jsonl').exists() else []
 print('\nper arm, mean per run (from the model replies; see the DIGEST lines):')
 for arm in ARMS:
@@ -301,9 +319,10 @@ def main():
                       "ood.patch_harness()\n")
     host = "print('host pytest plugins:', [Path(p).name for p in _host], '-> exit', _r.returncode, _r.stderr[-200:])\n"
     dev16 = sorted(TASKS)
-    assert set(TASKS) <= set(json.load(open(ROOT / "data/splits_public.json"))["dev16"])
+    assert set(TASKS) <= set(SPLIT_OF)
     c2 = must_replace(c2, host, host + BLOCK.format(passes=PASSES, arms=ARMS, early_stop_max=EARLY_STOP_MAX, arm_files={a: arm_files(a) for a in ARMS}, dev16=dev16,
-                                                    mix_ref=mix_reference()))
+                                                    mix_ref=mix_reference(), gen_ref=gen_reference(),
+                                                    split_of={t: SPLIT_OF[t] for t in dev16}))
     (OUT / "cell2.py").write_text(c2 + "\n" + G.sandbox_env())
     (OUT / "cell2c_public_setup.py").write_text((comb / "cell2c_public_setup.py").read_text())
     (OUT / "cell3.py").write_text((src / "cell3.py").read_text())  # vLLM as the scorer (LoRA on, no adapter)
