@@ -32,7 +32,22 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
-### RESULT r21: sk_a2_32 on d40 = 18/40 (dev 3, val 8, test 7), 1.87 h, mean 312 s (2026-10-29, NEWEST)
+### ANALYSIS d40 (r20 + r21, 80 runs) (2026-10-29, NEWEST — read first)
+- Union of the two runs = 20/40 (pass@2) vs 17-18 per run. 35 wrong patches: 33 in the gold file, 25 within 15
+  lines -> place found, change wrong. Kinds: hidden exact text/names (14479: task text shows a DIFFERENT message than
+  the tests; 15588 message; 13713 param named openapi_external_docs, task says external_docs); partial fix (rich_3535
+  fixed one regex error, missed the second); big features (14246, 14962, 3772, 4006, 14609 = 2047 gold lines);
+  over-edit (rich_3006: sk_a2_32 added a 2nd change and broke sk_a2's exact gold fix).
+- Budget left unused: 20 of 35 wrong runs submitted early with ~150-220 s and ~7 calls left (S runs: 219 s mean,
+  first edit 13; E: 326 s, 17; no patch: 425 s, 32). pytest after editing is rare (E 6/35, S 11/35).
+- Harness allows SequentialAgent / LoopAgent / ParallelAgent and LlmAgent include_contents: none (adk_submission
+  compiler.py, schema.py). ADK 1.36 contents.py: 'none' = context starts at the previous agent's last reply ->
+  a fresh-context stage. swegemma agent_runner: the run continues until submit_patch + a final text; a fixer stage
+  WITHOUT submit_patch hands over to the next stage; on timeout the working-tree diff is captured anyway.
+  Idea: root SequentialAgent [fixer (no submit) -> reviewer (include_contents none, has submit)] uses that budget.
+  Risks: reviewer breaks correct fixes (over-edit), +time per task (LB mean must stay <~340 s; sk_a2_32 d40 312 s).
+
+### RESULT r21: sk_a2_32 on d40 = 18/40 (dev 3, val 8, test 7), 1.87 h, mean 312 s (2026-10-29)
 - data/results/2026-10-29_skill_d40_32 (notebook ziad23samer/fork-of-fork-of-generation-all-shards-gpu). vs sk_a2
   17/40: 9 tasks changed. Thanks to calls 29-32: fastapi_12942 (32 calls), rich_4075 (31) solved. Noise both ways:
   +rich_3521, -fastapi_15589, -rich_3006 (used 32 calls, wrong). 3 runs went E -> no patch using all 32 calls
