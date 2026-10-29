@@ -32,7 +32,14 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
-### RUN BUILT: bo3 = best of three (2026-10-29, NEWEST — read first)
+### RESULT r25: e24 pass 1 = pub024 14/24 (287 s), sk_a2_32 15/24 (322 s); pass 2 skipped (2026-10-29, NEWEST)
+- data/results/2026-10-29_skill_e24x2, 2.15 h, concurrency 2. Only 5 of 24 differ (pub: 11194, 3521; a2_32: 14372,
+  15589, 3278). Readings on these 24: pub024 20 (r23+r24) and 14 -> 17.0; sk_a2_32 18 (r21+r24) and 15 -> 16.5.
+  -> No real difference; pub024's earlier +2 was noise. The same agent scores 14-20 on the same 24 tasks.
+- For bo3 (1 pass on e24): a single-agent run is ~16.5-17 here with a spread of about +-3; bo3 needs ~20+ to mean
+  something, and a second pass to be sure.
+
+### RUN BUILT: bo3 = best of three (2026-10-29)
 - submissions/bo3 (scripts/make_skill_arms.py team()): root ParallelAgent [fix_a, fix_b, fix_c], pub024 recipe
   (tools incl. graph tools, sampling 0.2 / 0.95 / thinking 4096), prompts written fresh around pub024's procedure;
   each fixer told 18 calls, edit by call 10, writes .git/agent/repro_<x>.py (exit != 0 while the bug is there).
