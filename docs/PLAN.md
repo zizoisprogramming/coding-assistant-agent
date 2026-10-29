@@ -32,7 +32,13 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
-### RUN BUILT: d40x2 = pub024 vs sk_a2_32, 2 passes on the 40 (2026-10-29, NEWEST — read first)
+### RUN BUILT: e24x2 = pub024 vs sk_a2_32, 2 passes on the 24 ever-solved d40 tasks (2026-10-29, NEWEST — read first)
+- User: s20 + the u20 tasks solved in r24 (fastapi_14419, rich_3506, rich_3676, rich_4079) = 24 (dev 6, val 9,
+  test 9). kaggle/cells_skill_e24x2 (only cell2 differs): 96 runs, ~3.9 h wall / ~7.8 h quota; 1 pass ~2 h / ~4 h.
+  The 16 never-solved tasks are left out (no arm separates there). Refs on these 24: pub024 20 (r23+r24),
+  sk_a2_32 18 (r21) + 0 (r24).
+
+### RUN BUILT: d40x2 = pub024 vs sk_a2_32, 2 passes on the 40 (2026-10-29)
 - kaggle/cells_skill_d40x2 (only cell2 differs from u20): 160 runs, ~7.2 h wall / ~14.4 h quota (1 pass of both
   ~3.6 h wall). Pass 1 completes before pass 2, so a STOP_NEW_TASKS_AFTER_H = quota/2 - 0.4 keeps a full pass 1.
   Question: is pub024's ~+2 of 40 (fresh: 20 vs ~17-18) real?

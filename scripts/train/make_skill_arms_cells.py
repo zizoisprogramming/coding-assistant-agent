@@ -31,7 +31,7 @@ sys.path.insert(0, str(ROOT / "scripts/train"))
 import make_gen_cells as G  # noqa: E402
 from make_test_cells import must_replace  # noqa: E402
 
-OUT = ROOT / "kaggle/cells_skill_d40x2"
+OUT = ROOT / "kaggle/cells_skill_e24x2"
 ARMS = ["pub024", "sk_a2_32"]  # d40x2 (user: is pub024 really ahead?); u20 (r24) = kaggle/cells_skill_u20 with sk_fr2; s20 (r23) = kaggle/cells_skill_s20_fr2_pub; sk_fr2 alone = kaggle/cells_skill_s20_fr2; sk_fr = kaggle/cells_skill_s20_fr (r22 15/20); d40: sk_a2 = kaggle/cells_skill_d40 (17/40), sk_a2_32 = kaggle/cells_skill_d40_32 (18/40), pub024 = kaggle/cells_skill_d40_pub
 # the winnable dev16 tasks: tier 1 (mix 55-95%) + tier 2 (14-35% over all arms); the other 9 were 0 in ~150 runs
 WINNABLE7 = ["rich_3882", "fastapi_15589", "fastapi_11194", "rich_4079", "rich_3521", "fastapi_14419", "rich_3470"]
@@ -46,7 +46,10 @@ SOLVED_D40 = sorted({r["instance_id"] for d in ("2026-10-29_skill_d40", "2026-10
 # sk_a2_32 control (those tasks were picked as failures, so a rerun regains some by luck)
 D40 = sorted(WINNABLE7 + ["rich_3180"] + SPLITS["val"] + SPLITS["test"])
 UNSOLVED_D40 = [t for t in D40 if t not in SOLVED_D40]
-TASKS = D40  # u20: UNSOLVED_D40, s20: SOLVED_D40
+# e24 (user 2026-10-29): s20 + the u20 tasks solved by at least one arm in r24 = every d40 task ever solved (24)
+SOLVED_U20 = sorted({r["instance_id"] for r in map(json.loads, open(ROOT / "data/results/2026-10-29_skill_u20/results/gen_per_task.jsonl"))
+                     if r["resolved"]})
+TASKS = sorted(SOLVED_D40 + SOLVED_U20)  # d40x2: D40, u20: UNSOLVED_D40, s20: SOLVED_D40
 PASSES = 2  # d40x2: 2 passes x 2 arms x 40 tasks = 160 runs; pass 1 completes before pass 2 starts
 CONCURRENCY = 2
 EARLY_STOP_MAX = 3  # user: after pass 1, an arm that solved 3 or fewer stops (mix: 3.67 per pass)
