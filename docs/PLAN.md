@@ -32,7 +32,17 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
-### RESULT r24: u20 = sk_a2_32 0/20 (376 s), sk_fr2 2/20 (420 s), pub024 2/20 (411 s) (2026-10-29, NEWEST — read first)
+### OFFLINE PICKER CHECK (scripts/picker_offline.py, no GPU) (2026-10-29, NEWEST — read first)
+- 5 runs per d40 task (r20, r21, r22 / r23, r24). Expected solved of 40 when picking 1 of k random runs' patches:
+  k=2: pass@1 17.8, oracle 20.5, any non-empty 19.0, smallest 19.0, agreement 19.0.
+  k=3: oracle 22.1, any non-empty 19.5, smallest 19.3, largest 18.9, agreement (Jaccard of changed lines, small
+  tie-break) 19.6.
+- So best-of-3 with a naive pick = +1.7; most of it is "never keep an empty patch when another attempt edited"
+  (rich_3521, rich_4075: 0.4 -> 0.9). Agreement adds ~0.1. The remaining 2.5 (to the oracle) needs an execution
+  signal (existing tests / repro) - not measurable offline here (local grading has no pip; needs a sandbox).
+- Cost caveat: k parallel fixers = k x tokens; only near-free if the LB scorer runs one task at a time (UNVERIFIED).
+
+### RESULT r24: u20 = sk_a2_32 0/20 (376 s), sk_fr2 2/20 (420 s), pub024 2/20 (411 s) (2026-10-29)
 - data/results/2026-10-29_skill_u20, 3.61 h. sk_fr2 solved rich_3506 (no review reached) and rich_4079 (review at
   call 35, 0 reviewer edits) -> both by the fixer; reviewer edited in 2 runs (14371, 14964), both failed; 9/20 runs
   never reached the review (fixer used the time). pub024: 14419, 3676. No reviewer rescue on the hard half.
