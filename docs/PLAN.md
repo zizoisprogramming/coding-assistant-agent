@@ -32,6 +32,10 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
+### PACKED pub024 for the LB (2026-10-29): dist/submission.zip = dist/pub024.zip (public LB-0.24 package unchanged;
+  validated: LlmAgent, 9 tools incl. the 3 graph tools, 4 files). User submits. Local: 20/40 fresh, never below ours.
+  Expect anything in 0.12-0.26 (binomial); one score cannot rank it against sk_a2 (0.18) / sk_a2_32 (0.17).
+
 ### RUN BUILT: test-signal CPU notebook (kaggle/cells_testsignal) (2026-10-29, NEWEST — read first)
 - Question: does "the EXISTING tests of the changed modules still pass" pick the solved patch (picker 19.5 -> ~22?).
 - scripts/train/make_testsignal_cells.py: per d40 task, baseline (no patch) + reference patch (calibration: existing
