@@ -196,6 +196,11 @@ async def run_all():
         await run_phase(conc, jobs, k)
         if k == 1 and len(PHASES) > 1:  # per arm: only arms above EARLY_STOP_MAX get pass 2
             per_arm = {a: sum(r['resolved'] for r in DONE if r['arm'] == a and r['phase'] == 1) for a in ARMS}
+            _cond = globals().get('PASS2_IF_BEATS')
+            if _cond and per_arm[_cond[0]] <= per_arm[_cond[1]]:
+                print(f'PASS 2 SKIPPED: pass 1 solved {per_arm}; {_cond[0]} did not beat {_cond[1]} -> '
+                      'the run ends here (outputs saved)', flush=True)
+                break
             keep = [a for a in ARMS if per_arm[a] > EARLY_STOP_MAX]
             if not keep:
                 print(f'EARLY STOP: pass 1 solved {per_arm}, no arm above {EARLY_STOP_MAX} -> pass 2 skipped, '

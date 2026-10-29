@@ -37,6 +37,9 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   test 9). kaggle/cells_skill_e24x2 (only cell2 differs): 96 runs, ~3.9 h wall / ~7.8 h quota; 1 pass ~2 h / ~4 h.
   The 16 never-solved tasks are left out (no arm separates there). Refs on these 24: pub024 20 (r23+r24),
   sk_a2_32 18 (r21) + 0 (r24).
+- User: pass 2 only if pub024 beats sk_a2_32 in pass 1: PASS2_IF_BEATS = ("pub024", "sk_a2_32") in cell2, checked in
+  cell4 after pass 1 (tie or worse -> "PASS 2 SKIPPED", run ends, ~2 h / ~4 h quota). Sim: both branches OK (the sim's
+  pub024 ValueError = the fake model calls run_skill_script, which pub024 does not declare; the real prompt never does).
 
 ### RUN BUILT: d40x2 = pub024 vs sk_a2_32, 2 passes on the 40 (2026-10-29)
 - kaggle/cells_skill_d40x2 (only cell2 differs from u20): 160 runs, ~7.2 h wall / ~14.4 h quota (1 pass of both

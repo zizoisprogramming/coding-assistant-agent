@@ -52,6 +52,7 @@ SOLVED_U20 = sorted({r["instance_id"] for r in map(json.loads, open(ROOT / "data
 TASKS = sorted(SOLVED_D40 + SOLVED_U20)  # d40x2: D40, u20: UNSOLVED_D40, s20: SOLVED_D40
 PASSES = 2  # d40x2: 2 passes x 2 arms x 40 tasks = 160 runs; pass 1 completes before pass 2 starts
 CONCURRENCY = 2
+PASS2_IF_BEATS = ("pub024", "sk_a2_32")  # user (e24x2): pass 2 only if pass 1 of the first arm solved MORE than the second; None = off
 EARLY_STOP_MAX = 3  # user: after pass 1, an arm that solved 3 or fewer stops (mix: 3.67 per pass)
 
 
@@ -86,6 +87,7 @@ BLOCK = '''
 # SKILL ARMS (scripts/train/make_skill_arms_cells.py): a dev16 task set, pass 1 before pass 2.
 ATTEMPTS = {passes!r}  # passes; after pass 1 an arm with EARLY_STOP_MAX or fewer solved is dropped (none left: the run ends)
 EARLY_STOP_MAX = {early_stop_max!r}
+PASS2_IF_BEATS = {pass2_if_beats!r}  # (a, b): pass 2 runs only if a solved more than b in pass 1
 ARMS = {arms!r}
 ARM_FILES = {arm_files!r}
 TASK_SET = {dev16!r}
@@ -354,7 +356,7 @@ def main():
     host = "print('host pytest plugins:', [Path(p).name for p in _host], '-> exit', _r.returncode, _r.stderr[-200:])\n"
     dev16 = sorted(TASKS)
     assert set(TASKS) <= set(SPLIT_OF)
-    c2 = must_replace(c2, host, host + BLOCK.format(passes=PASSES, arms=ARMS, early_stop_max=EARLY_STOP_MAX, arm_files={a: arm_files(a) for a in ARMS}, dev16=dev16,
+    c2 = must_replace(c2, host, host + BLOCK.format(passes=PASSES, arms=ARMS, early_stop_max=EARLY_STOP_MAX, pass2_if_beats=PASS2_IF_BEATS, arm_files={a: arm_files(a) for a in ARMS}, dev16=dev16,
                                                     mix_ref=mix_reference(), gen_ref=gen_reference(),
                                                     split_of={t: SPLIT_OF[t] for t in dev16}))
     (OUT / "cell2.py").write_text(c2 + "\n" + G.sandbox_env())
@@ -405,6 +407,11 @@ def main():
                       "        await run_phase(conc, jobs, k)\n"
                       "        if k == 1 and len(PHASES) > 1:  # per arm: only arms above EARLY_STOP_MAX get pass 2\n"
                       "            per_arm = {a: sum(r['resolved'] for r in DONE if r['arm'] == a and r['phase'] == 1) for a in ARMS}\n"
+                      "            _cond = globals().get('PASS2_IF_BEATS')\n"
+                      "            if _cond and per_arm[_cond[0]] <= per_arm[_cond[1]]:\n"
+                      "                print(f'PASS 2 SKIPPED: pass 1 solved {per_arm}; {_cond[0]} did not beat {_cond[1]} -> '\n"
+                      "                      'the run ends here (outputs saved)', flush=True)\n"
+                      "                break\n"
                       "            keep = [a for a in ARMS if per_arm[a] > EARLY_STOP_MAX]\n"
                       "            if not keep:\n"
                       "                print(f'EARLY STOP: pass 1 solved {per_arm}, no arm above {EARLY_STOP_MAX} -> pass 2 skipped, '\n"
