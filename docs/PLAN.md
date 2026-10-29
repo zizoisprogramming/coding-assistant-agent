@@ -37,6 +37,20 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   silent stdin); CPU notebooks kaggle/cells_testsignal, kaggle/cells_repro (private dataset
   ziad23samer/testsignal-candidates); results data/results/2026-10-29_*.
 
+### ANALYSIS: why runs end with no patch (2026-10-29, 804 skill-arm runs 10-25 -> 10-29 with requests.jsonl)
+- 291 solved, 313 wrong patch, 200 NO patch. No patch: 113 never tried an edit (95 ended at the time limit, median 23
+  calls of reading); 66 had their edit REFUSED because max_tool_calls was used up (28/32-call arms: pub024 8, sk_a2_32
+  8, ...) even though the harness warns at <= 10 calls left ("Finalize your edits") -> that warning does NOT force an
+  edit; 72 edit attempts were refused/failed in total, malformed calls (missing filepath) are as common in solved runs.
+- First edit: solved median 156 s (call 14), wrong 266 s (call 20). Solve rate by first-edit time: < 120 s 76%,
+  120-180 51%, 180-240 34%, > 240 s 22-32%. Same task (19 tasks with both kinds): early (<= 240 s) 59% vs late/no
+  edit 47% -> part of the gap is NOT task difficulty.
+- Thinking budget is not the cause: tokens per reply are similar for no-patch and solved runs at 1024/2048/4096;
+  no-patch runs just keep reading (~12 s per call).
+- Harness: the only built-in warning is call-based (swegemma tools/base.py _attach_low_budget_warning, <= 10 left);
+  no time warning. run_skill_script accepts args (ADK skill_toolset.py script_args) -> a script of ours can wrap
+  commands and print a clock / refuse reads when the tree is still unedited late (idea, not built).
+
 ### RESULT r29: sq1 vs sq2 on q12 (2026-10-29)
 - data/results/2026-10-29_skill_q12_s1..s4 (s1-s3 from results.zip, s4 via kernels output fatmazenhom/generation-
   shard-4-gpu). Each shard ~32 min wall, no crash, no time-guard skips.
