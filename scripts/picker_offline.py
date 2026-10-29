@@ -46,6 +46,10 @@ def pick(cands, how):
         return pick(keep, 'agree_small' if how == 'tests_agree' else 'first_list')
     if how == 'first_list':
         return ne[0]
+    if how == 'repro':  # drop test-breakers, then the highest repro score; ties: the first (random order)
+        keep = [c for c in ne if not c['breaks']] or ne
+        best = max(c['score'] for c in keep)
+        return [c for c in keep if c['score'] == best][0]
     if how == 'first':
         return ne[0]
     if how == 'smallest':
@@ -72,12 +76,24 @@ try:
                                                    or r['passed'] + r['failed'] + r['errors'] == 0)
 except FileNotFoundError:
     pass
+# repro signal (kaggle/cells_repro): the agents' own scripts vs no patch (scripts/repro_signal.py)
+SCORE = {}
+try:
+    sys.path.insert(0, 'scripts')
+    import repro_signal as RS
+    _rows, _base = RS.load()
+    for r in _rows:
+        if r['variant'].startswith('cand') and r['instance_id'] in _base:
+            SCORE[(r['instance_id'], r['src'])] = RS.signal(r, _base[r['instance_id']])['score']
+except FileNotFoundError:
+    pass
 for t, rs in runs.items():
     for r in rs:
+        r['score'] = SCORE.get((t, r['src']), 0)
         r['breaks'] = BREAKS.get((t, r['src']), False)
         r['t'] = t
 
-methods = ['first', 'smallest', 'largest', 'agree_small', 'agree_large', 'tests_first', 'tests_agree']
+methods = ['first', 'smallest', 'largest', 'agree_small', 'agree_large', 'tests_first', 'tests_agree', 'repro']
 for k in (2, 3, 4, 5):
     tot = collections.Counter(); per = collections.defaultdict(collections.Counter)
     for t, rs in runs.items():
@@ -93,6 +109,16 @@ for k in (2, 3, 4, 5):
                     keep = [x for x in ne if not x['breaks']] or ne
                     return sum(x['ok'] for x in keep) / len(keep) if keep else 0
                 per[t][m] = sum(tf(c) for c in combos) / len(combos)
+            elif m == 'repro':  # ties broken at random: average over the tied candidates
+                def rp(c):
+                    ne = [x for x in c if lines(x['patch'])]
+                    if not ne:
+                        return 0
+                    keep = [x for x in ne if not x['breaks']] or ne
+                    best = max(x['score'] for x in keep)
+                    top = [x for x in keep if x['score'] == best]
+                    return sum(x['ok'] for x in top) / len(top)
+                per[t][m] = sum(rp(c) for c in combos) / len(combos)
             elif m == 'first':
                 per[t][m] = sum(sum(x['ok'] for x in c if lines(x['patch'])) / max(1, sum(1 for x in c if lines(x['patch']))) if any(lines(x['patch']) for x in c) else 0 for c in combos) / len(combos)
             else:

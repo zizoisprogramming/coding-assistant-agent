@@ -32,7 +32,16 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
-### RUN BUILT: repro signal CPU notebook (kaggle/cells_repro) (2026-10-29, NEWEST — read first)
+### RESULT repro signal (CPU, ziad23samer/fork-of-test-signal-cpu) (2026-10-29, NEWEST — read first)
+- data/results/2026-10-29_repro: 243 variants (39 baseline, 39 reference, 165 candidates), 1 without results.
+  scripts/repro_signal.py: per script vs no patch: fixes (exit !=0 -> 0), breaks, changed output, marker score (more
+  FIXED/PASS, fewer BUG/FAIL/Traceback). The reference changes ~3.9 scripts per task, "fixes" 0.74, score>0 in 22/39.
+- Candidates: score 2+ -> 73/118 solved (62%), score 0 -> 15/41 (37%); fixes 2+ -> 67% vs 0 -> 51%. Moderate.
+- Picker (solved of 40): k=3: any non-empty 19.5, + test filter 20.0, + repro score 20.3 (oracle 22.1); k=2 19.7;
+  k=4 20.6. Optimistic: the scripts pool all 5+ runs of a task, a real best-of-3 has only its 3 attempts' scripts.
+- So best-of-3 + (non-empty, no test-breakers, best repro score) ~ +2.5 of 40 over one attempt (17.8): ~+6 pp.
+
+### RUN BUILT: repro signal CPU notebook (kaggle/cells_repro) (2026-10-29)
 - The agents' own scripts as a "fixed?" signal: 333 distinct scripts (write_file .py in /tmp|.git/agent, python3 - <<
   heredocs) for 39 d40 tasks, from the request logs of the 8 arm-runs (no new GPU run needed) -> data/testsignal/
   scripts.jsonl, uploaded as a new version of the private dataset ziad23samer/testsignal-candidates.
