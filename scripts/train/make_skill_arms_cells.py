@@ -364,6 +364,16 @@ def main():
     c2 = must_replace(c2, "ood.patch_harness()\n",
                       "from swegemma.harness import container_setup as _cs0\n"
                       "_HARNESS_INSTALL, _HARNESS_COMPAT = _cs0.install_test_dependencies, _cs0._is_wheel_compatible_py313  # public tasks\n"
+                      "# like the LB (Docker exec_run attaches no stdin): commands of the local subprocess sandbox get none either;\n"
+                      "# it inherited the notebook's open, silent stdin, so input() (rich_3882's Prompt.ask) hung to the 240 s timeout\n"
+                      "import adk_eval_core.sandbox.subprocess_sandbox as _ss0\n"
+                      "class _NoStdinSubprocess:\n"
+                      "    def __getattr__(self, name):\n"
+                      "        return getattr(subprocess, name)\n"
+                      "    def Popen(self, *a, **k):\n"
+                      "        k.setdefault('stdin', subprocess.DEVNULL)\n"
+                      "        return subprocess.Popen(*a, **k)\n"
+                      "_ss0.subprocess = _NoStdinSubprocess()\n"
                       "ood.patch_harness()\n")
     host = "print('host pytest plugins:', [Path(p).name for p in _host], '-> exit', _r.returncode, _r.stderr[-200:])\n"
     dev16 = sorted(TASKS)

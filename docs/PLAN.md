@@ -32,18 +32,19 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
-### STDIN GUARD (2026-10-29): scripts that ask for input no longer hang
-- Cause (harness source): adk_eval_core sandbox/subprocess_sandbox.py starts every command with subprocess.Popen and
-  no stdin -> a command inherits the notebook's stdin (open, silent). rich_3882 scripts call rich's Prompt.ask ->
-  input() waits until the 240 s command timeout (r18 sk_a2b, r25 sk_a2_32: 240 s of tool time each; +10 s on the
-  e24 mean). pub024 vs sk_a2_32 on e24: 287 vs 322 s = model +20 s (317 vs 293 tokens/call) + tools +16 s (10 of
-  them this hang) + 5 vs 2 runs at the 480 s wall.
-- Fix: scripts/agent_common/stdin_guard.py, installed by the setup scripts (scripts/agent_team/setup.py for bo3,
-  scripts/agent_skill/install.py for a.py arms) into the sandbox venv as _agent_stdin_guard.py + .pth: a non-tty stdin
-  read with no data within 2 s returns '' -> input() raises EOFError; piped data still reads. Tested: silent pipe
-  -> EOFError after 2.0 s; echo hello | -> reads; < /dev/null -> ''. Sim through the harness with a silent stdin:
-  "EOF after 2.0 s". Grading runs in a fresh sandbox (not affected). In bo3 (rebuilt) and future a.py arms; the bo3
-  run the user started before this fix does not have it.
+### STDIN HANG = a LOCAL artifact; fixed in the notebook, not in the agent (2026-10-29, NEWEST — read first)
+- Cause: our notebooks use the harness's subprocess sandbox (no Docker on Kaggle); adk_eval_core
+  sandbox/subprocess_sandbox.py starts commands with subprocess.Popen and no stdin -> they inherit the notebook's open,
+  silent stdin -> input() (rich_3882's Prompt.ask) waits to the 240 s timeout (r18 sk_a2b, r25 sk_a2_32).
+- The LB runs agent commands in Docker (rules page: "the competition's persistent Docker container"); swegemma
+  sandbox/docker.py exec uses container.exec_run without stdin -> input() gets EOF at once: no hang on the LB.
+- First fix (commit 6797663) put a stdin guard into the sandbox venv from the skill setup scripts: REVERTED. The
+  scorer reuses Docker containers between tasks (HARNESS_README "warm pooling"), so an agent writing into the
+  container's site-packages could reach grading = the "tampers with the submission process" rule. Agents must not
+  modify the environment outside /workspace.
+- Fix now: the cells (make_skill_arms_cells.py, next to ood.patch_harness()) wrap the subprocess module of
+  adk_eval_core's subprocess sandbox so Popen defaults to stdin=DEVNULL = the LB's behaviour. Sim with a silent
+  stdin: "EOF after 0.0 s". All future skill-arm notebooks get it; the bo3 run started before it does not.
 
 ### RESULT r25: e24 pass 1 = pub024 14/24 (287 s), sk_a2_32 15/24 (322 s); pass 2 skipped (2026-10-29, NEWEST)
 - data/results/2026-10-29_skill_e24x2, 2.15 h, concurrency 2. Only 5 of 24 differ (pub: 11194, 3521; a2_32: 14372,

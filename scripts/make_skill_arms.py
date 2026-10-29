@@ -1436,7 +1436,6 @@ def team(arm):
     (sk / "scripts").mkdir(parents=True)
     (sk / "SKILL.md").write_text(TEAM_SKILL_MD)
     shutil.copy(TEAM_SRC / "judge.py", sk / "scripts/judge.py")
-    shutil.copy(ROOT / "scripts/agent_common/stdin_guard.py", sk / "scripts/stdin_guard.py")  # setup installs it
     setup = (TEAM_SRC / "setup.py").read_text()
     assert setup.count('LETTER = "?"') == 1
     for x in "abc":
