@@ -32,7 +32,17 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
-### RUN BUILT: e24x2 = pub024 vs sk_a2_32, 2 passes on the 24 ever-solved d40 tasks (2026-10-29, NEWEST — read first)
+### RESULT test signal (CPU, ziad23samer/test-signal-cpu) (2026-10-29, NEWEST — read first)
+- data/results/2026-10-29_testsignal: 39 tasks with selected existing tests (fastapi_14786: none found); baseline
+  passes in 38 (14953 fails already); the REFERENCE fix breaks existing tests in 3 (14492, 14609, rich_3470: the old
+  behaviour is asserted).
+- Candidates (195): keep existing tests passing -> 79/171 solved (46%); break them -> 5/24 (21%), and all 5 are
+  fastapi_14492 (reference breaks the same test); without it 0/19. A strong REJECT filter, no "is it fixed" signal.
+- Picker (scripts/picker_offline.py, solved of 40): k=2 any non-empty 19.0, +test filter 19.45; k=3 19.5 -> 20.0
+  (oracle 22.1); k=4 19.7 -> 20.2 (oracle 23.2); k=5 same 20.2 (oracle 24.0). Best-of-3 + test filter = +2.2 over
+  one attempt (17.8). The rest of the oracle gap needs a "fixed?" signal (e.g. a reproduction test from the issue).
+
+### RUN BUILT: e24x2 = pub024 vs sk_a2_32, 2 passes on the 24 ever-solved d40 tasks (2026-10-29)
 - User: s20 + the u20 tasks solved in r24 (fastapi_14419, rich_3506, rich_3676, rich_4079) = 24 (dev 6, val 9,
   test 9). kaggle/cells_skill_e24x2 (only cell2 differs): 96 runs, ~3.9 h wall / ~7.8 h quota; 1 pass ~2 h / ~4 h.
   The 16 never-solved tasks are left out (no arm separates there). Refs on these 24: pub024 20 (r23+r24),

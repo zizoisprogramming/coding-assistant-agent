@@ -41,6 +41,11 @@ def pick(cands, how):
     ne = [c for c in cands if lines(c['patch'])]
     if not ne:
         return cands[0]
+    if how.startswith('tests_'):  # drop candidates that break existing tests (unless all do), then pick
+        keep = [c for c in ne if not c['breaks']] or ne
+        return pick(keep, 'agree_small' if how == 'tests_agree' else 'first_list')
+    if how == 'first_list':
+        return ne[0]
     if how == 'first':
         return ne[0]
     if how == 'smallest':
@@ -53,8 +58,27 @@ def pick(cands, how):
         key = (lambda c: (score(c), -size(c['patch']))) if tb == 'small' else (lambda c: (score(c), size(c['patch'])))
         return max(ne, key=key)
 
-methods = ['first', 'smallest', 'largest', 'agree_small', 'agree_large']
-for k in (2, 3):
+# existing-test signal (kaggle/cells_testsignal, 2026-10-29): a candidate "breaks" when it fails more existing tests
+# of the changed modules than no patch does
+TS = 'data/results/2026-10-29_testsignal/results/testsignal/rows.jsonl'
+BREAKS = {}
+try:
+    _rows = [json.loads(l) for l in open(TS)]
+    _base = {r['instance_id']: r for r in _rows if r['kind'] == 'baseline'}
+    for r in _rows:
+        if r['kind'] == 'candidate' and r['instance_id'] in _base and r['error'] != 'empty patch':
+            b = _base[r['instance_id']]
+            BREAKS[(r['instance_id'], r['src'])] = ((r['failed'] + r['errors']) > (b['failed'] + b['errors'])
+                                                   or r['passed'] + r['failed'] + r['errors'] == 0)
+except FileNotFoundError:
+    pass
+for t, rs in runs.items():
+    for r in rs:
+        r['breaks'] = BREAKS.get((t, r['src']), False)
+        r['t'] = t
+
+methods = ['first', 'smallest', 'largest', 'agree_small', 'agree_large', 'tests_first', 'tests_agree']
+for k in (2, 3, 4, 5):
     tot = collections.Counter(); per = collections.defaultdict(collections.Counter)
     for t, rs in runs.items():
         combos = list(itertools.combinations(rs, k))
@@ -63,7 +87,13 @@ for k in (2, 3):
         per[t][f'oracle'] = exp(lambda c: any(x['ok'] for x in c))
         for m in methods:
             # 'first' over combos in all orders = random pick among non-empty
-            if m == 'first':
+            if m == 'tests_first':  # random among the non-breaking non-empty ones (all orders)
+                def tf(c):
+                    ne = [x for x in c if lines(x['patch'])]
+                    keep = [x for x in ne if not x['breaks']] or ne
+                    return sum(x['ok'] for x in keep) / len(keep) if keep else 0
+                per[t][m] = sum(tf(c) for c in combos) / len(combos)
+            elif m == 'first':
                 per[t][m] = sum(sum(x['ok'] for x in c if lines(x['patch'])) / max(1, sum(1 for x in c if lines(x['patch']))) if any(lines(x['patch']) for x in c) else 0 for c in combos) / len(combos)
             else:
                 per[t][m] = exp(lambda c: pick(list(c), m)['ok'])
