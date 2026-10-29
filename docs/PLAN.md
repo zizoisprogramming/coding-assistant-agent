@@ -32,6 +32,11 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
+### RUN BUILT: d40x2 = pub024 vs sk_a2_32, 2 passes on the 40 (2026-10-29, NEWEST — read first)
+- kaggle/cells_skill_d40x2 (only cell2 differs from u20): 160 runs, ~7.2 h wall / ~14.4 h quota (1 pass of both
+  ~3.6 h wall). Pass 1 completes before pass 2, so a STOP_NEW_TASKS_AFTER_H = quota/2 - 0.4 keeps a full pass 1.
+  Question: is pub024's ~+2 of 40 (fresh: 20 vs ~17-18) real?
+
 ### PACKED pub024 for the LB (2026-10-29): dist/submission.zip = dist/pub024.zip (public LB-0.24 package unchanged;
   validated: LlmAgent, 9 tools incl. the 3 graph tools, 4 files). User submits. Local: 20/40 fresh, never below ours.
   Expect anything in 0.12-0.26 (binomial); one score cannot rank it against sk_a2 (0.18) / sk_a2_32 (0.17).
