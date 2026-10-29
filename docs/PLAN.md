@@ -32,13 +32,26 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
+### RESULT r24: u20 = sk_a2_32 0/20 (376 s), sk_fr2 2/20 (420 s), pub024 2/20 (411 s) (2026-10-29, NEWEST — read first)
+- data/results/2026-10-29_skill_u20, 3.61 h. sk_fr2 solved rich_3506 (no review reached) and rich_4079 (review at
+  call 35, 0 reviewer edits) -> both by the fixer; reviewer edited in 2 runs (14371, 14964), both failed; 9/20 runs
+  never reached the review (fixer used the time). pub024: 14419, 3676. No reviewer rescue on the hard half.
+- Fresh totals on d40 (s20 r23 + u20 r24): sk_fr2 19, pub024 20; sk_a2_32 18 (r21). All arms tie.
+- Ceiling from 5 runs per d40 task: 13 always solved, 16 never, 11 sometimes (rates 0.2-0.8); ever solved 24/40,
+  expected per run 17.8. A clear lead must come from making the 11 "sometimes" tasks reliable (best-of-k + a good
+  selector: up to ~24) or from capability on the 16 "never" (most need hidden names / big features; LoRA v1 failed:
+  0/7 vs base 3/7 on dev16, 10-25).
+- Harness facts for a parallel design: README: ParallelAgent runs sub_agents concurrently in isolated branches
+  (conversation, not filesystem: one /workspace); swegemma default concurrency 1 (config.py); whether the LB scorer
+  runs tasks one at a time is UNVERIFIED (our "sequential scorer" note is an inference).
+
 ### LB: sk_a2_32 = 0.17 (sk_a2 0.18) (2026-10-29)
 - 0.17 vs 0.18 = ~1 task of 58. Binomial at ~10.5/58: sd 2.9 tasks (0.05); 90% of single scores fall in 7-15 tasks
   (0.12-0.26); P(one submission >= 0.24) = 0.15, so among 10 forks of a ~0.18 agent P(some 0.24) = 0.81.
   pub024 = our level on every local set (r18 3/8 vs sk_a2 4,3; s20 18 vs 17/18). The LB cannot rank our arms;
   only local sets of 40+ tasks with paired controls can.
 
-### RUN BUILT: u20 = the 20 d40 tasks unsolved in r20 and r21; sk_a2_32 (fresh control), sk_fr2, pub024 (2026-10-29, NEWEST — read first)
+### RUN BUILT: u20 = the 20 d40 tasks unsolved in r20 and r21; sk_a2_32 (fresh control), sk_fr2, pub024 (2026-10-29)
 - kaggle/cells_skill_u20 (only cell2 differs from s20_fr2_pub). Dev 4 (14419, 3180, 3470, 4079), val 8, test 8.
   60 runs, ~3.5 h wall / ~7 h quota. Fresh control needed: the set was picked as failures, a rerun regains some by
   luck. Question: does the reviewer rescue partial fixes / no-edit runs (r23: rich_3521)?
