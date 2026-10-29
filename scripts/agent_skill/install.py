@@ -4,6 +4,7 @@ import inspect
 import json
 import os
 import shutil
+import subprocess
 import sys
 import time
 
@@ -20,8 +21,33 @@ def workspace():
     sys.exit("agent tool: repository not found")
 
 
+def install_stdin_guard(ws):
+    """Copy stdin_guard.py (next to this script) into the sandbox venv with a .pth that loads it, so a script that
+    asks for input gets end-of-input after 2 s instead of hanging until the 240 s command timeout. Best effort."""
+    src = os.path.join(os.path.dirname(os.path.abspath(__file__)), "stdin_guard.py")
+    if not os.path.exists(src):
+        return
+    roots = {os.environ.get("VIRTUAL_ENV") or "", sys.prefix, os.path.join(os.path.dirname(ws), "venv")}
+    try:
+        out = subprocess.run(["python3", "-c", "import site, sys; print(sys.prefix)"], cwd=ws, capture_output=True,
+                             text=True, timeout=20).stdout.strip()
+        roots.add(out)
+    except Exception:  # noqa: BLE001
+        pass
+    import glob
+    for root in roots:
+        for sp in glob.glob(os.path.join(root, "lib", "python3*", "site-packages")) if root else []:
+            try:
+                shutil.copyfile(src, os.path.join(sp, "_agent_stdin_guard.py"))
+                with open(os.path.join(sp, "_agent_stdin_guard.pth"), "w") as f:
+                    f.write("import _agent_stdin_guard\n")
+            except OSError:
+                pass
+
+
 here = os.path.dirname(os.path.abspath(__file__))
 target = os.path.join(workspace(), ".git", "agent")
+install_stdin_guard(workspace())
 os.makedirs(target, exist_ok=True)
 shutil.copyfile(os.path.join(here, "a.py"), os.path.join(target, "a.py"))
 shutil.copyfile(os.path.join(here, "commands.txt"), os.path.join(target, "commands.txt"))
