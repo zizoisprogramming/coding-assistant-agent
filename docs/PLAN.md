@@ -32,6 +32,12 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
+### LB: sk_a2_32 = 0.17 (sk_a2 0.18) (2026-10-29)
+- 0.17 vs 0.18 = ~1 task of 58. Binomial at ~10.5/58: sd 2.9 tasks (0.05); 90% of single scores fall in 7-15 tasks
+  (0.12-0.26); P(one submission >= 0.24) = 0.15, so among 10 forks of a ~0.18 agent P(some 0.24) = 0.81.
+  pub024 = our level on every local set (r18 3/8 vs sk_a2 4,3; s20 18 vs 17/18). The LB cannot rank our arms;
+  only local sets of 40+ tasks with paired controls can.
+
 ### RUN BUILT: u20 = the 20 d40 tasks unsolved in r20 and r21; sk_a2_32 (fresh control), sk_fr2, pub024 (2026-10-29, NEWEST — read first)
 - kaggle/cells_skill_u20 (only cell2 differs from s20_fr2_pub). Dev 4 (14419, 3180, 3470, 4079), val 8, test 8.
   60 runs, ~3.5 h wall / ~7 h quota. Fresh control needed: the set was picked as failures, a rerun regains some by
