@@ -31,8 +31,8 @@ sys.path.insert(0, str(ROOT / "scripts/train"))
 import make_gen_cells as G  # noqa: E402
 from make_test_cells import must_replace  # noqa: E402
 
-OUT = ROOT / "kaggle/cells_skill_bo3_sa2"
-ARMS = ["bo3", "sa2"]  # bo3 alone = kaggle/cells_skill_bo3 (stopped after 8 tasks, 6 solved); e24x2 = pub024 vs sk_a2_32 (kaggle/cells_skill_e24x2); d40x2 (user: is pub024 really ahead?); u20 (r24) = kaggle/cells_skill_u20 with sk_fr2; s20 (r23) = kaggle/cells_skill_s20_fr2_pub; sk_fr2 alone = kaggle/cells_skill_s20_fr2; sk_fr = kaggle/cells_skill_s20_fr (r22 15/20); d40: sk_a2 = kaggle/cells_skill_d40 (17/40), sk_a2_32 = kaggle/cells_skill_d40_32 (18/40), pub024 = kaggle/cells_skill_d40_pub
+OUT = ROOT / "kaggle/cells_skill_sq2"
+ARMS = ["sq2"]  # bo3 + sa2 (r27) = kaggle/cells_skill_bo3_sa2; bo3 alone = kaggle/cells_skill_bo3 (stopped after 8 tasks, 6 solved); e24x2 = pub024 vs sk_a2_32 (kaggle/cells_skill_e24x2); d40x2 (user: is pub024 really ahead?); u20 (r24) = kaggle/cells_skill_u20 with sk_fr2; s20 (r23) = kaggle/cells_skill_s20_fr2_pub; sk_fr2 alone = kaggle/cells_skill_s20_fr2; sk_fr = kaggle/cells_skill_s20_fr (r22 15/20); d40: sk_a2 = kaggle/cells_skill_d40 (17/40), sk_a2_32 = kaggle/cells_skill_d40_32 (18/40), pub024 = kaggle/cells_skill_d40_pub
 # the winnable dev16 tasks: tier 1 (mix 55-95%) + tier 2 (14-35% over all arms); the other 9 were 0 in ~150 runs
 WINNABLE7 = ["rich_3882", "fastapi_15589", "fastapi_11194", "rich_4079", "rich_3521", "fastapi_14419", "rich_3470"]
 SPLITS = json.load(open(ROOT / "data/splits_public.json"))
@@ -51,7 +51,7 @@ SOLVED_U20 = sorted({r["instance_id"] for r in map(json.loads, open(ROOT / "data
                      if r["resolved"]})
 TASKS = sorted(SOLVED_D40 + SOLVED_U20)  # d40x2: D40, u20: UNSOLVED_D40, s20: SOLVED_D40
 PASSES = 1  # bo3: one pass at concurrency 1 (the LB runs tasks one at a time)
-CONCURRENCY = 1  # bo3: like the LB scorer (sequential); 3 fixers share the GPU per task
+CONCURRENCY = 2  # sq2: as the single-agent e24 runs it is compared with (r25 pub024 14, sk_a2_32 15); bo3 used 1
 PASS2_IF_BEATS = None  # e24x2: ("pub024", "sk_a2_32"); user (e24x2): pass 2 only if pass 1 of the first arm solved MORE than the second; None = off
 EARLY_STOP_MAX = 3  # user: after pass 1, an arm that solved 3 or fewer stops (mix: 3.67 per pass)
 

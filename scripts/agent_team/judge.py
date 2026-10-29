@@ -26,8 +26,28 @@ import sys
 import tempfile
 import time
 
-HERE = os.path.dirname(os.path.abspath(__file__))  # <repo>/.git/agent
-WS = os.path.dirname(os.path.dirname(HERE))
+MODE = None  # make_skill_arms.py writes next.py / pick.py (skill scripts, no arguments) with MODE "next" / "pick"
+
+
+def _workspace():
+    """The repository root: this file's grandparent when it runs as <repo>/.git/agent/judge.py; as a skill script the
+    wrapper chdirs into a temp dir, so look for the directory it started in."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    if os.path.basename(here) == "agent" and os.path.basename(os.path.dirname(here)) == ".git":
+        return os.path.dirname(os.path.dirname(here))
+    import inspect
+    for frame in inspect.stack():
+        cwd = frame.frame.f_locals.get("_orig_cwd")
+        if isinstance(cwd, str) and os.path.isdir(os.path.join(cwd, ".git")):
+            return cwd
+    for cand in (os.environ.get("PYTHONPATH", "").split(os.pathsep)[0], "/workspace", os.getcwd()):
+        if cand and os.path.isdir(os.path.join(cand, ".git")):
+            return cand
+    return os.getcwd()
+
+
+WS = _workspace()
+HERE = os.path.join(WS, ".git", "agent")
 TEAM = os.path.join(HERE, "team.json")
 WAIT_UNTIL = 300  # seconds after setup: stop waiting for B and C (they may still be editing; their patch counts)
 SECOND_BEFORE = 240  # sa2: a second attempt only starts before this many seconds after setup (8 min wall, ~12 h LB)
@@ -137,7 +157,7 @@ def judge(wait=True):
     try:
         t0 = json.load(open(TEAM))["t0"]
     except Exception:  # noqa: BLE001
-        t0 = t_start
+        t0 = start_time() or t_start
     roots = {"a": WS}
     for x in "bc":
         p = os.path.join(HERE, f"wt_{x}")
@@ -227,24 +247,49 @@ def judge(wait=True):
     return "\n".join(lines)
 
 
-def next_step():
-    """sa2: the first fix is done; is there time for an independent second attempt?"""
+def start_time():
+    """Setup time (team.json) or else the harness's baseline commit (tagged when the sandbox starts)."""
     try:
-        t0 = json.load(open(TEAM))["t0"]
+        return json.load(open(TEAM))["t0"]
     except Exception:  # noqa: BLE001
-        return "SUBMIT NOW: run submit_patch."
+        code, out, _ = sh(["git", "log", "-1", "--format=%ct", "_swegemma_baseline"], WS)
+        return float(out.strip()) if code == 0 and out.strip() else None
+
+
+def worktree(name):
+    """A clean copy of the baseline at .git/agent/<name> (git worktree)."""
+    import shutil
+    path = os.path.join(HERE, name)
+    if os.path.exists(os.path.join(path, ".git")):
+        return True
+    shutil.rmtree(path, ignore_errors=True)
+    return sh(["git", "worktree", "add", "--detach", "-f", path, ref()], WS)[0] == 0
+
+
+def next_step():
+    """sa2: the first fix is done; is there time for an independent second attempt? Sets up what the judge needs (no
+    setup call the model could skip): .git/agent/judge.py (for the second fixer's 'done b'), wt_0 and wt_b."""
+    import shutil
+    os.makedirs(HERE, exist_ok=True)
+    if os.path.abspath(__file__) != os.path.join(HERE, "judge.py"):
+        src = open(os.path.abspath(__file__)).read().replace(f"MODE = {MODE!r}", "MODE = None", 1)
+        with open(os.path.join(HERE, "judge.py"), "w") as f:
+            f.write(src)
+    t0 = start_time()
+    if t0 is None:
+        return "SUBMIT NOW (start time unknown): your next call is submit_patch."
     used = int(time.time() - t0)
-    if not patch_of(WS).strip():
-        return (f"NO PATCH YET ({used} s used): make your best edit in /workspace now, then run "
-                f"python3 .git/agent/judge.py next again.")
-    if used < SECOND_BEFORE and os.path.exists(os.path.join(HERE, "wt_b", ".git")):
-        return (f"SECOND ATTEMPT ({used} s used, time left): your next call is the tool second_fixer with request "
-                f"\"fix the issue\". It fixes the issue again, independently, in its own copy. When it returns, run "
-                f"python3 .git/agent/judge.py --no-wait")
+    empty = not patch_of(WS).strip()
+    if used < SECOND_BEFORE + (60 if empty else 0) and worktree("wt_0") and worktree("wt_b"):
+        return (f"SECOND ATTEMPT ({used} s used, time left{'; the first attempt made no patch' if empty else ''}): your "
+                f"next call is the tool second_fixer with request \"fix the issue\". It fixes the issue again, "
+                f"independently, in its own copy. When it returns, your next call is run_skill_script with skill_name "
+                f"team and file_path scripts/pick.py")
     return f"SUBMIT NOW ({used} s used, no time for a second attempt): your next call is submit_patch."
 
 
 def main(argv):
+    argv = [MODE] if MODE == "next" else ["--no-wait"] if MODE == "pick" else argv
     if argv[:1] == ["next"]:
         return next_step()
     if argv[:1] == ["--no-wait"]:

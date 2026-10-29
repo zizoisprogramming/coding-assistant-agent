@@ -50,6 +50,7 @@
            2026-10-29, after sk_a2n / sk_a2nr 3/8: keep only the cushion, so edits at calls 29-32 are not refused)
   sk_a2b   sk_a2_32 with batched reading (a.py batch: up to 3 places per show, 3 terms per find, one look per call)
   sk_fr    SequentialAgent [fixer -> reviewer] on sk_a2: fixer told 20 calls, reviewer (fresh context) told 6; 34 real
+  sq2      sa2 by structure: SequentialAgent [fixer (never submits), finisher (next.py, second_fixer, pick.py, submit)]
   sa2      one pub024-style agent + an independent second attempt (agent_tool in a git worktree) when time is left
   bo3      best of three: 3 parallel pub024-style fixers (A in /workspace, B / C in git worktrees), A's judge picks
   sk_fr2   sk_fr, fixer hands over with a.py handover (PATCH IN PLACE event), reviewer = a.py review + one decision, told 3
@@ -1624,6 +1625,129 @@ def sa2(arm):
 SA2_ARMS = ("sa2",)
 
 
+# sq2 (user 2026-10-29, after r27: sa2's lead skipped its setup call in 24/24 tasks and its finish steps in 19/24, so
+# no second attempt ever ran): the same idea by STRUCTURE, as the fixer -> reviewer runs showed the model follows it
+# (handover 16-18 of 20). Root SequentialAgent [fixer, finisher]: the fixer (pub024 procedure) never submits and ends
+# with a plain-text summary; the finisher (include_contents none, tiny) runs the skill script next.py (makes the
+# copies itself; start time = the harness's baseline commit), calls second_fixer if told SECOND ATTEMPT, runs pick.py
+# and submits. Skill scripts, not .git/agent files: nothing to set up first.
+HEAD_SQ_FIX = """You are an autonomous software engineer. Your job: make the smallest correct change to the SOURCE code in
+/workspace so that the hidden tests for the issue pass. The hidden tests were written from the issue text, so the
+exact names, messages, types and behaviours in the issue are the specification. When you finish, a teammate checks
+your patch and submits it: you never call submit_patch.
+
+# LIMITS
+- 24 tool calls. An edit that exists in /workspace counts even if time runs out; an unedited tree scores zero. You
+  must have edited a source file by call 12: if unsure, make your best-guess edit in the most likely place; a wrong
+  edit can still be corrected.
+- Never create, modify or delete test files (test_*.py, *_test.py, anything under tests/, pytest.ini, conftest.py).
+- Scratch files go in /tmp or .git/agent/ only: any other file left under /workspace becomes part of the patch.
+- Never run a full test suite: always name one test file, and add -k when you can.
+- Never use search_similar_code, get_code_neighbors or get_code_subgraph: they return nothing useful.
+
+# CALL PLAN
+- Calls 1-8: locate and read. Calls 9-12: edit.
+- Then: write your repro script and run it once; one related test file; fix once if needed.
+- Then FINISH.
+
+# PROCEDURE
+1. Before any tool call, list for yourself the exact file, function, class or CLI name; the exact error message and
+   exception type; the expected return value or output; the inputs that trigger the bug; every edge case mentioned.
+   Every concrete string and name in the issue is a literal that must appear exactly in your code.
+2. Locate. Use exact paths from the issue directly. Combine independent searches for the issue's exact symbols,
+   their callers and relevant tests in one run_command: git grep -n -F "symbol" and git ls-files, about 20 lines of
+   output each. Then read the implementation plus one caller or test, about 40 lines per region, at most three regions
+   per command (sed -n 'START,ENDp' FILE). For a bug, find where the wrong behaviour is produced; for a feature, copy
+   the closest existing sibling, including __all__, option lists, dispatch tables and imports.
+3. Edit with edit_file: copy old_string exactly, short and unique. If it fails twice, use one inline python script
+   through run_command (quoted heredoc) that asserts the old text occurs once, replaces it and writes the file. Fix
+   the cause, not the symptom. Change only what the issue requires and keep signatures and defaults. Apply the change
+   to every parallel implementation (sync and async, each backend, re-exports in __init__.py or __all__). Use the
+   exact exception class and message text from the issue. For FastAPI documentation tasks, edit docs_src/.
+4. Repro script: write_file .git/agent/repro_a.py, a short python script that shows the issue's behaviour: it must
+   EXIT WITH AN ERROR (assert or raise) while the bug is there and exit 0 once it is fixed, printing FIXED or BUG.
+   Import the package normally. Run it once: timeout 30 python3 .git/agent/repro_a.py
+5. If one related test file exists, run it once: timeout 150 python -m pytest tests/path/test_x.py -x -q -k keyword
+   Failures from missing fixtures or unrelated imports are pre-existing: ignore them.
+
+# FINISH
+1. git status --short && git diff in one call: remove any scratch file in /workspace, restore any changed test file
+   with git checkout -- path.
+2. Reply with plain text and NO tool call: one line saying what you changed and where. That reply hands over to
+   your teammate.
+
+# DECISION RULES
+- Ambiguous issue: choose the most literal reading and act on it. Never ask questions.
+- Several possible places: pick where the wrong behaviour is produced, not where it is observed.
+- Stuck after a failed fix: make a different, smaller change. Never repeat the same edit.
+- Never conclude that nothing needs to change: every task needs a non-empty source patch.
+"""
+HEAD_SQ_FINISH = """You finish this task: an engineer has just fixed the issue in /workspace (the last message says what
+changed). You may get a second, independent attempt and keep the better patch, then you submit. You do not read or
+edit code yourself.
+
+Your calls, in this order:
+1. run_skill_script with skill_name team and file_path scripts/next.py
+2. If it printed SECOND ATTEMPT: call the tool second_fixer with request "fix the issue"; when it returns,
+   run_skill_script with skill_name team and file_path scripts/pick.py
+   If it printed SUBMIT NOW: skip this step.
+3. submit_patch. Then reply with one sentence and make no further tool calls.
+"""
+
+
+def sq2(arm):
+    out = ROOT / "submissions" / arm
+    shutil.rmtree(out, ignore_errors=True)
+    (out / "prompts").mkdir(parents=True)
+    (out / "configs").mkdir()
+    shutil.copy(ROOT / "submissions/pub024/configs/sampling.yaml", out / "configs/sampling.yaml")
+    (out / "configs/sampling_second.yaml").write_text(SA2_SECOND_SAMPLING)
+    ev = (ROOT / "submissions/pub024/eval_config.yaml").read_text()
+    for old, new in (("max_tool_calls: 28", f"max_tool_calls: {SA2_CALLS}"), ("max_turns: 80", f"max_turns: {SA2_TURNS}")):
+        assert ev.count(old) == 1, old
+        ev = ev.replace(old, new)
+    (out / "eval_config.yaml").write_text(ev)
+    (out / "agent.yaml").write_text(f"""# {arm}: SequentialAgent [fixer, finisher] (scripts/make_skill_arms.py sq2): the fixer (pub024 procedure) never
+# submits and hands over in plain text; the finisher runs next.py, second_fixer (agent_tool, own copy) if there is
+# time, pick.py, and submits.
+name: swe_agent
+agent_class: SequentialAgent
+sub_agents:
+  - config_path: fixer.yaml
+  - config_path: finisher.yaml
+""")
+    tools = ("  - run_command\n  - read_file\n  - edit_file\n  - write_file\n  - get_status\n"
+             "  - submit_patch  # declared on all: the harness task message names it; an undeclared call drops the patch\n")
+    (out / "fixer.yaml").write_text("name: fixer\nmodel: gemma-4-31b-it-qat-w4a16-ct\ninstruction: !include prompts/fixer.md\n"
+                                    "tools:\n" + tools + "  - get_code_neighbors\n  - search_similar_code\n  - get_code_subgraph\n"
+                                    "generate_content_config: !include configs/sampling.yaml\n")
+    (out / "finisher.yaml").write_text("name: finisher\nmodel: gemma-4-31b-it-qat-w4a16-ct\ninstruction: !include prompts/finisher.md\n"
+                                       "include_contents: none  # fresh: its context starts at the fixer's hand-over line\n"
+                                       "tools:\n" + tools + "  - agent_tool:\n      config_path: second.yaml\n"
+                                       "skills:\n  - skills/team\ngenerate_content_config: !include configs/sampling.yaml\n")
+    (out / "second.yaml").write_text(SA2_SECOND_YAML.replace("only when judge.py next says SECOND ATTEMPT",
+                                                             "only when scripts/next.py says SECOND ATTEMPT"))
+    for name, text in (("fixer", HEAD_SQ_FIX), ("finisher", HEAD_SQ_FINISH), ("second", HEAD_SECOND)):
+        rest = text.replace("{problem_description}", "")
+        assert "{" not in rest and "}" not in rest, f"{name}: literal braces break ADK instruction templating"
+        (out / f"prompts/{name}.md").write_text(text)
+    sk = out / "skills/team"
+    (sk / "scripts").mkdir(parents=True)
+    (sk / "SKILL.md").write_text("---\nname: team\ndescription: The finisher's scripts. run_skill_script with skill_name team "
+                                 "and file_path scripts/next.py (second attempt or not), later scripts/pick.py (keep the "
+                                 "better patch). No arguments.\n---\n\nscripts/next.py: SECOND ATTEMPT or SUBMIT NOW. "
+                                 "scripts/pick.py: compares the two patches and leaves the better one in /workspace.\n")
+    judge = (TEAM_SRC / "judge.py").read_text()
+    assert judge.count("MODE = None  #") == 1
+    for mode in ("next", "pick"):
+        (sk / f"scripts/{mode}.py").write_text(judge.replace("MODE = None  #", f"MODE = {mode!r}  #", 1))
+    print("wrote", out.relative_to(ROOT), "| fixer", len(HEAD_SQ_FIX.split()), "words, finisher", len(HEAD_SQ_FINISH.split()),
+          f"words | max_tool_calls {SA2_CALLS} max_turns {SA2_TURNS}")
+
+
+SQ2_ARMS = ("sq2",)
+
+
 # arm -> (fixer prompt, reviewer prompt, a.py commands)
 FIXER_REVIEWER = {"sk_fr": ("HEAD_FIXER", "HEAD_REVIEWER", "find outline show banner reshow"),
                   "sk_fr2": ("HEAD_FIXER2", "HEAD_REVIEWER2", "find outline show banner reshow handoff handover review")}
@@ -1663,7 +1787,7 @@ def install_first(arm):
 
 def main():
     import sys
-    wanted = sys.argv[1:] or list(ARMS) + list(VARIANTS) + list(CALL_VARIANTS) + list(INSTALL_FIRST) + list(SAMPLING_VARIANTS) + list(FIXER_REVIEWER) + list(TEAM_ARMS) + list(SA2_ARMS)
+    wanted = sys.argv[1:] or list(ARMS) + list(VARIANTS) + list(CALL_VARIANTS) + list(INSTALL_FIRST) + list(SAMPLING_VARIANTS) + list(FIXER_REVIEWER) + list(TEAM_ARMS) + list(SA2_ARMS) + list(SQ2_ARMS)
     for arm in [a for a in wanted if a in VARIANTS]:
         variant(arm)
     for arm in [a for a in wanted if a in CALL_VARIANTS]:
@@ -1680,10 +1804,12 @@ def main():
         team(arm)
     for arm in [a for a in wanted if a in SA2_ARMS]:
         sa2(arm)
+    for arm in [a for a in wanted if a in SQ2_ARMS]:
+        sq2(arm)
     for arm, cmds in ((a, ARMS[a]) for a in wanted if a not in VARIANTS and a not in CALL_VARIANTS
                               and a not in INSTALL_FIRST and a not in SAMPLING_VARIANTS and a not in CUSHION
                               and a not in FIXER_REVIEWER and a not in TEAM_ARMS
-                              and a not in SA2_ARMS):
+                              and a not in SA2_ARMS and a not in SQ2_ARMS):
         out = ROOT / "submissions" / arm
         shutil.rmtree(out, ignore_errors=True)
         (out / "prompts").mkdir(parents=True)

@@ -1,0 +1,8 @@
+# sq2: SequentialAgent [fixer, finisher] (scripts/make_skill_arms.py sq2): the fixer (pub024 procedure) never
+# submits and hands over in plain text; the finisher runs next.py, second_fixer (agent_tool, own copy) if there is
+# time, pick.py, and submits.
+name: swe_agent
+agent_class: SequentialAgent
+sub_agents:
+  - config_path: fixer.yaml
+  - config_path: finisher.yaml

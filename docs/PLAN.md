@@ -32,6 +32,23 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
+### RESULT r27 (bo3 + sa2 on e24, concurrency 1, 3.85 h) and RUN BUILT: sq2 (2026-10-29, NEWEST — read first)
+- data/results/2026-10-29_skill_bo3_sa2. bo3 13/24, mean 251 s, 11/24 ended 'sandbox' = the ParallelAgent compaction
+  crash (patch dropped); judge picked A in 9 (all solved). -> ParallelAgent is out.
+- sa2 18/24, mean 306 s, 5 time ends: the lead NEVER ran its setup call (0/24, went straight to git grep) and ran
+  judge.py next in only 5/24, submitting directly in the rest -> no second attempt ever ran; 18 = a single agent
+  with the new prompt (single-agent e24 readings 14-20, mean 16.9).
+- sq2 = the same idea by structure: SequentialAgent [fixer (pub024 procedure, repro_a.py, never submits, ends with a
+  plain-text line), finisher (include_contents none; run_skill_script team scripts/next.py -> SECOND ATTEMPT ->
+  second_fixer agent_tool -> scripts/pick.py -> submit_patch)]. next.py / pick.py = judge.py with MODE "next" /
+  "pick" as skill scripts (no setup to forget): next.py copies itself to .git/agent/judge.py (for the second
+  fixer's 'done b'), makes wt_0 / wt_b, start time = git log -1 _swegemma_baseline (tagged at sandbox start); a
+  second attempt when < 240 s used (300 s if the first made no patch).
+- Sim: 14786 fixer wrong edit -> next.py SECOND ATTEMPT -> second_fixer (max_tokens 4096) gold in wt_b -> pick.py
+  WINNER B -> patch = gold; 15588 -> A. pack.py OK.
+- kaggle/cells_skill_sq2 (only cell2 differs from bo3_sa2): sq2 alone on e24, 1 pass, CONCURRENCY 2 (as the single-
+  agent e24 readings), ~1.6 h wall / ~3.2 h quota.
+
 ### RUN BUILT: bo3 (budget 300) + sa2 on e24, 1 pass, concurrency 1 (2026-10-29, NEWEST — read first)
 - User: bo3 had 6/8 solved when stopped -> rerun it, with max_tool_calls 300 / max_turns 400 (100 ran out from judge
   polling); the ParallelAgent compaction crash stays (to measure). Plus option 2 = sa2.

@@ -1,0 +1,12 @@
+name: second_fixer
+description: Fixes the issue again, independently, in its own copy of the repository (.git/agent/wt_b). Call it with request "fix the issue" only when scripts/next.py says SECOND ATTEMPT.
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/second.md
+tools:
+  - run_command
+  - read_file
+  - edit_file
+  - write_file
+  - get_status
+  - submit_patch  # declared so a habitual call never raises; the prompt says never
+generate_content_config: !include configs/sampling_second.yaml
