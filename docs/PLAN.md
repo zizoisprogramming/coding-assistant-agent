@@ -40,7 +40,9 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
 - So best-of-3 with a naive pick = +1.7; most of it is "never keep an empty patch when another attempt edited"
   (rich_3521, rich_4075: 0.4 -> 0.9). Agreement adds ~0.1. The remaining 2.5 (to the oracle) needs an execution
   signal (existing tests / repro) - not measurable offline here (local grading has no pip; needs a sandbox).
-- Cost caveat: k parallel fixers = k x tokens; only near-free if the LB scorer runs one task at a time (UNVERIFIED).
+- Cost: k parallel fixers = k x tokens. VERIFIED (forum 743063, host Ryan Holbrook): "Sequentially" - the LB scorer
+  runs one task at a time, so the GPU serves 1 sequence most of the time and parallel attempts batch in vLLM.
+  Local parallel arms must run at CONCURRENCY 1 to match.
 
 ### RESULT r24: u20 = sk_a2_32 0/20 (376 s), sk_fr2 2/20 (420 s), pub024 2/20 (411 s) (2026-10-29)
 - data/results/2026-10-29_skill_u20, 3.61 h. sk_fr2 solved rich_3506 (no review reached) and rich_4079 (review at
