@@ -32,7 +32,18 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
-### OFFLINE PICKER CHECK (scripts/picker_offline.py, no GPU) (2026-10-29, NEWEST — read first)
+### RUN BUILT: test-signal CPU notebook (kaggle/cells_testsignal) (2026-10-29, NEWEST — read first)
+- Question: does "the EXISTING tests of the changed modules still pass" pick the solved patch (picker 19.5 -> ~22?).
+- scripts/train/make_testsignal_cells.py: per d40 task, baseline (no patch) + reference patch (calibration: existing
+  tests may assert the OLD behaviour, e.g. rich_3470) + 117 distinct candidate patches from the 8 arm-runs, each through
+  the harness's verify_task with a SelTask (test_patch '' and test_files = up to 4 existing tests/ files that import a
+  changed module or are named after it). rows.jsonl: ok / exit / passed / failed / errors per run, + hidden 'resolved'.
+- Candidates = data/testsignal/candidates.jsonl (local, gitignored) uploaded as the PRIVATE dataset
+  ziad23samer/testsignal-candidates. Inputs: competition, wheelhouse, gold-check output (ziad23samer/test-gemma-comp,
+  test_deps_wheels), that dataset. CPU, internet off, ~200 runs x ~20 s = ~1.1 h. Local dry run (2 tasks): selection
+  works (rich/prompt.py -> tests/test_prompt.py), tests not run locally (sandbox venv has no pytest: local env only).
+
+### OFFLINE PICKER CHECK (scripts/picker_offline.py, no GPU) (2026-10-29)
 - 5 runs per d40 task (r20, r21, r22 / r23, r24). Expected solved of 40 when picking 1 of k random runs' patches:
   k=2: pass@1 17.8, oracle 20.5, any non-empty 19.0, smallest 19.0, agreement 19.0.
   k=3: oracle 22.1, any non-empty 19.5, smallest 19.3, largest 18.9, agreement (Jaccard of changed lines, small
