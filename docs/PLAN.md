@@ -32,7 +32,19 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
-### RESULT test signal (CPU, ziad23samer/test-signal-cpu) (2026-10-29, NEWEST — read first)
+### RUN BUILT: repro signal CPU notebook (kaggle/cells_repro) (2026-10-29, NEWEST — read first)
+- The agents' own scripts as a "fixed?" signal: 333 distinct scripts (write_file .py in /tmp|.git/agent, python3 - <<
+  heredocs) for 39 d40 tasks, from the request logs of the 8 arm-runs (no new GPU run needed) -> data/testsignal/
+  scripts.jsonl, uploaded as a new version of the private dataset ziad23samer/testsignal-candidates.
+- scripts/train/make_repro_cells.py: per task, every script runs (20 s, no stdin, PYTHONPATH=repo, PYTHONSAFEPATH
+  removed) against no patch / reference / each distinct candidate, via verify_task with test_patch = a new file
+  tests/test_zz_probe.py that writes results/repro/<task>__<variant>.json (exit, last 400 chars of out/err).
+- Local check (rich_3882, real repo + pytest): without the import fix every script failed (No module named 'rich');
+  fixed. Most scripts PRINT rather than assert (exit 0 either way), but 7/10 change their output with the reference
+  fix, often "FIXED" / "NOT REPRODUCED" markers -> analyse exit + changed output + markers.
+- Same inputs and cell1/cell2 as cells_testsignal; ~2-3 h CPU.
+
+### RESULT test signal (CPU, ziad23samer/test-signal-cpu) (2026-10-29)
 - data/results/2026-10-29_testsignal: 39 tasks with selected existing tests (fastapi_14786: none found); baseline
   passes in 38 (14953 fails already); the REFERENCE fix breaks existing tests in 3 (14492, 14609, rich_3470: the old
   behaviour is asserted).
