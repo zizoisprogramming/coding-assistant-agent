@@ -31,8 +31,8 @@ sys.path.insert(0, str(ROOT / "scripts/train"))
 import make_gen_cells as G  # noqa: E402
 from make_test_cells import must_replace  # noqa: E402
 
-OUT = ROOT / "kaggle/cells_skill_e24x2"
-ARMS = ["pub024", "sk_a2_32"]  # d40x2 (user: is pub024 really ahead?); u20 (r24) = kaggle/cells_skill_u20 with sk_fr2; s20 (r23) = kaggle/cells_skill_s20_fr2_pub; sk_fr2 alone = kaggle/cells_skill_s20_fr2; sk_fr = kaggle/cells_skill_s20_fr (r22 15/20); d40: sk_a2 = kaggle/cells_skill_d40 (17/40), sk_a2_32 = kaggle/cells_skill_d40_32 (18/40), pub024 = kaggle/cells_skill_d40_pub
+OUT = ROOT / "kaggle/cells_skill_bo3"
+ARMS = ["bo3"]  # e24x2 = pub024 vs sk_a2_32 (kaggle/cells_skill_e24x2); d40x2 (user: is pub024 really ahead?); u20 (r24) = kaggle/cells_skill_u20 with sk_fr2; s20 (r23) = kaggle/cells_skill_s20_fr2_pub; sk_fr2 alone = kaggle/cells_skill_s20_fr2; sk_fr = kaggle/cells_skill_s20_fr (r22 15/20); d40: sk_a2 = kaggle/cells_skill_d40 (17/40), sk_a2_32 = kaggle/cells_skill_d40_32 (18/40), pub024 = kaggle/cells_skill_d40_pub
 # the winnable dev16 tasks: tier 1 (mix 55-95%) + tier 2 (14-35% over all arms); the other 9 were 0 in ~150 runs
 WINNABLE7 = ["rich_3882", "fastapi_15589", "fastapi_11194", "rich_4079", "rich_3521", "fastapi_14419", "rich_3470"]
 SPLITS = json.load(open(ROOT / "data/splits_public.json"))
@@ -50,9 +50,9 @@ UNSOLVED_D40 = [t for t in D40 if t not in SOLVED_D40]
 SOLVED_U20 = sorted({r["instance_id"] for r in map(json.loads, open(ROOT / "data/results/2026-10-29_skill_u20/results/gen_per_task.jsonl"))
                      if r["resolved"]})
 TASKS = sorted(SOLVED_D40 + SOLVED_U20)  # d40x2: D40, u20: UNSOLVED_D40, s20: SOLVED_D40
-PASSES = 2  # d40x2: 2 passes x 2 arms x 40 tasks = 160 runs; pass 1 completes before pass 2 starts
-CONCURRENCY = 2
-PASS2_IF_BEATS = ("pub024", "sk_a2_32")  # user (e24x2): pass 2 only if pass 1 of the first arm solved MORE than the second; None = off
+PASSES = 1  # bo3: one pass at concurrency 1 (the LB runs tasks one at a time)
+CONCURRENCY = 1  # bo3: like the LB scorer (sequential); 3 fixers share the GPU per task
+PASS2_IF_BEATS = None  # e24x2: ("pub024", "sk_a2_32"); user (e24x2): pass 2 only if pass 1 of the first arm solved MORE than the second; None = off
 EARLY_STOP_MAX = 3  # user: after pass 1, an arm that solved 3 or fewer stops (mix: 3.67 per pass)
 
 
@@ -164,6 +164,12 @@ for arm in ARMS:
               f"{sum(1 for x in d if x.get('call1_wrong'))} | pip {m('pip'):.1f} | repro {m('repro'):.1f} pytest {m('pytest'):.1f} | edited {len(fe)}/{len(d)}, median "
               f"first edit at call {fe[len(fe) // 2] if fe else '-'} | compactions {m('compactions'):.1f} | model "
               f"{m('model_s'):.0f}s + tools {m('tool_s'):.0f}s")
+        jw = [x for x in d if x.get('winner_a') or x.get('winner_b') or x.get('winner_c')]
+        if jw or any(x.get('judge_waits') for x in d):  # bo3: best of three
+            for w in 'abc':
+                ws_ = [x for x in jw if x.get('winner_' + w)]
+                print(f"  {arm:8} JUDGE picked {w.upper()} in {len(ws_)} runs (solved {sum(1 for x in ws_ if x.get('resolved'))})")
+            print(f"  {arm:8} judge reached in {len(jw)}/{len(d)} runs | waits per run {sum(x.get('judge_waits') or 0 for x in d) / len(d):.1f}")
         rv = [x for x in d if x.get('review_at')]
         if rv or any(x.get('fixer_submit') for x in d):  # sk_fr: fixer -> reviewer
             sv = lambda xs: sum(1 for x in xs if x.get('resolved'))
@@ -228,6 +234,10 @@ def _digest(job, messages, resp, seconds):
         d['pingpong'] += 'PING-PONG:' in out
         d['handoff_seen'] += 'PATCH IN PLACE' in out
         d['revert_lines'] += out.count('REVERT ')
+        d['judge_waits'] += 'WAITING: Fixer' in out  # bo3: the judge asked Fixer A to come back
+        _w = re.search(r'WINNER: ([ABC])\b', out)
+        if _w:
+            d['winner_' + _w.group(1).lower()] += 1
         d['edit_fail'] += any(k in out for k in ('FileEditError', 'old_string not found', 'REPLACE FAILED'))
     r = _dump(resp)
     usage = r.get('usage') or {}
@@ -310,7 +320,8 @@ def digest_row(job, agent_s):
     keys = ('install', 'install_at', 'find', 'outline', 'show', 'note', 'pin', 'impact', 'check', 'a_other', 'raw_read',
             'read_file', 'pre_edit_runs', 'plan', 'blocked', 'debug_flag', 'replace', 'run', 'callers', 'pingpong', 'where_at', 'edit_fail', 'refused', 'reshown', 'banner', 'stop_banner', 'pip', 'call1_wrong', 'repro', 'pytest', 'edit_file', 'write_file', 'first_edit', 'compactions',
             'max_prompt', 'out_tokens', 'model_calls', 'tool_calls', 'get_status', 'submit_patch', 'digest_errors',
-            'review_at', 'review_calls', 'review_edits', 'fixer_submit', 'handover', 'review', 'handoff_seen', 'revert_lines')
+            'review_at', 'review_calls', 'review_edits', 'fixer_submit', 'handover', 'review', 'handoff_seen', 'revert_lines',
+            'judge_waits', 'winner_a', 'winner_b', 'winner_c')
     row = {k: d[k] for k in keys}
     row.update(model_s=round(model_s), tool_s=round(max(agent_s - model_s, 0)),
                model_s_per_call=round(model_s / max(d['model_calls'], 1), 1),
@@ -327,7 +338,8 @@ def digest_line(r):
             f"edit_file/write_file {r['edit_file'] + r['write_file']}, first edit at call {r['first_edit'] or '-'} | "
             f"repro {r['repro']} pytest {r['pytest']} | compactions {r['compactions']} max prompt {r['max_prompt']} | "
             f"model {r['model_s']}s ({r['model_s_per_call']}s/call) tools {r['tool_s']}s ({r['tool_s_per_call']}s/call) "
-            f"| out tokens {r['out_tokens']}" + (f" | PATCH IN PLACE seen {r['handoff_seen']}x, a.py handover {r['handover']} review {r['review']}, REVERT lines {r['revert_lines']}" if r['handoff_seen'] or r['handover'] or r['review'] else '')
+            f"| out tokens {r['out_tokens']}" + (f" | JUDGE waits {r['judge_waits']}, winner " + ('A' if r['winner_a'] else 'B' if r['winner_b'] else 'C' if r['winner_c'] else 'none')
+                                              if r['judge_waits'] or r['winner_a'] or r['winner_b'] or r['winner_c'] else '') + (f" | PATCH IN PLACE seen {r['handoff_seen']}x, a.py handover {r['handover']} review {r['review']}, REVERT lines {r['revert_lines']}" if r['handoff_seen'] or r['handover'] or r['review'] else '')
             + (f" | REVIEW at call {r['review_at']}, {r['review_calls']} replies, {r['review_edits']} edits"
                                               if r['review_at'] else (' | fixer submitted itself' if r['fixer_submit'] else '')) + (f" | DIGEST ERRORS {r['digest_errors']}" if r['digest_errors'] else ''))
 print('DIGEST on: one line per run after its result line (results/digest.jsonl)')
@@ -343,7 +355,7 @@ def main():
     mode_line = next(l for l in c2.splitlines() if l.startswith("MODE = "))
     c2 = c2.replace(mode_line, "MODE = 'skill_arms'  # skill arms on a dev16 task set (make_skill_arms_cells.py)")
     c2 = must_replace(c2, "CONCURRENCY = 6  # full / retry: trial 2026-10-21: 40.9 attempts/h at 6 vs 31.4 at 4\n",
-                      f"CONCURRENCY = {CONCURRENCY}  # as mix's dev16 runs (rung 3e-3m): 2 at once, 8 min\n")
+                      f"CONCURRENCY = {CONCURRENCY}  # tasks at once (make_skill_arms_cells.py CONCURRENCY; the LB runs 1)\n")
     c2 = must_replace(c2, "STOP_NEW_TASKS_AFTER_H = 10.5  # Kaggle ends GPU sessions at 12 h; a task takes <= ~10 min\n",
                       "STOP_NEW_TASKS_AFTER_H = 10.5  # = min(10.5, this account's GPU quota in hours / 2 - 0.4): L4x4 bills 2x,\n"
                       "# a run ends within 8 min, Kaggle ends sessions at 12 h; a killed run loses its output\n")

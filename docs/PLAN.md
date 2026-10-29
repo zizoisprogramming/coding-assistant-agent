@@ -32,7 +32,28 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
-### RESULT repro signal (CPU, ziad23samer/fork-of-test-signal-cpu) (2026-10-29, NEWEST — read first)
+### RUN BUILT: bo3 = best of three (2026-10-29, NEWEST — read first)
+- submissions/bo3 (scripts/make_skill_arms.py team()): root ParallelAgent [fix_a, fix_b, fix_c], pub024 recipe
+  (tools incl. graph tools, sampling 0.2 / 0.95 / thinking 4096), prompts written fresh around pub024's procedure;
+  each fixer told 18 calls, edit by call 10, writes .git/agent/repro_<x>.py (exit != 0 while the bug is there).
+  Fixer A works in /workspace; B / C in git worktrees .git/agent/wt_b / wt_c (skill team, scripts/setup_<x>.py: the
+  three made at the same moment without conflicts). B / C finish with judge.py done <x>; A finishes with judge.py
+  (scripts/agent_team/judge.py) and submit_patch. eval_config: max_tool_calls 100, max_turns 240, 8 min.
+- Judge rules: non-empty source patch; drop patches that make more existing tests (<= 3 files importing the changed
+  modules, 60 s) fail than wt_0 (clean copy) does; best repro score (all fixers' scripts, 20 s each, no patch vs
+  candidate); ties -> A, then the smaller. Winner applied to /workspace (A's patch restored if apply fails).
+- HARNESS FACT: swegemma runs ONE tool call at a time per task (ctx.tool_lock, tools/base.py budget_gated); model
+  calls stay parallel. So the judge never waits inside a call: it answers WAITING at once until B and C are done or
+  WAIT_UNTIL = 300 s after setup; Fixer A re-runs it. (First version slept: the sim froze B for 140 s.)
+- Checked: local judge on the real rich_3882 repo (A harmless edit, B reference, C test-breaking): C dropped
+  (1 test failing), B repro score 1, WINNER B, repo = reference patch. Sim through the harness (SIM_CELLS=
+  cells_skill_bo3): 3 fixers each see only their own branch; WAITING -> judge -> WINNER B -> final patch = gold
+  (404 chars); NO_EDIT task -> A. Parallel-run end after A's submit = GeneratorExit noise (patch kept). pack.py OK.
+- kaggle/cells_skill_bo3: bo3 alone on e24 (24 ever-solved d40 tasks), 1 pass, CONCURRENCY 1 (like the LB);
+  cell2, cell3b (digest: judge waits, winner) and cell5 differ from e24x2. ~2.9 h wall / ~5.8 h quota.
+  Compare with pub024 on the same 24 (r23 + r24 + e24x2 readings, those at concurrency 2).
+
+### RESULT repro signal (CPU, ziad23samer/fork-of-test-signal-cpu) (2026-10-29)
 - data/results/2026-10-29_repro: 243 variants (39 baseline, 39 reference, 165 candidates), 1 without results.
   scripts/repro_signal.py: per script vs no patch: fixes (exit !=0 -> 0), breaks, changed output, marker score (more
   FIXED/PASS, fewer BUG/FAIL/Traceback). The reference changes ~3.9 scripts per task, "fixes" 0.74, score>0 in 22/39.

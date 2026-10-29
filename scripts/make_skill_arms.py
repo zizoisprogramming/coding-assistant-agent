@@ -50,6 +50,7 @@
            2026-10-29, after sk_a2n / sk_a2nr 3/8: keep only the cushion, so edits at calls 29-32 are not refused)
   sk_a2b   sk_a2_32 with batched reading (a.py batch: up to 3 places per show, 3 terms per find, one look per call)
   sk_fr    SequentialAgent [fixer -> reviewer] on sk_a2: fixer told 20 calls, reviewer (fresh context) told 6; 34 real
+  bo3      best of three: 3 parallel pub024-style fixers (A in /workspace, B / C in git worktrees), A's judge picks
   sk_fr2   sk_fr, fixer hands over with a.py handover (PATCH IN PLACE event), reviewer = a.py review + one decision, told 3
   sk_a2b2k sk_a2b with thinking 2048 instead of 4096 (r18: 4096 took ~18 s/call, 5 of 8 runs hit the 8 min wall)
            and the public LB-0.24 package's thinking 4096 / max output 8192 (user 2026-10-29: more steps in the same time;
@@ -61,6 +62,7 @@
 Each prompt is a full rewrite of mix's (same contract, decision rule, edit mechanics, hygiene, budgets, sampling).
 read_file stays declared: the harness task message names it, and an undeclared tool call ends the task.
 """
+import re
 import shutil
 from pathlib import Path
 
@@ -1283,6 +1285,174 @@ You have 3 tool calls (submit_patch is free). Every reply contains exactly one t
 """
 
 
+# bo3 (user 2026-10-29): best of three. Root ParallelAgent [fix_a, fix_b, fix_c] on the pub024 recipe (plain tools,
+# its sampling). Fixer A works in /workspace; B and C in git worktrees .git/agent/wt_b / wt_c (team setup scripts).
+# Each writes a repro script .git/agent/repro_<x>.py. B / C finish with judge.py done <x>; A finishes with judge.py
+# (waits for B / C or WAIT_UNTIL, drops patches that break existing tests, ranks by the repro scripts, copies the
+# winner into /workspace) and submits. Offline estimate (scripts/picker_offline.py): 17.8 -> ~20.3 of 40.
+TEAM_SRC = ROOT / "scripts/agent_team"
+TEAM_CALLS, TEAM_TURNS = 100, 240  # one budget for the three fixers (each told 18 calls) + the judge
+HEAD_TEAM = """You are Fixer @L@, one of three engineers who each fix the same issue at the same time, separately.
+Hidden tests, written from the issue text, run on the final patch: the exact names, messages, types and behaviours
+in the issue are the specification. Make the smallest correct change to the SOURCE code. @ROLE@
+
+# YOUR REPOSITORY
+@REPO@
+
+# LIMITS
+- You have 18 tool calls. You must have edited a source file by call 10: if unsure, make your best-guess edit in
+  the most likely place; a wrong edit can still be corrected, pure reading never scores.
+- Never create, modify or delete test files (test_*.py, *_test.py, anything under tests/, pytest.ini, conftest.py).
+- Never run a full test suite: always name one test file, and add -k when you can.
+- Never use search_similar_code, get_code_neighbors or get_code_subgraph: they return nothing useful.
+- @SUBMIT@
+
+# CALL PLAN
+- Call 1: run_skill_script with skill_name team and file_path scripts/setup_@l@.py, and nothing else.
+- Calls 2-8: locate and read. Calls 9-10: edit.
+- Next: write your repro script (below), run it once, fix once if needed. Then finish as described in FINISH.
+
+# PROCEDURE
+1. Before any tool call, list for yourself the exact file, function, class or CLI name; the exact error message and
+   exception type; the expected return value or output; the inputs that trigger the bug; every edge case mentioned.
+   Every concrete string and name in the issue is a literal that must appear exactly in your code.
+2. Locate. Use exact paths from the issue directly. Combine independent searches for the issue's exact symbols, their
+   callers and relevant tests in one run_command: git grep -n -F "symbol" and git ls-files, about 20 lines of output
+   each. Then read the implementation plus one caller or test, about 40 lines per region, at most three regions per
+   command (sed -n 'START,ENDp' FILE). For a bug, find where the wrong behaviour is produced; for a feature, copy the
+   closest existing sibling, including __all__, option lists, dispatch tables and imports.
+3. Edit with edit_file: copy old_string exactly, short and unique. If it fails twice, use one inline python script
+   through run_command (quoted heredoc) that asserts the old text occurs once, replaces it and writes the file. Fix
+   the cause, not the symptom. Change only what the issue requires and keep signatures and defaults. Apply the change
+   to every parallel implementation (sync and async, each backend, re-exports in __init__.py or __all__). Use the
+   exact exception class and message text from the issue. For FastAPI documentation tasks, edit docs_src/.
+4. Repro script: write_file .git/agent/repro_@l@.py, a short python script that shows the issue's behaviour: it must
+   EXIT WITH AN ERROR (assert or raise) while the bug is there and exit 0 once it is fixed, printing FIXED or BUG.
+   Import the package normally (no sys.path changes, no absolute paths). Run it once:
+   @RUN@
+5. If one related test file exists, run it once: @TEST@
+   Failures from missing fixtures or unrelated imports are pre-existing: ignore them.
+
+# FINISH
+@FINISH@
+
+# DECISION RULES
+- Ambiguous issue: choose the most literal reading and act on it. Never ask questions.
+- Several possible places: pick where the wrong behaviour is produced, not where it is observed.
+- Stuck after a failed fix: make a different, smaller change. Never repeat the same edit.
+- Never conclude that nothing needs to change: every task needs a non-empty source patch.
+"""
+TEAM_PARTS = {
+    "a": dict(
+        ROLE="You are the lead: when you finish, the judge compares your patch with Fixer B's and Fixer C's and puts "
+             "the best one in /workspace, and you submit it.",
+        REPO="/workspace, the repository itself, as usual. Your teammates work on their own copies inside .git/agent/;\n"
+             "never read or edit those copies.",
+        SUBMIT="Call submit_patch only after the judge has printed its WINNER line.",
+        RUN="timeout 30 python3 .git/agent/repro_a.py",
+        TEST="timeout 150 python -m pytest tests/path/test_x.py -x -q -k keyword",
+        FINISH="1. git status --short && git diff in one call: remove any scratch file, restore any changed test file\n"
+               "   with git checkout -- path.\n"
+               "2. run_command: python3 .git/agent/judge.py\n"
+               "   While your teammates are still working it prints WAITING: then run the same command again, nothing else.\n"
+               "   Then it prints a table and a WINNER line, and leaves the winning patch in /workspace.\n"
+               "3. submit_patch. Confirm patch_size > 0, then reply with one sentence and make no further tool calls."),
+    "b": {},
+    "c": {},
+}
+for _x in "bc":
+    TEAM_PARTS[_x] = dict(
+        ROLE="When you finish, a judge compares the three patches and the best one is submitted by Fixer A.",
+        REPO=f"The folder .git/agent/wt_{_x}: an exact copy of the repository, only yours (made by your call 1).\n"
+             f"- Every run_command starts with: cd .git/agent/wt_{_x} && ...\n"
+             f"- Every file path for read_file, edit_file and write_file starts with .git/agent/wt_{_x}/\n"
+             f"  (e.g. .git/agent/wt_{_x}/pkg/module.py); the only file outside it you write is .git/agent/repro_{_x}.py.\n"
+             f"- Never edit files in /workspace itself or in a teammate's folder.",
+        SUBMIT="Never call submit_patch: Fixer A submits the winning patch.",
+        RUN=f"cd .git/agent/wt_{_x} && PYTHONPATH=. timeout 30 python3 ../repro_{_x}.py",
+        TEST=f"cd .git/agent/wt_{_x} && PYTHONPATH=. timeout 150 python -m pytest tests/path/test_x.py -x -q -k keyword",
+        FINISH=f"1. cd .git/agent/wt_{_x} && git status --short && git diff in one call: remove any scratch file, restore\n"
+               f"   any changed test file with git checkout -- path.\n"
+               f"2. run_command: python3 .git/agent/judge.py done {_x}\n"
+               f"3. Then reply with one sentence and NO tool call: your part is over.")
+
+
+def team_prompt(x):
+    p = HEAD_TEAM
+    for k, v in TEAM_PARTS[x].items():
+        p = p.replace(f"@{k}@", v)
+    return p.replace("@L@", x.upper()).replace("@l@", x)
+
+
+TEAM_ROOT_YAML = """# {arm}: best of three (scripts/make_skill_arms.py): ParallelAgent [fix_a, fix_b, fix_c] on the pub024 recipe;
+# B and C work in git worktrees under .git/agent/, A runs the judge (.git/agent/judge.py) and submits the winner.
+name: swe_agent
+agent_class: ParallelAgent
+sub_agents:
+  - config_path: fix_a.yaml
+  - config_path: fix_b.yaml
+  - config_path: fix_c.yaml
+"""
+TEAM_SUB_YAML = """name: fix_{x}
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/fix_{x}.md
+tools:
+  - run_command
+  - read_file
+  - edit_file
+  - write_file
+  - get_status
+  - submit_patch  # declared on all three: the harness task message names it; an undeclared call drops the patch
+  - get_code_neighbors
+  - search_similar_code
+  - get_code_subgraph
+skills:
+  - skills/team
+generate_content_config: !include configs/sampling.yaml
+"""
+TEAM_SKILL_MD = """---
+name: team
+description: Team setup for one fixer. Call run_skill_script with skill_name team and file_path scripts/setup_a.py, setup_b.py or setup_c.py (your letter), once, as the first call.
+---
+
+Call run_skill_script with skill_name team and file_path scripts/setup_X.py (X = your letter), with no other
+arguments. It prints READY and where your repository is.
+"""
+
+
+def team(arm):
+    out = ROOT / "submissions" / arm
+    shutil.rmtree(out, ignore_errors=True)
+    (out / "prompts").mkdir(parents=True)
+    (out / "configs").mkdir()
+    shutil.copy(ROOT / "submissions/pub024/configs/sampling.yaml", out / "configs/sampling.yaml")
+    ev = (ROOT / "submissions/pub024/eval_config.yaml").read_text()
+    for old, new in (("max_tool_calls: 28", f"max_tool_calls: {TEAM_CALLS}"), ("max_turns: 80", f"max_turns: {TEAM_TURNS}")):
+        assert ev.count(old) == 1, old
+        ev = ev.replace(old, new)
+    (out / "eval_config.yaml").write_text(ev)
+    (out / "agent.yaml").write_text(TEAM_ROOT_YAML.format(arm=arm))
+    sk = out / "skills/team"
+    (sk / "scripts").mkdir(parents=True)
+    (sk / "SKILL.md").write_text(TEAM_SKILL_MD)
+    shutil.copy(TEAM_SRC / "judge.py", sk / "scripts/judge.py")
+    setup = (TEAM_SRC / "setup.py").read_text()
+    assert setup.count('LETTER = "?"') == 1
+    for x in "abc":
+        (out / f"fix_{x}.yaml").write_text(TEAM_SUB_YAML.format(x=x))
+        text = team_prompt(x)
+        left = re.findall(r"@[A-Za-z]+@", text)
+        assert not left, left
+        assert "{" not in text and "}" not in text, f"fix_{x}: literal braces break ADK instruction templating"
+        (out / f"prompts/fix_{x}.md").write_text(text)
+        (sk / f"scripts/setup_{x}.py").write_text(setup.replace('LETTER = "?"', f'LETTER = "{x}"'))
+    print("wrote", out.relative_to(ROOT), "| fixer prompt", len(team_prompt("a").split()), "words | max_tool_calls",
+          TEAM_CALLS, "max_turns", TEAM_TURNS)
+
+
+TEAM_ARMS = ("bo3",)
+
+
 # arm -> (fixer prompt, reviewer prompt, a.py commands)
 FIXER_REVIEWER = {"sk_fr": ("HEAD_FIXER", "HEAD_REVIEWER", "find outline show banner reshow"),
                   "sk_fr2": ("HEAD_FIXER2", "HEAD_REVIEWER2", "find outline show banner reshow handoff handover review")}
@@ -1322,7 +1492,7 @@ def install_first(arm):
 
 def main():
     import sys
-    wanted = sys.argv[1:] or list(ARMS) + list(VARIANTS) + list(CALL_VARIANTS) + list(INSTALL_FIRST) + list(SAMPLING_VARIANTS) + list(FIXER_REVIEWER)
+    wanted = sys.argv[1:] or list(ARMS) + list(VARIANTS) + list(CALL_VARIANTS) + list(INSTALL_FIRST) + list(SAMPLING_VARIANTS) + list(FIXER_REVIEWER) + list(TEAM_ARMS)
     for arm in [a for a in wanted if a in VARIANTS]:
         variant(arm)
     for arm in [a for a in wanted if a in CALL_VARIANTS]:
@@ -1335,9 +1505,11 @@ def main():
         cushion(arm)
     for arm in [a for a in wanted if a in FIXER_REVIEWER]:
         fixer_reviewer(arm)
+    for arm in [a for a in wanted if a in TEAM_ARMS]:
+        team(arm)
     for arm, cmds in ((a, ARMS[a]) for a in wanted if a not in VARIANTS and a not in CALL_VARIANTS
                               and a not in INSTALL_FIRST and a not in SAMPLING_VARIANTS and a not in CUSHION
-                              and a not in FIXER_REVIEWER):
+                              and a not in FIXER_REVIEWER and a not in TEAM_ARMS):
         out = ROOT / "submissions" / arm
         shutil.rmtree(out, ignore_errors=True)
         (out / "prompts").mkdir(parents=True)

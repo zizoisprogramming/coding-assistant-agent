@@ -1,0 +1,8 @@
+# bo3: best of three (scripts/make_skill_arms.py): ParallelAgent [fix_a, fix_b, fix_c] on the pub024 recipe;
+# B and C work in git worktrees under .git/agent/, A runs the judge (.git/agent/judge.py) and submits the winner.
+name: swe_agent
+agent_class: ParallelAgent
+sub_agents:
+  - config_path: fix_a.yaml
+  - config_path: fix_b.yaml
+  - config_path: fix_c.yaml
