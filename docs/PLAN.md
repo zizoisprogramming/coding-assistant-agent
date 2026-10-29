@@ -11,14 +11,10 @@ account runs its OWN notebook copy (a shared notebook made `kaggle kernels outpu
 and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly quota is tight → small runs.
 
 ### CHECKPOINT 2026-10-29 evening (NEWEST — read first; the dated entries below are the details)
-- **Running now (user):** sq2 on e24 (kaggle/cells_skill_sq2, kernel ziad23samer/fork-of-fork-of-generation-all-
-  shards-gpu, saved version, concurrency 2, ~1.6 h). Partial at 11/24: 9 solved; fastapi_12942 (no edit, 480 s wall:
-  finisher never ran) and rich_4075 (436 s, no patch, likely SUBMIT NOW) lost; both are "sometimes" tasks (5/9, 2/9).
-- **When it finishes:** `uvx --from kaggle kaggle kernels output ziad23samer/fork-of-fork-of-generation-all-shards-gpu
-  -p data/results/2026-10-29_skill_sq2 --file-pattern 'results/(gen_per_task|digest|phases)|\.log$|results/gen/
-  patches/|requests\.jsonl$'`. Check: did the fixer hand over (no self-submit), did the finisher run next.py /
-  second_fixer / pick.py (digest winner_a/b/c, requests: run_skill_script next.py), how often B won and was it solved,
-  mean time vs the single agents (e24: pub024 287 s, sk_a2_32 322 s), solves vs ~16.9 (single-agent e24 mean).
+- **Latest result (r28, 2026-10-29):** sq2 19/24 on e24 (best e24 reading; fair same-set single runs after the
+  set was picked: pub024 14, sk_a2_32 15, sa2 18). BUT the second attempt changed no outcome (details in RESULT r28)
+  -> the gain is the fixer -> finisher STRUCTURE or noise (sd ~2.2 on 24). Next: re-run sq2 (pass 2) to confirm,
+  and fix the weak spot (second attempt only starts if the fixer finishes by 240 s: 9/24 did).
 - **LB:** sk_a2 0.18, sk_a2_32 0.17, pub024 packed (dist/pub024.zip; user to submit or did, score unknown). LB = ~58
   tasks: sd ~0.05; identical agents 0.12-0.26 -> never rank arms by LB. Final picks = best LOCAL arms.
 - **What we know (2026-10-29):** all single agents (sk_a2, sk_a2_32, pub024, sk_fr2) are the same level: d40 ~17-18/40,
@@ -36,6 +32,20 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   PASS2_IF_BEATS) -> kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS=...; run with `< <(sleep 400)` for a
   silent stdin); CPU notebooks kaggle/cells_testsignal, kaggle/cells_repro (private dataset
   ziad23samer/testsignal-candidates); results data/results/2026-10-29_*.
+
+### RESULT r28: sq2 on e24 19/24 (2026-10-29)
+- data/results/2026-10-29_skill_sq2 (concurrency 2). 19/24, mean 365 s (pub024 287, sk_a2_32 322), 9 tasks hit 480 s,
+  0 crashes. Lost: fastapi_12942 (5/9 before), fastapi_14419 (10/49), rich_3506 (2/9), rich_4075 (2/9),
+  rich_4079 (10/49). Notable wins: rich_3676 (1/9 before), fastapi_15589 (19/49), rich_3521 (14/49).
+- Structure worked: the fixer handed over in 23/24 (only rich_3518 self-submitted); the finisher ran next.py in
+  every task that reached it (17); 7 tasks ended at the limit before the finisher (patch kept by the fallback
+  capture; 3 of them solved).
+- Second attempt: SECOND ATTEMPT in 11, SUBMIT NOW in 6. pick.py ran in 8 (A won 7: same or tied repro scores;
+  B won fastapi_14492 because A broke 1 existing test there, but 14492 is 9/9 before -> no outcome change).
+  12942: A made no patch, B started at 188 s and ran out of time. 14301: B still editing at 480 s, A's patch kept,
+  solved. -> the second attempt added 0 solves here; it costs time (mean +80 s vs pub024).
+- Reading: 19 vs fair 14/15/18 is promising, not proven. The candidate cause is the fixer prompt + no-submit hand-over
+  (sa2's lead had a similar prompt: 18).
 
 ### RESULT r27 (bo3 + sa2 on e24, concurrency 1, 3.85 h) and RUN BUILT: sq2 (2026-10-29)
 - data/results/2026-10-29_skill_bo3_sa2. bo3 13/24, mean 251 s, 11/24 ended 'sandbox' = the ParallelAgent compaction
