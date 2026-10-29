@@ -1,6 +1,6 @@
 # Gemma 4 Developer Agent — Competition Plan (living doc)
 
-## >>> START HERE (session handoff, updated 2026-10-26) <<<
+## >>> START HERE (session handoff, updated 2026-10-29) <<<
 **User:** beginner to agents/ADK (ML engineer background); wants step-by-step plain explanations, research-backed
 claims (verify, cite), chat before building, decides when planning ends. Rules: several changes per run are fine
 (since 10-25) but bundle them into arms;
@@ -10,29 +10,34 @@ change cell 4's printed output. **No training data from Claude, GPT or Gemini (u
 account runs its OWN notebook copy (a shared notebook made `kaggle kernels output` return only the latest version
 and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly quota is tight → small runs.
 
-### CHECKPOINT 2026-10-26 late night (NEWEST — read first)
-- **Running now:** sk_a5 vs sk_a5r on dev16 (kaggle/cells_skill_a5, kernel ziadsamer/fork-of-generation-all-shards-gpu,
-  saved version, ends by itself; per-arm early stop). The same kernel slug held sk_a3 and sk_a4/p1/a2_t05 before:
-  only the LATEST version's output is downloadable (sk_a3's request log is lost).
-  Partial (17/64, user paste): 3 solved; failed edits 0 in all 7 shown runs; replace used 1-2x/run (14419 a5r used
-  edit_file 5x, replace 0); first edits 10, 16, 18, 25, 29, 29, 30 (3 refused after call 28); rich_3934 a5 used
-  `run` 5x (4 before the edit); rich_3521 a5 27.6 s per model call.
-- **When it finishes:** `uvx --from kaggle kaggle kernels output ziadsamer/fork-of-generation-all-shards-gpu -p
-  data/results/2026-10-27_skill_a5 --file-pattern 'results/(gen_per_task|digest|phases)|\.log$|results/gen/patches/'`
-  (+ 'requests\.jsonl$' if needed); answer the 5 questions in AGREED NEXT STEPS (digest first), update
-  data/results/dev16_reference.md (add r6 columns in data/results/make_dev16_reference.py), then BUILD THE NAVIGATOR ARM.
-- **LB:** sk_a2 submitted (dist/submission.zip); score not reported yet. mix = 0.17.
-- **Rules added this session:** runs end by themselves (memory runs-must-end-by-themselves; STOP_NEW_TASKS_AFTER_H
-  in cell 2 line 12 = quota h / 2 - 0.4); new arm prompts are full rewrites (memory prompts-are-full-rewrites);
-  test set = 7 solvable tasks x 2 repeats (14 runs/arm).
-- **Where things are:** arms scripts/make_skill_arms.py (sk_a..sk_a5r, VARIANTS for sk_a2_t05; old arms keep their own
-  a.py copies -> regenerate only new arms: `python3 scripts/make_skill_arms.py ARM`); tool scripts/agent_skill/a.py
-  (options in commands.txt: banner reshow brake plangate debugflag; commands find outline show note pin impact check
-  plan replace run); notebooks scripts/train/make_skill_arms_cells.py (`uv run python ...`, needs pyarrow) ->
-  kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
-  local reference table data/results/dev16_reference.md.
+### CHECKPOINT 2026-10-29 evening (NEWEST — read first; the dated entries below are the details)
+- **Running now (user):** sq2 on e24 (kaggle/cells_skill_sq2, kernel ziad23samer/fork-of-fork-of-generation-all-
+  shards-gpu, saved version, concurrency 2, ~1.6 h). Partial at 11/24: 9 solved; fastapi_12942 (no edit, 480 s wall:
+  finisher never ran) and rich_4075 (436 s, no patch, likely SUBMIT NOW) lost; both are "sometimes" tasks (5/9, 2/9).
+- **When it finishes:** `uvx --from kaggle kaggle kernels output ziad23samer/fork-of-fork-of-generation-all-shards-gpu
+  -p data/results/2026-10-29_skill_sq2 --file-pattern 'results/(gen_per_task|digest|phases)|\.log$|results/gen/
+  patches/|requests\.jsonl$'`. Check: did the fixer hand over (no self-submit), did the finisher run next.py /
+  second_fixer / pick.py (digest winner_a/b/c, requests: run_skill_script next.py), how often B won and was it solved,
+  mean time vs the single agents (e24: pub024 287 s, sk_a2_32 322 s), solves vs ~16.9 (single-agent e24 mean).
+- **LB:** sk_a2 0.18, sk_a2_32 0.17, pub024 packed (dist/pub024.zip; user to submit or did, score unknown). LB = ~58
+  tasks: sd ~0.05; identical agents 0.12-0.26 -> never rank arms by LB. Final picks = best LOCAL arms.
+- **What we know (2026-10-29):** all single agents (sk_a2, sk_a2_32, pub024, sk_fr2) are the same level: d40 ~17-18/40,
+  e24 ~16.9/24; pub024 ~10% faster (fewer tokens/call, no a.py overhead). On d40: 13 tasks always solved, 16 never,
+  11 sometimes; union over runs 24/40. Picker study (scripts/picker_offline.py, CPU notebooks test-signal +
+  repro): best-of-3 with "drop patches that break existing tests" + "best repro score" -> ~20.3 vs 17.8 of 40.
+  ADK 1.36.1 limits: ParallelAgent shares one session -> compaction crash (bo3: 11/24 crashed); agent_tool children
+  get NO compaction (overflow risk for long children). The model ignores procedure rules (setup call, finish steps:
+  sa2) but follows STRUCTURE (SequentialAgent hand-over 16-18/20) -> build mechanisms into structure / tool outputs.
+  LB scorer runs tasks one at a time (host, forum 743063); Docker exec has no stdin (our local hang was an artifact,
+  fixed in the cells). One tool call at a time per task (swegemma ctx.tool_lock).
+- **Where things are:** arms scripts/make_skill_arms.py (sq2 / sa2 / bo3 / sk_fr2 / ...; `uv run python
+  scripts/make_skill_arms.py ARM`); team scripts scripts/agent_team/{judge,setup}.py; cells
+  scripts/train/make_skill_arms_cells.py (OUT, ARMS, TASKS = e24 / d40 / s20 / u20, PASSES, CONCURRENCY,
+  PASS2_IF_BEATS) -> kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS=...; run with `< <(sleep 400)` for a
+  silent stdin); CPU notebooks kaggle/cells_testsignal, kaggle/cells_repro (private dataset
+  ziad23samer/testsignal-candidates); results data/results/2026-10-29_*.
 
-### RESULT r27 (bo3 + sa2 on e24, concurrency 1, 3.85 h) and RUN BUILT: sq2 (2026-10-29, NEWEST — read first)
+### RESULT r27 (bo3 + sa2 on e24, concurrency 1, 3.85 h) and RUN BUILT: sq2 (2026-10-29)
 - data/results/2026-10-29_skill_bo3_sa2. bo3 13/24, mean 251 s, 11/24 ended 'sandbox' = the ParallelAgent compaction
   crash (patch dropped); judge picked A in 9 (all solved). -> ParallelAgent is out.
 - sa2 18/24, mean 306 s, 5 time ends: the lead NEVER ran its setup call (0/24, went straight to git grep) and ran
