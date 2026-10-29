@@ -15,9 +15,10 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   set was picked: pub024 14, sk_a2_32 15, sa2 18). BUT the second attempt changed no outcome (details in RESULT r28)
   -> the gain is the fixer -> finisher STRUCTURE or noise (sd ~2.2 on 24). Next: re-run sq2 (pass 2) to confirm,
   and fix the weak spot (second attempt only starts if the fixer finishes by 240 s: 9/24 did).
-- **RUN BUILT (r29, user to run on 4 accounts x 1.5 h quota):** sq1 vs sq2 on q12, kaggle/cells_skill_q12_s1..s4
-  (one folder per account, 3 tasks x 2 arms = 6 runs each, concurrency 2, STOP_NEW_TASKS_AFTER_H 0.5 -> ends by
-  ~42 min wall). Details in "RUN BUILT r29" below.
+- **r29 RESULT (sq1 vs sq2 on q12, 4 accounts):** sq1 3/12, sq2 4/12 (r28 sq2 on the same 12: 7). The second attempt
+  ran 0 times in 12 sq2 runs (finisher reached 3x, all SUBMIT NOW). -> sq2's 19/24 was mostly luck; sq1 = sq2 = pub024
+  level. 13 of 24 runs ended with NO patch (12 at the 8-min limit, 1 empty hand-over) -> the main loss is "no edit
+  in time" on hard tasks, not wrong patches (3). Next lever: get an edit into the tree on hard tasks.
 - **LB:** sk_a2 0.18, sk_a2_32 0.17, pub024 packed (dist/pub024.zip; user to submit or did, score unknown). LB = ~58
   tasks: sd ~0.05; identical agents 0.12-0.26 -> never rank arms by LB. Final picks = best LOCAL arms.
 - **What we know (2026-10-29):** all single agents (sk_a2, sk_a2_32, pub024, sk_fr2) are the same level: d40 ~17-18/40,
@@ -35,6 +36,19 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   PASS2_IF_BEATS) -> kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS=...; run with `< <(sleep 400)` for a
   silent stdin); CPU notebooks kaggle/cells_testsignal, kaggle/cells_repro (private dataset
   ziad23samer/testsignal-candidates); results data/results/2026-10-29_*.
+
+### RESULT r29: sq1 vs sq2 on q12 (2026-10-29)
+- data/results/2026-10-29_skill_q12_s1..s4 (s1-s3 from results.zip, s4 via kernels output fatmazenhom/generation-
+  shard-4-gpu). Each shard ~32 min wall, no crash, no time-guard skips.
+- Per task (sq1 / sq2 / r28 sq2): 12942 - / Y / - | 14349 - / - / Y | 4075 - / - / - | 11194 Y / Y / Y | 14419 - / - / - |
+  3521 - / - / Y | 14873 Y / Y / Y | 3278 Y / - / Y | 4079 - / - / - | 15589 - / - / Y | 3506 - / Y / - | 3676 - / - / Y.
+- sq1 3/12 mean 444 s, no patch 7 (6 at the limit), wrong 2; sq2 4/12 mean 457 s, no patch 7 (all at the limit), wrong 1.
+- Second attempt: never ran (sq2's finisher reached in 3 runs, each SUBMIT NOW at 335-420 s). sq1's 14349 = the one
+  case it was built for (fixer handed over an EMPTY tree at 124 s, sq1 submitted it).
+- New failure: sq2 14349 called write_file 7x in a row without filepath (same error each time) until time ran out.
+- Model speed same as r28 (~11-15k output tokens per 8 min); few tool calls = long thinking per call.
+- Verdict: every single-fixer design is the same level; on hard tasks luck dominates (sq2 itself 7 -> 4). The loss
+  is no-edit timeouts.
 
 ### RUN BUILT r29: sq1 vs sq2 on q12, 4 shards (2026-10-29)
 - sq1 (user) = sq2 without the second attempt: same fixer prompt / tools / budgets (80 calls, 400 turns), the finisher
