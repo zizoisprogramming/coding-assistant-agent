@@ -32,7 +32,23 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
-### STDIN HANG = a LOCAL artifact; fixed in the notebook, not in the agent (2026-10-29, NEWEST — read first)
+### RESULT bo3 (stopped by the user after 4 tasks) + why parallel attempts break in ADK 1.36.1 (2026-10-29, NEWEST)
+- First 4 tasks (concurrency 1): rich_3278 S (judge A, 453 s, 20 s/model call, 5 compactions); fastapi_9555 CRASH
+  "ValueError: No function call event found for function responses ids" (contents.py
+  _rearrange_events_for_latest_function_response) -> exception -> patch dropped; rich_3067 S but tools 100/100 (A
+  polled the judge 30x, no WINNER); fastapi_14372 S but tools 100/100, setup at call 44, 9 compactions.
+- ParallelAgent = ONE shared session: compaction (harness EventsCompactionConfig, token_threshold 14,336) summarises
+  events of all branches and can separate a tool call from its response across branches -> the crash. Not ours to
+  turn off.
+- AgentTool fixers get their own session but NO compaction (google/adk/tools/agent_tool.py: child Runner(...,
+  InMemorySessionService()), no App/compaction config). pub024 uncompacted peak (prompt + reply, rebuilt from the 24
+  e24 requests logs): median 22.9k, p75 28.6k, max 38.4k vs max_model_len 32,768 incl. max_output (8192) -> 9/24 runs
+  would overflow (5/24 with max_output 4096) -> error -> patch dropped.
+- Options given to the user: (1) agent-tool fixers capped ~14 calls; (2) sequential second attempt in a fresh git
+  copy when the first finishes early, judge picks (no parallel ADK features); (3) single agent + judge-style self
+  check. Recommended (2).
+
+### STDIN HANG = a LOCAL artifact; fixed in the notebook, not in the agent (2026-10-29)
 - Cause: our notebooks use the harness's subprocess sandbox (no Docker on Kaggle); adk_eval_core
   sandbox/subprocess_sandbox.py starts commands with subprocess.Popen and no stdin -> they inherit the notebook's open,
   silent stdin -> input() (rich_3882's Prompt.ask) waits to the 240 s timeout (r18 sk_a2b, r25 sk_a2_32).
