@@ -15,6 +15,9 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   set was picked: pub024 14, sk_a2_32 15, sa2 18). BUT the second attempt changed no outcome (details in RESULT r28)
   -> the gain is the fixer -> finisher STRUCTURE or noise (sd ~2.2 on 24). Next: re-run sq2 (pass 2) to confirm,
   and fix the weak spot (second attempt only starts if the fixer finishes by 240 s: 9/24 did).
+- **RUN BUILT (r29, user to run on 4 accounts x 1.5 h quota):** sq1 vs sq2 on q12, kaggle/cells_skill_q12_s1..s4
+  (one folder per account, 3 tasks x 2 arms = 6 runs each, concurrency 2, STOP_NEW_TASKS_AFTER_H 0.5 -> ends by
+  ~42 min wall). Details in "RUN BUILT r29" below.
 - **LB:** sk_a2 0.18, sk_a2_32 0.17, pub024 packed (dist/pub024.zip; user to submit or did, score unknown). LB = ~58
   tasks: sd ~0.05; identical agents 0.12-0.26 -> never rank arms by LB. Final picks = best LOCAL arms.
 - **What we know (2026-10-29):** all single agents (sk_a2, sk_a2_32, pub024, sk_fr2) are the same level: d40 ~17-18/40,
@@ -32,6 +35,19 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   PASS2_IF_BEATS) -> kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS=...; run with `< <(sleep 400)` for a
   silent stdin); CPU notebooks kaggle/cells_testsignal, kaggle/cells_repro (private dataset
   ziad23samer/testsignal-candidates); results data/results/2026-10-29_*.
+
+### RUN BUILT r29: sq1 vs sq2 on q12, 4 shards (2026-10-29)
+- sq1 (user) = sq2 without the second attempt: same fixer prompt / tools / budgets (80 calls, 400 turns), the finisher
+  (include_contents none, 48 words) only calls submit_patch. scripts/make_skill_arms.py sq1 (sq2() with second=False);
+  pack OK. Question: is sq2's 19/24 the structure (fixer -> fresh finisher) or the second attempt?
+- q12 = the 12 e24 tasks NOT solved in >= 8 of 9 earlier runs (the other 12 are solved by every arm): before on q12 ->
+  pub024 3, sk_a2_32 3, sa2 6, sq2 7 (r28). Shards (snake by r28 time): s1 fastapi_12942 fastapi_14349 rich_4075 | s2
+  fastapi_11194 fastapi_14419 rich_3521 | s3 fastapi_14873 rich_3278 rich_4079 | s4 fastapi_15589 rich_3506 rich_3676.
+- Builder: make_skill_arms_cells.py SHARDS (list of task lists -> OUT_s1..) and STOP_H (None = 10.5). Timing: setup
+  ~10 min (vLLM up at 594 s in r28), these tasks ~430 s each -> 3 rounds of 2 = ~22 min -> ~34 min wall (~1.1 h quota).
+- Sim (SIM_CELLS=cells_skill_q12_s1, armsim role 'submitter'): sq1 14786 submits the fixer's wrong edit, sq2 next.py
+  -> second_fixer -> pick.py WINNER B (gold); 15588 gold both. Local resolved=False as always (uv venv, no pip).
+- Read it: combine the 4 outputs; sq1 vs sq2 solves and mean time on q12 (the other 12 count as solved for both).
 
 ### RESULT r28: sq2 on e24 19/24 (2026-10-29)
 - data/results/2026-10-29_skill_sq2 (concurrency 2). 19/24, mean 365 s (pub024 287, sk_a2_32 322), 9 tasks hit 480 s,

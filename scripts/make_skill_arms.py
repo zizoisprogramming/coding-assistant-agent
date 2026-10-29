@@ -1693,6 +1693,12 @@ Your calls, in this order:
    If it printed SUBMIT NOW: skip this step.
 3. submit_patch. Then reply with one sentence and make no further tool calls.
 """
+# sq1 (user 2026-10-29): sq2 without the second attempt, to see whether sq2's 19/24 comes from the structure
+HEAD_SQ1_FINISH = """You submit this task: an engineer has just fixed the issue in /workspace, and the last message says
+what changed. The fix is final. You do not read, run or edit anything.
+
+Your only tool call: submit_patch. Then reply with one sentence and make no further tool calls.
+"""
 
 
 def sq2(arm):
@@ -1701,16 +1707,19 @@ def sq2(arm):
     (out / "prompts").mkdir(parents=True)
     (out / "configs").mkdir()
     shutil.copy(ROOT / "submissions/pub024/configs/sampling.yaml", out / "configs/sampling.yaml")
-    (out / "configs/sampling_second.yaml").write_text(SA2_SECOND_SAMPLING)
+    second = arm == "sq2"  # sq1: the finisher only submits (no next.py, second_fixer, pick.py)
+    if second:
+        (out / "configs/sampling_second.yaml").write_text(SA2_SECOND_SAMPLING)
     ev = (ROOT / "submissions/pub024/eval_config.yaml").read_text()
     for old, new in (("max_tool_calls: 28", f"max_tool_calls: {SA2_CALLS}"), ("max_turns: 80", f"max_turns: {SA2_TURNS}")):
         assert ev.count(old) == 1, old
         ev = ev.replace(old, new)
     (out / "eval_config.yaml").write_text(ev)
     (out / "agent.yaml").write_text(f"""# {arm}: SequentialAgent [fixer, finisher] (scripts/make_skill_arms.py sq2): the fixer (pub024 procedure) never
-# submits and hands over in plain text; the finisher runs next.py, second_fixer (agent_tool, own copy) if there is
+# submits and hands over in plain text; """ + ("""the finisher runs next.py, second_fixer (agent_tool, own copy) if there is
 # time, pick.py, and submits.
-name: swe_agent
+""" if second else """the finisher only submits (sq2 without the second attempt).
+""") + """name: swe_agent
 agent_class: SequentialAgent
 sub_agents:
   - config_path: fixer.yaml
@@ -1723,8 +1732,16 @@ sub_agents:
                                     "generate_content_config: !include configs/sampling.yaml\n")
     (out / "finisher.yaml").write_text("name: finisher\nmodel: gemma-4-31b-it-qat-w4a16-ct\ninstruction: !include prompts/finisher.md\n"
                                        "include_contents: none  # fresh: its context starts at the fixer's hand-over line\n"
-                                       "tools:\n" + tools + "  - agent_tool:\n      config_path: second.yaml\n"
-                                       "skills:\n  - skills/team\ngenerate_content_config: !include configs/sampling.yaml\n")
+                                       "tools:\n" + tools + ("  - agent_tool:\n      config_path: second.yaml\n"
+                                       "skills:\n  - skills/team\n" if second else "") + "generate_content_config: !include configs/sampling.yaml\n")
+    if not second:
+        for name, text in (("fixer", HEAD_SQ_FIX), ("finisher", HEAD_SQ1_FINISH)):
+            rest = text.replace("{problem_description}", "")
+            assert "{" not in rest and "}" not in rest, f"{name}: literal braces break ADK instruction templating"
+            (out / f"prompts/{name}.md").write_text(text)
+        print("wrote", out.relative_to(ROOT), "| fixer", len(HEAD_SQ_FIX.split()), "words, finisher", len(HEAD_SQ1_FINISH.split()),
+              f"words (submit only) | max_tool_calls {SA2_CALLS} max_turns {SA2_TURNS}")
+        return
     (out / "second.yaml").write_text(SA2_SECOND_YAML.replace("only when judge.py next says SECOND ATTEMPT",
                                                              "only when scripts/next.py says SECOND ATTEMPT"))
     for name, text in (("fixer", HEAD_SQ_FIX), ("finisher", HEAD_SQ_FINISH), ("second", HEAD_SECOND)):
@@ -1745,7 +1762,7 @@ sub_agents:
           f"words | max_tool_calls {SA2_CALLS} max_turns {SA2_TURNS}")
 
 
-SQ2_ARMS = ("sq2",)
+SQ2_ARMS = ("sq2", "sq1")
 
 
 # arm -> (fixer prompt, reviewer prompt, a.py commands)

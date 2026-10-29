@@ -31,8 +31,8 @@ sys.path.insert(0, str(ROOT / "scripts/train"))
 import make_gen_cells as G  # noqa: E402
 from make_test_cells import must_replace  # noqa: E402
 
-OUT = ROOT / "kaggle/cells_skill_sq2"
-ARMS = ["sq2"]  # bo3 + sa2 (r27) = kaggle/cells_skill_bo3_sa2; bo3 alone = kaggle/cells_skill_bo3 (stopped after 8 tasks, 6 solved); e24x2 = pub024 vs sk_a2_32 (kaggle/cells_skill_e24x2); d40x2 (user: is pub024 really ahead?); u20 (r24) = kaggle/cells_skill_u20 with sk_fr2; s20 (r23) = kaggle/cells_skill_s20_fr2_pub; sk_fr2 alone = kaggle/cells_skill_s20_fr2; sk_fr = kaggle/cells_skill_s20_fr (r22 15/20); d40: sk_a2 = kaggle/cells_skill_d40 (17/40), sk_a2_32 = kaggle/cells_skill_d40_32 (18/40), pub024 = kaggle/cells_skill_d40_pub
+OUT = ROOT / "kaggle/cells_skill_q12"  # SHARDS set: one folder per shard, OUT + "_s1" ...
+ARMS = ["sq1", "sq2"]  # sq1 = sq2 without the second attempt (user 2026-10-29); sq2 alone (r28 19/24) = kaggle/cells_skill_sq2; bo3 + sa2 (r27) = kaggle/cells_skill_bo3_sa2; bo3 alone = kaggle/cells_skill_bo3 (stopped after 8 tasks, 6 solved); e24x2 = pub024 vs sk_a2_32 (kaggle/cells_skill_e24x2); d40x2 (user: is pub024 really ahead?); u20 (r24) = kaggle/cells_skill_u20 with sk_fr2; s20 (r23) = kaggle/cells_skill_s20_fr2_pub; sk_fr2 alone = kaggle/cells_skill_s20_fr2; sk_fr = kaggle/cells_skill_s20_fr (r22 15/20); d40: sk_a2 = kaggle/cells_skill_d40 (17/40), sk_a2_32 = kaggle/cells_skill_d40_32 (18/40), pub024 = kaggle/cells_skill_d40_pub
 # the winnable dev16 tasks: tier 1 (mix 55-95%) + tier 2 (14-35% over all arms); the other 9 were 0 in ~150 runs
 WINNABLE7 = ["rich_3882", "fastapi_15589", "fastapi_11194", "rich_4079", "rich_3521", "fastapi_14419", "rich_3470"]
 SPLITS = json.load(open(ROOT / "data/splits_public.json"))
@@ -50,6 +50,18 @@ UNSOLVED_D40 = [t for t in D40 if t not in SOLVED_D40]
 SOLVED_U20 = sorted({r["instance_id"] for r in map(json.loads, open(ROOT / "data/results/2026-10-29_skill_u20/results/gen_per_task.jsonl"))
                      if r["resolved"]})
 TASKS = sorted(SOLVED_D40 + SOLVED_U20)  # d40x2: D40, u20: UNSOLVED_D40, s20: SOLVED_D40
+# q12 (user 2026-10-29, 4 accounts x 1.5 h quota): the 12 e24 tasks NOT solved in >= 8 of 9 earlier runs (the
+# others are solved by every arm and cannot separate sq1 from sq2). Before: pub024 3, sk_a2_32 3, sa2 6, sq2 7.
+Q12 = ["fastapi_11194", "fastapi_12942", "fastapi_14349", "fastapi_14419", "fastapi_14873", "fastapi_15589",
+       "rich_3278", "rich_3506", "rich_3521", "rich_3676", "rich_4075", "rich_4079"]
+TASKS = Q12
+# one notebook per account: 3 tasks x 2 arms = 6 runs each; tasks dealt slow/fast by sq2's r28 time (snake order)
+_BY_TIME = ["fastapi_12942", "fastapi_14419", "fastapi_14873", "fastapi_15589", "rich_3506", "rich_4079",
+            "fastapi_11194", "rich_4075", "fastapi_14349", "rich_3521", "rich_3278", "rich_3676"]
+SHARDS = [sorted(_BY_TIME[k] for k in (i, 7 - i, 8 + i)) for i in range(4)]  # None = one notebook with all TASKS
+assert sorted(sum(SHARDS, [])) == sorted(Q12)
+# 1.5 h quota = 45 min wall on L4x4 (bills 2x): setup ~10 min; no new run after 0.5 h from cell 2 -> ends by ~42 min
+STOP_H = 0.5  # None = 10.5 (whole-session runs)
 PASSES = 1  # bo3: one pass at concurrency 1 (the LB runs tasks one at a time)
 CONCURRENCY = 2  # sq2: as the single-agent e24 runs it is compared with (r25 pub024 14, sk_a2_32 15); bo3 used 1
 PASS2_IF_BEATS = None  # e24x2: ("pub024", "sk_a2_32"); user (e24x2): pass 2 only if pass 1 of the first arm solved MORE than the second; None = off
@@ -357,7 +369,7 @@ def main():
     c2 = must_replace(c2, "CONCURRENCY = 6  # full / retry: trial 2026-10-21: 40.9 attempts/h at 6 vs 31.4 at 4\n",
                       f"CONCURRENCY = {CONCURRENCY}  # tasks at once (make_skill_arms_cells.py CONCURRENCY; the LB runs 1)\n")
     c2 = must_replace(c2, "STOP_NEW_TASKS_AFTER_H = 10.5  # Kaggle ends GPU sessions at 12 h; a task takes <= ~10 min\n",
-                      "STOP_NEW_TASKS_AFTER_H = 10.5  # = min(10.5, this account's GPU quota in hours / 2 - 0.4): L4x4 bills 2x,\n"
+                      f"STOP_NEW_TASKS_AFTER_H = {STOP_H or 10.5}  # = min(10.5, this account's GPU quota in hours / 2 - 0.4): L4x4 bills 2x,\n"
                       "# a run ends within 8 min, Kaggle ends sessions at 12 h; a killed run loses its output\n")
     c2 = must_replace(c2, "for p in sorted(glob.glob('/kaggle/input/**/results/gen_per_task.jsonl', recursive=True)) + ([str(PER_TASK)] if PER_TASK.exists() else []):\n",
                       "for p in ([str(PER_TASK)] if PER_TASK.exists() else []):\n")
@@ -461,4 +473,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    if SHARDS:
+        base = OUT
+        for k, part in enumerate(SHARDS, 1):
+            OUT, TASKS = base.with_name(f"{base.name}_s{k}"), part
+            main()
+    else:
+        main()
