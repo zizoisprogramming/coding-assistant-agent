@@ -50,6 +50,7 @@
            2026-10-29, after sk_a2n / sk_a2nr 3/8: keep only the cushion, so edits at calls 29-32 are not refused)
   sk_a2b   sk_a2_32 with batched reading (a.py batch: up to 3 places per show, 3 terms per find, one look per call)
   sk_fr    SequentialAgent [fixer -> reviewer] on sk_a2: fixer told 20 calls, reviewer (fresh context) told 6; 34 real
+  sa2      one pub024-style agent + an independent second attempt (agent_tool in a git worktree) when time is left
   bo3      best of three: 3 parallel pub024-style fixers (A in /workspace, B / C in git worktrees), A's judge picks
   sk_fr2   sk_fr, fixer hands over with a.py handover (PATCH IN PLACE event), reviewer = a.py review + one decision, told 3
   sk_a2b2k sk_a2b with thinking 2048 instead of 4096 (r18: 4096 took ~18 s/call, 5 of 8 runs hit the 8 min wall)
@@ -1291,7 +1292,7 @@ You have 3 tool calls (submit_patch is free). Every reply contains exactly one t
 # (waits for B / C or WAIT_UNTIL, drops patches that break existing tests, ranks by the repro scripts, copies the
 # winner into /workspace) and submits. Offline estimate (scripts/picker_offline.py): 17.8 -> ~20.3 of 40.
 TEAM_SRC = ROOT / "scripts/agent_team"
-TEAM_CALLS, TEAM_TURNS = 100, 240  # one budget for the three fixers (each told 18 calls) + the judge
+TEAM_CALLS, TEAM_TURNS = 300, 400  # one budget for the three fixers (each told 18 calls) + the judge; 100 ran out (r26: A polled the judge 30x)
 HEAD_TEAM = """You are Fixer @L@, one of three engineers who each fix the same issue at the same time, separately.
 Hidden tests, written from the issue text, run on the final patch: the exact names, messages, types and behaviours
 in the issue are the specification. Make the smallest correct change to the SOURCE code. @ROLE@
@@ -1453,6 +1454,176 @@ def team(arm):
 TEAM_ARMS = ("bo3",)
 
 
+# sa2 (user 2026-10-29): one pub024-style agent with normal compaction; after its fix, if under SECOND_BEFORE (judge.py),
+# an independent second attempt: an agent_tool (fresh session, no compaction: told 10 calls, max output 4096 so its
+# whole history stays far below the 32k model length) in the git worktree .git/agent/wt_b; then judge.py --no-wait
+# picks (tests + repro scripts) and the lead submits. If time runs out, /workspace holds the first patch.
+SA2_CALLS, SA2_TURNS = 80, 400  # max_turns as bo3: the notebook runs arms that differ only in max_tool_calls
+HEAD_LEAD = """You are an autonomous software engineer. Your job: make the smallest correct change to the SOURCE code in
+/workspace so that the hidden tests for the issue pass. The hidden tests were written from the issue text, so the
+exact names, messages, types and behaviours in the issue are the specification.
+
+# LIMITS
+- 24 tool calls for your own fix, and 8 minutes in total for everything. An edit that exists in /workspace counts
+  even if time runs out; an unedited tree scores zero. You must have edited a source file by call 12: if unsure,
+  make your best-guess edit in the most likely place; a wrong edit can still be corrected.
+- Never create, modify or delete test files (test_*.py, *_test.py, anything under tests/, pytest.ini, conftest.py).
+- Scratch files go in /tmp or .git/agent/ only: any other file left under /workspace becomes part of the patch.
+- Never run a full test suite: always name one test file, and add -k when you can.
+- Never use search_similar_code, get_code_neighbors or get_code_subgraph: they return nothing useful.
+
+# CALL PLAN
+- Call 1: run_skill_script with skill_name team and file_path scripts/setup_lead.py, and nothing else.
+- Calls 2-8: locate and read. Calls 9-12: edit.
+- Then: write your repro script and run it once; one related test file; fix once if needed.
+- Then FINISH: the judge may give the issue to a second engineer and keep the better of the two patches.
+
+# PROCEDURE
+1. Before any tool call, list for yourself the exact file, function, class or CLI name; the exact error message and
+   exception type; the expected return value or output; the inputs that trigger the bug; every edge case mentioned.
+   Every concrete string and name in the issue is a literal that must appear exactly in your code.
+2. Locate. Use exact paths from the issue directly. Combine independent searches for the issue's exact symbols,
+   their callers and relevant tests in one run_command: git grep -n -F "symbol" and git ls-files, about 20 lines of
+   output each. Then read the implementation plus one caller or test, about 40 lines per region, at most three regions
+   per command (sed -n 'START,ENDp' FILE). For a bug, find where the wrong behaviour is produced; for a feature, copy
+   the closest existing sibling, including __all__, option lists, dispatch tables and imports.
+3. Edit with edit_file: copy old_string exactly, short and unique. If it fails twice, use one inline python script
+   through run_command (quoted heredoc) that asserts the old text occurs once, replaces it and writes the file. Fix
+   the cause, not the symptom. Change only what the issue requires and keep signatures and defaults. Apply the change
+   to every parallel implementation (sync and async, each backend, re-exports in __init__.py or __all__). Use the
+   exact exception class and message text from the issue. For FastAPI documentation tasks, edit docs_src/.
+4. Repro script: write_file .git/agent/repro_a.py, a short python script that shows the issue's behaviour: it must
+   EXIT WITH AN ERROR (assert or raise) while the bug is there and exit 0 once it is fixed, printing FIXED or BUG.
+   Import the package normally. Run it once: timeout 30 python3 .git/agent/repro_a.py
+5. If one related test file exists, run it once: timeout 150 python -m pytest tests/path/test_x.py -x -q -k keyword
+   Failures from missing fixtures or unrelated imports are pre-existing: ignore them.
+
+# FINISH
+1. git status --short && git diff in one call: remove any scratch file in /workspace, restore any changed test file
+   with git checkout -- path.
+2. run_command: python3 .git/agent/judge.py next
+   - SECOND ATTEMPT: your next call is the tool second_fixer with request "fix the issue". When it returns, run
+     python3 .git/agent/judge.py --no-wait; it compares both patches and leaves the better one in /workspace.
+   - SUBMIT NOW: go to step 3.
+3. submit_patch. Confirm patch_size > 0, then reply with one sentence and make no further tool calls.
+
+# DECISION RULES
+- Ambiguous issue: choose the most literal reading and act on it. Never ask questions.
+- Several possible places: pick where the wrong behaviour is produced, not where it is observed.
+- Stuck after a failed fix: make a different, smaller change. Never repeat the same edit.
+- Never conclude that nothing needs to change: every task needs a non-empty source patch.
+"""
+HEAD_SECOND = """You are the second engineer on this issue. Fix it on your own, from scratch, in your own copy of the
+repository; another engineer fixed it separately and a judge keeps the better patch. Hidden tests, written from the
+issue text, run on the final patch: the exact names, messages, types and behaviours in the issue are the specification.
+
+# THE ISSUE
+{problem_description}
+
+# YOUR REPOSITORY
+The folder .git/agent/wt_b: an exact copy of the original repository, only yours.
+- Every run_command starts with: cd .git/agent/wt_b && ...
+- Every file path for read_file, edit_file and write_file starts with .git/agent/wt_b/
+  (e.g. .git/agent/wt_b/pkg/module.py); the only file outside it you write is .git/agent/repro_b.py.
+- Never edit files in /workspace itself.
+
+# LIMITS
+- You have 10 tool calls and little time: locate in about 4 calls, edit by call 6.
+- Never create, modify or delete test files; never run a full test suite.
+- Never call submit_patch.
+
+# PROCEDURE
+1. Before any tool call, list the exact names, messages, types and edge cases the issue gives.
+2. Locate: one run_command with git grep -n -F "symbol" for the issue's exact symbols, then read the implementation
+   (sed -n 'START,ENDp' FILE, about 40 lines). For a bug, fix where the wrong behaviour is produced; for a feature,
+   copy the closest existing sibling.
+3. Edit with edit_file (old_string copied exactly, short and unique). Change only what the issue requires; apply it
+   to every parallel implementation; use the exact names and messages from the issue.
+4. write_file .git/agent/repro_b.py: a short script that exits with an error while the bug is there and exits 0
+   once fixed, printing FIXED or BUG; import the package normally. Run it once:
+   cd .git/agent/wt_b && PYTHONPATH=. timeout 30 python3 ../repro_b.py
+5. run_command: python3 .git/agent/judge.py done b
+6. Reply with one sentence describing your fix, and no tool call.
+"""
+SA2_ROOT_YAML = """# {arm}: one agent + an independent second attempt (scripts/make_skill_arms.py sa2): the lead fixes in /workspace;
+# judge.py next decides whether there is time for second_fixer (agent_tool, fresh session, .git/agent/wt_b); the
+# judge keeps the better patch; the lead submits.
+name: swe_agent
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/lead.md
+tools:
+  - run_command
+  - read_file
+  - edit_file
+  - write_file
+  - get_status
+  - submit_patch
+  - get_code_neighbors
+  - search_similar_code
+  - get_code_subgraph
+  - agent_tool:
+      config_path: second.yaml
+skills:
+  - skills/team
+generate_content_config: !include configs/sampling.yaml
+"""
+SA2_SECOND_YAML = """name: second_fixer
+description: Fixes the issue again, independently, in its own copy of the repository (.git/agent/wt_b). Call it with request "fix the issue" only when judge.py next says SECOND ATTEMPT.
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/second.md
+tools:
+  - run_command
+  - read_file
+  - edit_file
+  - write_file
+  - get_status
+  - submit_patch  # declared so a habitual call never raises; the prompt says never
+generate_content_config: !include configs/sampling_second.yaml
+"""
+SA2_SECOND_SAMPLING = """# sa2 second fixer: no compaction in an agent_tool session, so a small reply budget keeps the whole history
+# (10 calls) far below the 32,768-token model length
+temperature: 0.2
+top_p: 0.95
+max_output_tokens: 4096
+thinking_config:
+  thinking_budget: 2048
+  include_thoughts: true
+"""
+
+
+def sa2(arm):
+    out = ROOT / "submissions" / arm
+    shutil.rmtree(out, ignore_errors=True)
+    (out / "prompts").mkdir(parents=True)
+    (out / "configs").mkdir()
+    shutil.copy(ROOT / "submissions/pub024/configs/sampling.yaml", out / "configs/sampling.yaml")
+    (out / "configs/sampling_second.yaml").write_text(SA2_SECOND_SAMPLING)
+    ev = (ROOT / "submissions/pub024/eval_config.yaml").read_text()
+    for old, new in (("max_tool_calls: 28", f"max_tool_calls: {SA2_CALLS}"), ("max_turns: 80", f"max_turns: {SA2_TURNS}")):
+        assert ev.count(old) == 1, old
+        ev = ev.replace(old, new)
+    (out / "eval_config.yaml").write_text(ev)
+    (out / "agent.yaml").write_text(SA2_ROOT_YAML.format(arm=arm))
+    (out / "second.yaml").write_text(SA2_SECOND_YAML)
+    for name, text in (("lead", HEAD_LEAD), ("second", HEAD_SECOND)):
+        rest = text.replace("{problem_description}", "")
+        assert "{" not in rest and "}" not in rest, f"{name}: literal braces break ADK instruction templating"
+        (out / f"prompts/{name}.md").write_text(text)
+    sk = out / "skills/team"
+    (sk / "scripts").mkdir(parents=True)
+    (sk / "SKILL.md").write_text(TEAM_SKILL_MD.replace("scripts/setup_a.py, setup_b.py or setup_c.py (your letter)",
+                                                       "scripts/setup_lead.py"))
+    shutil.copy(TEAM_SRC / "judge.py", sk / "scripts/judge.py")
+    setup = (TEAM_SRC / "setup.py").read_text()
+    assert setup.count('LETTER = "?"') == 1 and setup.count("SECOND = False") == 1
+    (sk / "scripts/setup_lead.py").write_text(setup.replace('LETTER = "?"', 'LETTER = "a"').replace("SECOND = False", "SECOND = True"))
+    print("wrote", out.relative_to(ROOT), "| lead", len(HEAD_LEAD.split()), "words, second", len(HEAD_SECOND.split()),
+          f"words | max_tool_calls {SA2_CALLS} max_turns {SA2_TURNS}")
+
+
+SA2_ARMS = ("sa2",)
+
+
 # arm -> (fixer prompt, reviewer prompt, a.py commands)
 FIXER_REVIEWER = {"sk_fr": ("HEAD_FIXER", "HEAD_REVIEWER", "find outline show banner reshow"),
                   "sk_fr2": ("HEAD_FIXER2", "HEAD_REVIEWER2", "find outline show banner reshow handoff handover review")}
@@ -1492,7 +1663,7 @@ def install_first(arm):
 
 def main():
     import sys
-    wanted = sys.argv[1:] or list(ARMS) + list(VARIANTS) + list(CALL_VARIANTS) + list(INSTALL_FIRST) + list(SAMPLING_VARIANTS) + list(FIXER_REVIEWER) + list(TEAM_ARMS)
+    wanted = sys.argv[1:] or list(ARMS) + list(VARIANTS) + list(CALL_VARIANTS) + list(INSTALL_FIRST) + list(SAMPLING_VARIANTS) + list(FIXER_REVIEWER) + list(TEAM_ARMS) + list(SA2_ARMS)
     for arm in [a for a in wanted if a in VARIANTS]:
         variant(arm)
     for arm in [a for a in wanted if a in CALL_VARIANTS]:
@@ -1507,9 +1678,12 @@ def main():
         fixer_reviewer(arm)
     for arm in [a for a in wanted if a in TEAM_ARMS]:
         team(arm)
+    for arm in [a for a in wanted if a in SA2_ARMS]:
+        sa2(arm)
     for arm, cmds in ((a, ARMS[a]) for a in wanted if a not in VARIANTS and a not in CALL_VARIANTS
                               and a not in INSTALL_FIRST and a not in SAMPLING_VARIANTS and a not in CUSHION
-                              and a not in FIXER_REVIEWER and a not in TEAM_ARMS):
+                              and a not in FIXER_REVIEWER and a not in TEAM_ARMS
+                              and a not in SA2_ARMS):
         out = ROOT / "submissions" / arm
         shutil.rmtree(out, ignore_errors=True)
         (out / "prompts").mkdir(parents=True)

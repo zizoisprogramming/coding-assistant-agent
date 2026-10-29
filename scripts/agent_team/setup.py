@@ -14,6 +14,7 @@ import sys
 import time
 
 LETTER = "?"
+SECOND = False  # sa2 lead: also make wt_b, the copy its second fixer (an agent_tool) works in
 
 
 def workspace():
@@ -59,6 +60,8 @@ if LETTER == "a":
     with open(os.path.join(agent, "team.json"), "w") as f:
         json.dump({"t0": time.time()}, f)
     path, err = worktree(ws, "wt_0")
+    if SECOND:
+        worktree(ws, "wt_b")
     print("READY. You are Fixer A: you work in the repository itself (/workspace), as usual."
           + ("" if path else f" (the clean copy for the judge failed: {err})"))
 else:

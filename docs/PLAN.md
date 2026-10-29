@@ -32,7 +32,21 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS, SIM_EARLY, SIM_MANY_SHOWS); results data/results/2026-10-2*;
   local reference table data/results/dev16_reference.md.
 
-### RESULT bo3 (stopped by the user after 4 tasks) + why parallel attempts break in ADK 1.36.1 (2026-10-29, NEWEST)
+### RUN BUILT: bo3 (budget 300) + sa2 on e24, 1 pass, concurrency 1 (2026-10-29, NEWEST — read first)
+- User: bo3 had 6/8 solved when stopped -> rerun it, with max_tool_calls 300 / max_turns 400 (100 ran out from judge
+  polling); the ParallelAgent compaction crash stays (to measure). Plus option 2 = sa2.
+- sa2 (scripts/make_skill_arms.py sa2): one pub024-style lead (normal session + compaction) fixes in /workspace,
+  writes .git/agent/repro_a.py, runs judge.py next: under SECOND_BEFORE = 240 s after setup -> SECOND ATTEMPT = the
+  agent_tool second_fixer (fresh session, no compaction: told 10 calls, max_output 4096 / thinking 2048 so its whole
+  history stays far under 32k) in the git worktree wt_b (made by setup_lead.py), repro_b.py, judge.py done b; then
+  judge.py --no-wait keeps the better patch; else SUBMIT NOW. If time runs out, /workspace holds the first patch.
+  max_tool_calls 80, max_turns 400 (the notebook needs equal budgets except calls).
+- Sim (SIM_CELLS=cells_skill_bo3_sa2): sa2 14786: lead wrong edit -> SECOND ATTEMPT -> second fixer (max_tokens
+  4096) applies the gold in wt_b -> WINNER B -> patch = gold; NO_EDIT -> WINNER A. bo3 as before. pack.py OK for both.
+- kaggle/cells_skill_bo3_sa2: only cell2 differs from cells_skill_bo3. 48 runs x ~400 s at concurrency 1 =
+  ~5.5 h wall / ~11 h quota -> set STOP_NEW_TASKS_AFTER_H = quota/2 - 0.4 (tasks alternate arms).
+
+### RESULT bo3 (stopped by the user after 4 tasks) + why parallel attempts break in ADK 1.36.1 (2026-10-29)
 - First 4 tasks (concurrency 1): rich_3278 S (judge A, 453 s, 20 s/model call, 5 compactions); fastapi_9555 CRASH
   "ValueError: No function call event found for function responses ids" (contents.py
   _rearrange_events_for_latest_function_response) -> exception -> patch dropped; rich_3067 S but tools 100/100 (A

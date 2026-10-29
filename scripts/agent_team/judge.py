@@ -3,6 +3,9 @@
   python3 .git/agent/judge.py            Fixer A, after its own fix: WAITING until B and C are done (or the time cap), then compare the
                                          three patches, copy the winner into /workspace; then A calls submit_patch
   python3 .git/agent/judge.py done b     Fixer B (or c) when finished: leaves a marker so the judge stops waiting
+  python3 .git/agent/judge.py next       sa2 (one agent + a second attempt): after the first fix, says whether there is
+                                         time for the second fixer (SECOND ATTEMPT) or not (SUBMIT NOW)
+  python3 .git/agent/judge.py --no-wait  sa2: judge at once (the second fixer has returned), never WAITING
 
 Candidates: A = the repository itself, B / C = <repo>/.git/agent/wt_b / wt_c (git worktrees made by the team setup),
 compared with wt_0 (a clean copy of the baseline). Rules (2026-10-29, from 195 + 165 candidate patches on 40 tasks):
@@ -27,6 +30,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))  # <repo>/.git/agent
 WS = os.path.dirname(os.path.dirname(HERE))
 TEAM = os.path.join(HERE, "team.json")
 WAIT_UNTIL = 300  # seconds after setup: stop waiting for B and C (they may still be editing; their patch counts)
+SECOND_BEFORE = 240  # sa2: a second attempt only starts before this many seconds after setup (8 min wall, ~12 h LB)
 # never sleep here: the harness runs one tool call at a time per task (swegemma ctx.tool_lock), so a waiting judge
 # would freeze B and C; it answers WAITING at once and Fixer A's next model call is the pause
 TEST_TIMEOUT, REPRO_TIMEOUT, TESTS_MAX = 60, 20, 3
@@ -128,7 +132,7 @@ def script_for(code, root):
     return path
 
 
-def judge():
+def judge(wait=True):
     t_start = time.time()
     try:
         t0 = json.load(open(TEAM))["t0"]
@@ -140,7 +144,7 @@ def judge():
         if os.path.exists(os.path.join(p, ".git")):
             roots[x] = p
     waiting = [x for x in roots if x != "a" and not os.path.exists(os.path.join(HERE, f"done_{x}"))]
-    if waiting and time.time() - t0 < WAIT_UNTIL:
+    if wait and waiting and time.time() - t0 < WAIT_UNTIL:
         return (f"WAITING: Fixer(s) {', '.join(w.upper() for w in waiting)} still working ({int(time.time() - t0)} s of "
                 f"{WAIT_UNTIL}). Do nothing else: your next call is the same command again: python3 .git/agent/judge.py")
     patches = {x: patch_of(r) for x, r in roots.items()}
@@ -223,7 +227,28 @@ def judge():
     return "\n".join(lines)
 
 
+def next_step():
+    """sa2: the first fix is done; is there time for an independent second attempt?"""
+    try:
+        t0 = json.load(open(TEAM))["t0"]
+    except Exception:  # noqa: BLE001
+        return "SUBMIT NOW: run submit_patch."
+    used = int(time.time() - t0)
+    if not patch_of(WS).strip():
+        return (f"NO PATCH YET ({used} s used): make your best edit in /workspace now, then run "
+                f"python3 .git/agent/judge.py next again.")
+    if used < SECOND_BEFORE and os.path.exists(os.path.join(HERE, "wt_b", ".git")):
+        return (f"SECOND ATTEMPT ({used} s used, time left): your next call is the tool second_fixer with request "
+                f"\"fix the issue\". It fixes the issue again, independently, in its own copy. When it returns, run "
+                f"python3 .git/agent/judge.py --no-wait")
+    return f"SUBMIT NOW ({used} s used, no time for a second attempt): your next call is submit_patch."
+
+
 def main(argv):
+    if argv[:1] == ["next"]:
+        return next_step()
+    if argv[:1] == ["--no-wait"]:
+        return judge(wait=False)
     if argv[:1] == ["done"] and len(argv) > 1 and argv[1].lower() in ("b", "c"):
         open(os.path.join(HERE, f"done_{argv[1].lower()}"), "w").close()
         return ("DONE: your patch and your repro script are handed to the judge. Your part is over: reply with one "

@@ -1,0 +1,8 @@
+# sa2 second fixer: no compaction in an agent_tool session, so a small reply budget keeps the whole history
+# (10 calls) far below the 32,768-token model length
+temperature: 0.2
+top_p: 0.95
+max_output_tokens: 4096
+thinking_config:
+  thinking_budget: 2048
+  include_thoughts: true
