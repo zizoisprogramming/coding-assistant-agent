@@ -1,0 +1,7 @@
+# sq1c2 = sq1 with the clock shell (skills/work, scripts/run.py) instead of run_command; sq1: SequentialAgent [fixer, finisher] (scripts/make_skill_arms.py sq2): the fixer (pub024 procedure) never
+# submits and hands over in plain text; the finisher only submits (sq2 without the second attempt).
+name: swe_agent
+agent_class: SequentialAgent
+sub_agents:
+  - config_path: fixer.yaml
+  - config_path: finisher.yaml

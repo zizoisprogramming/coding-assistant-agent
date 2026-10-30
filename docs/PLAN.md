@@ -23,6 +23,8 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   The clock's REFUSAL worked (refused in 8/12 runs; 3 solves came right after a refusal: 11194, 3506, 4079) even
   though 76% of the fixer's shell calls were GARBLED (model closes file_path with a backtick after the nested args
   object -> skill_name lost -> ADK INVALID_ARGUMENTS). Fix the call shape next (RESULT r30 below).
+- **RUN BUILT (r31, user to run):** sq1c2 (sq1c, shell call with positional_args) alone on e24, kaggle/cells_skill_c24
+  (only cell2 differs from the sq2 notebook; 24 runs, ~1.6 h). Details in "RUN BUILT r31" below.
 - **LB:** sk_a2 0.18, sk_a2_32 0.17, pub024 0.18 (our submission of the public 0.24 package, 2026-10-30) -> its 0.24
   was a lucky draw too. LB = ~58
   tasks: sd ~0.05; identical agents 0.12-0.26 -> never rank arms by LB. Final picks = best LOCAL arms.
@@ -41,6 +43,16 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   PASS2_IF_BEATS) -> kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS=...; run with `< <(sleep 400)` for a
   silent stdin); CPU notebooks kaggle/cells_testsignal, kaggle/cells_repro (private dataset
   ziad23samer/testsignal-candidates); results data/results/2026-10-29_*.
+
+### RUN BUILT r31: sq1c2 alone on e24 (2026-10-30)
+- sq1c2 = sq1c with the shell call reshaped: run_skill_script skill_name work, file_path scripts/run.py,
+  positional_args = [one string, the whole command]; "Do not use the args parameter"; plus a line: a "required"
+  argument error = malformed call, resend it written out plainly, never the same broken call twice. Same run.py,
+  everything else = sq1c. scripts/make_skill_arms.py sq1c2 (CLOCK_VARIANT); pack OK.
+- kaggle/cells_skill_c24: ARMS ["sq1c2"], TASKS e24 (same 24 as r28 sq2 19/24). Sim (SIM_CELLS=cells_skill_c24):
+  positional_args reached run.py, clock line in each output.
+- Read it: (1) garbled run_skill_script calls (r30: 76%); (2) the 12 easy e24 tasks still solved (clock must not hurt
+  them); (3) solves vs sq2 19/24 (r28) and q12 history; no-patch count; refusals and what followed.
 
 ### RESULT r30: sq1c (clock) 6/12 vs sq1 4/12 on q12 (2026-10-30)
 - data/results/2026-10-30_skill_c12, one notebook, 24 runs, no crash, no undeclared-tool call (no run_command).

@@ -1844,7 +1844,8 @@ def sq1c(arm):
     shutil.rmtree(out, ignore_errors=True)
     shutil.copytree(ROOT / "submissions/sq1", out)
     ay = out / "agent.yaml"
-    ay.write_text(ay.read_text().replace("# sq1: ", "# sq1c = sq1 with the clock shell (skills/work, scripts/run.py) instead of run_command; sq1: ", 1))
+    fix, skill_md = CLOCK_VARIANT[arm]
+    ay.write_text(ay.read_text().replace("# sq1: ", f"# {arm} = sq1 with the clock shell (skills/work, scripts/run.py) instead of run_command; sq1: ", 1))
     (out / "fixer.yaml").write_text(
         "name: fixer\nmodel: gemma-4-31b-it-qat-w4a16-ct\ninstruction: !include prompts/fixer.md\n"
         "tools:  # no run_command: the shell is run_skill_script work scripts/run.py (clock line in every output)\n"
@@ -1852,18 +1853,95 @@ def sq1c(arm):
         "  - submit_patch  # declared on all: the harness task message names it; an undeclared call drops the patch\n"
         "  - get_code_neighbors\n  - search_similar_code\n  - get_code_subgraph\n"
         "skills:\n  - skills/work\ngenerate_content_config: !include configs/sampling.yaml\n")
-    rest = HEAD_SQ1C_FIX.replace("{problem_description}", "")
+    rest = fix.replace("{problem_description}", "")
     assert "{" not in rest and "}" not in rest, "literal braces break ADK instruction templating"
-    (out / "prompts/fixer.md").write_text(HEAD_SQ1C_FIX)
+    (out / "prompts/fixer.md").write_text(fix)
     sk = out / "skills/work"
     (sk / "scripts").mkdir(parents=True)
-    (sk / "SKILL.md").write_text(CLOCK_SKILL_MD)
+    (sk / "SKILL.md").write_text(skill_md)
     shutil.copy(CLOCK_SRC / "run.py", sk / "scripts/run.py")
-    print("wrote", out.relative_to(ROOT), "| fixer", len(HEAD_SQ1C_FIX.split()), "words, shell = skills/work/scripts/run.py")
+    print("wrote", out.relative_to(ROOT), "| fixer", len(fix.split()), "words, shell = skills/work/scripts/run.py")
 
 
 SQ2_ARMS = ("sq2", "sq1")
-CLOCK_ARMS = ("sq1c",)
+
+# sq1c2 (user 2026-10-30): sq1c with the shell call reshaped. r30: 256/341 run_skill_script calls with the nested
+# args object were garbled (file_path closed with a backtick, skill_name lost); 0/698 without it. The model writes
+# keys alphabetically, so positional_args (a list) comes after file_path.
+HEAD_SQ1C2_FIX = """You are an autonomous software engineer. Your job: make the smallest correct change to the SOURCE code in
+/workspace so that the hidden tests for the issue pass. The hidden tests were written from the issue text, so the
+exact names, messages, types and behaviours in the issue are the specification. When you finish, a teammate submits
+your patch: you never call submit_patch.
+
+# YOUR TOOLS
+- Shell: run_skill_script with skill_name work, file_path scripts/run.py and positional_args, a list holding one
+  string: the whole shell command. Do not use the args parameter. It runs in /workspace. This is your only way to run
+  commands.
+- read_file to read a file region, edit_file to change a file, write_file to create a scratch file.
+- Every shell result ends with a clock line: "[clock] N s of 480 used | ..." and whether a source file is edited.
+  Read it every time. You have 8 minutes in total; the time goes mostly into your own thinking, so keep replies
+  short.
+- If a tool answers that an argument is required, your call was malformed: send it again with every argument
+  written out plainly, never the same broken call twice.
+
+# LIMITS
+- An edit that exists in /workspace counts even if time runs out; an unedited tree scores zero. Edit a source file
+  before 180 s on the clock: if unsure, make your best-guess edit in the most likely place; a wrong edit can still
+  be corrected. With no source edit at 270 s the shell refuses commands until you edit.
+- Never create, modify or delete test files (test_*.py, *_test.py, anything under tests/, pytest.ini, conftest.py).
+- Scratch files go in /tmp or .git/agent/ only: any other file left under /workspace becomes part of the patch.
+- Never run a full test suite: always name one test file, and add -k when you can.
+- Never use search_similar_code, get_code_neighbors or get_code_subgraph: they return nothing useful.
+
+# TIME PLAN (by the clock line)
+- Up to about 120 s: locate and read. By 180 s: your edit is in the file.
+- Then: write your repro script and run it once; one related test file; fix once if needed.
+- From 400 s: stop and FINISH.
+
+# PROCEDURE
+1. Before your first call, list for yourself the exact file, function, class or CLI name; the exact error message
+   and exception type; the expected return value or output; the inputs that trigger the bug; every edge case
+   mentioned. Every concrete string and name in the issue is a literal that must appear exactly in your code.
+2. Locate. Use exact paths from the issue directly. Combine independent searches for the issue's exact symbols,
+   their callers and relevant tests in one shell command: git grep -n -F "symbol" and git ls-files, about 20 lines
+   of output each. Then read the implementation plus one caller or test, about 40 lines per region, at most three
+   regions per command (sed -n 'START,ENDp' FILE). For a bug, find where the wrong behaviour is produced; for a
+   feature, copy the closest existing sibling, including __all__, option lists, dispatch tables and imports.
+3. Edit with edit_file: copy old_string exactly, short and unique. If it fails twice, use one inline python script
+   through the shell (quoted heredoc) that asserts the old text occurs once, replaces it and writes the file. Fix the
+   cause, not the symptom. Change only what the issue requires and keep signatures and defaults. Apply the change to
+   every parallel implementation (sync and async, each backend, re-exports in __init__.py or __all__). Use the exact
+   exception class and message text from the issue. For FastAPI documentation tasks, edit docs_src/.
+4. Repro script: write_file .git/agent/repro_a.py, a short python script that shows the issue's behaviour: it must
+   EXIT WITH AN ERROR (assert or raise) while the bug is there and exit 0 once it is fixed, printing FIXED or BUG.
+   Import the package normally. Run it once: timeout 30 python3 .git/agent/repro_a.py
+5. If one related test file exists, run it once: timeout 150 python -m pytest tests/path/test_x.py -x -q -k keyword
+   Failures from missing fixtures or unrelated imports are pre-existing: ignore them.
+
+# FINISH
+1. git status --short && git diff in one shell command: remove any scratch file in /workspace, restore any changed
+   test file with git checkout -- path.
+2. Reply with plain text and NO tool call: one line saying what you changed and where. That reply hands over to
+   your teammate.
+
+# DECISION RULES
+- Ambiguous issue: choose the most literal reading and act on it. Never ask questions.
+- Several possible places: pick where the wrong behaviour is produced, not where it is observed.
+- Stuck after a failed fix: make a different, smaller change. Never repeat the same edit.
+- Never conclude that nothing needs to change: every task needs a non-empty source patch.
+"""
+CLOCK2_SKILL_MD = """---
+name: work
+description: The fixer's shell. run_skill_script with skill_name work, file_path scripts/run.py and positional_args,
+  a list holding one string, the whole shell command. Runs in /workspace; the output ends with a clock line.
+---
+
+scripts/run.py runs one shell command in /workspace (output cut at 5000 characters) and ends with
+"[clock] N s of 480 used | source edited: FILES" or "no source edit yet". With no source edit at 270 s it refuses
+commands until edit_file has changed a source file.
+"""
+CLOCK_VARIANT = {"sq1c": (HEAD_SQ1C_FIX, CLOCK_SKILL_MD), "sq1c2": (HEAD_SQ1C2_FIX, CLOCK2_SKILL_MD)}
+CLOCK_ARMS = ("sq1c", "sq1c2")
 
 
 # arm -> (fixer prompt, reviewer prompt, a.py commands)
