@@ -19,8 +19,10 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   ran 0 times in 12 sq2 runs (finisher reached 3x, all SUBMIT NOW). -> sq2's 19/24 was mostly luck; sq1 = sq2 = pub024
   level. 13 of 24 runs ended with NO patch (12 at the 8-min limit, 1 empty hand-over) -> the main loss is "no edit
   in time" on hard tasks, not wrong patches (3). Next lever: get an edit into the tree on hard tasks.
-- **RUN BUILT (r30, user to run on ONE account):** sq1c vs sq1 on all 12 q12 tasks, kaggle/cells_skill_c12 (only
-  cell2 differs from the sq2 notebook; 24 runs, ~1.6 h wall / ~3.2 h quota). Details in "RUN BUILT r30" below.
+- **r30 RESULT (sq1c vs sq1 on q12):** sq1c 6/12, no patch 2 | sq1 4/12, no patch 6 (r29: sq1 3 / 7 no patch, sq2 4 / 7).
+  The clock's REFUSAL worked (refused in 8/12 runs; 3 solves came right after a refusal: 11194, 3506, 4079) even
+  though 76% of the fixer's shell calls were GARBLED (model closes file_path with a backtick after the nested args
+  object -> skill_name lost -> ADK INVALID_ARGUMENTS). Fix the call shape next (RESULT r30 below).
 - **LB:** sk_a2 0.18, sk_a2_32 0.17, pub024 0.18 (our submission of the public 0.24 package, 2026-10-30) -> its 0.24
   was a lucky draw too. LB = ~58
   tasks: sd ~0.05; identical agents 0.12-0.26 -> never rank arms by LB. Final picks = best LOCAL arms.
@@ -39,6 +41,22 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   PASS2_IF_BEATS) -> kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS=...; run with `< <(sleep 400)` for a
   silent stdin); CPU notebooks kaggle/cells_testsignal, kaggle/cells_repro (private dataset
   ziad23samer/testsignal-candidates); results data/results/2026-10-29_*.
+
+### RESULT r30: sq1c (clock) 6/12 vs sq1 4/12 on q12 (2026-10-30)
+- data/results/2026-10-30_skill_c12, one notebook, 24 runs, no crash, no undeclared-tool call (no run_command).
+- sq1c 6/12, no patch 2 (14419, 4075), mean 461 s; sq1 4/12, no patch 6, mean 423 s. Earlier on q12: sq1 3 (7 no
+  patch), sq2 4 (7) and 7 (5). Per task sq1c / sq1: 11194 Y/Y, 12942 Y/Y, 14349 Y/Y, 14419 -/-, 14873 -/-, 15589 -/-,
+  3278 -/-, 3506 Y/-, 3521 -/-, 3676 Y/-, 4075 -/-, 4079 Y/Y.
+- Clock events (all requests scanned): warning in 9/12 runs (187-393 s), REFUSED in 8/12 (271-456 s); after a refusal
+  an edit followed in 6 (11194 313->359 solved, 3506 279->396 solved, 4079 277->edit solved, 15589, 14873, 11194),
+  none in 14419 (refused at 393) and 4075 (328).
+- BUG: 259/343 run_skill_script calls garbled: {"args": {"cmd": ...}, "file_path": "scripts/run.py`,skill_name:"}.
+  Over all runs: run_skill_script WITHOUT args 0/698 garbled, WITH args (nested object first) 256/341; the same
+  backtick glitch after a path value: edit_file 11.4%, write_file 3.4%, read_file 1.0%, run_command 0/17,699 (one
+  argument). The fixer repeated the same broken call up to 59 times (12942) -> lost time.
+- Next: a call shape without the nested object before file_path. ADK sorts nothing; the model writes keys
+  alphabetically (args < file_path < skill_name). positional_args (an array) sorts AFTER file_path, so file_path is
+  written before any nesting; run.py already accepts positional args.
 
 ### RUN BUILT r30: sq1c (clock shell) vs sq1 on q12, 4 shards (2026-10-30)
 - sq1c = sq1 whose fixer has NO run_command: its shell is skills/work scripts/run.py (scripts/agent_clock/run.py)
