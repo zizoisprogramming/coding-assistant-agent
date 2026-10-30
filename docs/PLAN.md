@@ -49,6 +49,15 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   silent stdin); CPU notebooks kaggle/cells_testsignal, kaggle/cells_repro (private dataset
   ziad23samer/testsignal-candidates); results data/results/2026-10-29_*.
 
+### RUN BUILT r33: pub024 x 2 passes on q12 (2026-10-30)
+- User: fresh pub024 control on the same 12 tasks. kaggle/cells_skill_p12: ARMS [pub024], Q12, PASSES 2,
+  EARLY_STOP_MAX -1 (off for this run: pub024's earlier q12 score was 3 = would stop). Only cell2 differs. 24 runs.
+- Why fresh runs: q12 was picked AFTER earlier runs failed these tasks (pub024 counted 12/29 there, 41%), so the old
+  pub024 numbers are biased low; sq1c2 has 14/24 (58%) in runs made after the pick.
+- LB time risk of sq1c2 (dist/submission.zip = dist/sq1c2.zip, same files as r32's run): the scorer runs ~116+ tasks
+  in 12 h (mix: 346 s dev mean fitted; le5 347 s on dev16 timed out). pub024 fitted on the LB; its d40 mean ~340 s
+  (s20 270 + u20 411); sq1c2 is ~8% slower than pub024 on e24 (309 vs 287) -> ~367 s estimated -> over the edge.
+
 ### RESULT r32: sq1c2 8/12, sq1c3 7/12, sq1c4 7/12 on q12 (2026-10-30)
 - data/results/2026-10-30_skill_c36, 36 runs, 2.4 h, no crash. Per task (sq1c2/sq1c3/sq1c4): 11194 YYY, 12942 YYY,
   14349 YYY, 14419 nnn, 14873 YYY, 15589 YYY, 3278 YYn, 3506 YYn, 3521 nnn, 3676 YnY, 4075 nnn, 4079 nnY.

@@ -31,8 +31,8 @@ sys.path.insert(0, str(ROOT / "scripts/train"))
 import make_gen_cells as G  # noqa: E402
 from make_test_cells import must_replace  # noqa: E402
 
-OUT = ROOT / "kaggle/cells_skill_c36"  # SHARDS set: one folder per shard, OUT + "_s1" ...
-ARMS = ["sq1c2", "sq1c3", "sq1c4"]  # r32 (user 2026-10-30) on q12: sq1c3 = reads through the clock, sq1c4 = thinking 2048, sq1c2 = control; r31 sq1c2 alone on e24 = kaggle/cells_skill_c24; sq1c2 = sq1c with positional_args (user 2026-10-30); r30 sq1c vs sq1 = kaggle/cells_skill_c12; sq1c = sq1 with the clock shell (user 2026-10-30), fresh sq1 control; r29 sq1 vs sq2 = kaggle/cells_skill_q12_s1..s4; sq1 = sq2 without the second attempt (user 2026-10-29); sq2 alone (r28 19/24) = kaggle/cells_skill_sq2; bo3 + sa2 (r27) = kaggle/cells_skill_bo3_sa2; bo3 alone = kaggle/cells_skill_bo3 (stopped after 8 tasks, 6 solved); e24x2 = pub024 vs sk_a2_32 (kaggle/cells_skill_e24x2); d40x2 (user: is pub024 really ahead?); u20 (r24) = kaggle/cells_skill_u20 with sk_fr2; s20 (r23) = kaggle/cells_skill_s20_fr2_pub; sk_fr2 alone = kaggle/cells_skill_s20_fr2; sk_fr = kaggle/cells_skill_s20_fr (r22 15/20); d40: sk_a2 = kaggle/cells_skill_d40 (17/40), sk_a2_32 = kaggle/cells_skill_d40_32 (18/40), pub024 = kaggle/cells_skill_d40_pub
+OUT = ROOT / "kaggle/cells_skill_p12"  # SHARDS set: one folder per shard, OUT + "_s1" ...
+ARMS = ["pub024"]  # r33 (user 2026-10-30): pub024 x 2 passes on q12 (comparison for sq1c2 6, 6, 8); r32 = kaggle/cells_skill_c36 on q12: sq1c3 = reads through the clock, sq1c4 = thinking 2048, sq1c2 = control; r31 sq1c2 alone on e24 = kaggle/cells_skill_c24; sq1c2 = sq1c with positional_args (user 2026-10-30); r30 sq1c vs sq1 = kaggle/cells_skill_c12; sq1c = sq1 with the clock shell (user 2026-10-30), fresh sq1 control; r29 sq1 vs sq2 = kaggle/cells_skill_q12_s1..s4; sq1 = sq2 without the second attempt (user 2026-10-29); sq2 alone (r28 19/24) = kaggle/cells_skill_sq2; bo3 + sa2 (r27) = kaggle/cells_skill_bo3_sa2; bo3 alone = kaggle/cells_skill_bo3 (stopped after 8 tasks, 6 solved); e24x2 = pub024 vs sk_a2_32 (kaggle/cells_skill_e24x2); d40x2 (user: is pub024 really ahead?); u20 (r24) = kaggle/cells_skill_u20 with sk_fr2; s20 (r23) = kaggle/cells_skill_s20_fr2_pub; sk_fr2 alone = kaggle/cells_skill_s20_fr2; sk_fr = kaggle/cells_skill_s20_fr (r22 15/20); d40: sk_a2 = kaggle/cells_skill_d40 (17/40), sk_a2_32 = kaggle/cells_skill_d40_32 (18/40), pub024 = kaggle/cells_skill_d40_pub
 # the winnable dev16 tasks: tier 1 (mix 55-95%) + tier 2 (14-35% over all arms); the other 9 were 0 in ~150 runs
 WINNABLE7 = ["rich_3882", "fastapi_15589", "fastapi_11194", "rich_4079", "rich_3521", "fastapi_14419", "rich_3470"]
 SPLITS = json.load(open(ROOT / "data/splits_public.json"))
@@ -63,10 +63,10 @@ assert sorted(sum(_SHARDS4, [])) == sorted(Q12)
 SHARDS = None  # r30 (user 2026-10-30): one account, all 12 tasks; _SHARDS4 = one notebook per account
 # 1.5 h quota = 45 min wall on L4x4 (bills 2x): setup ~10 min; no new run after 0.5 h from cell 2 -> ends by ~42 min
 STOP_H = None  # None = 10.5 (whole-session runs); 0.5 for a 1.5 h-quota shard
-PASSES = 1  # bo3: one pass at concurrency 1 (the LB runs tasks one at a time)
+PASSES = 2  # r33: pub024 x 2; bo3: one pass at concurrency 1 (the LB runs tasks one at a time)
 CONCURRENCY = 2  # sq2: as the single-agent e24 runs it is compared with (r25 pub024 14, sk_a2_32 15); bo3 used 1
 PASS2_IF_BEATS = None  # e24x2: ("pub024", "sk_a2_32"); user (e24x2): pass 2 only if pass 1 of the first arm solved MORE than the second; None = off
-EARLY_STOP_MAX = 3  # user: after pass 1, an arm that solved 3 or fewer stops (mix: 3.67 per pass)
+EARLY_STOP_MAX = -1  # r33 (user asked for 2 passes): off; was 3 - user: after pass 1, an arm that solved 3 or fewer stops (mix: 3.67 per pass)
 
 
 def arm_files(arm):
