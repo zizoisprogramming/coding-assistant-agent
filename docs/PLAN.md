@@ -27,8 +27,9 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   (sq2: 5), mean 309 s/task (sq2: 365). Garbled shell calls 76% -> 8% (positional_args works). Remaining no-patch
   causes: (a) after REFUSED the fixer escapes into read_file and never edits (12942, 15589); (b) one long thinking
   call (rich_3521: 131 s + 109 s, ~4k tokens each) -> no refusal ever fires. Details in "RESULT r31" below.
-- **RUN BUILT (r32, user to run):** kaggle/cells_skill_c36 = sq1c2 (control) vs sq1c3 (reads through the clock) vs
-  sq1c4 (thinking 2048) on q12, 36 runs, ~2.5 h. Details in "RUN BUILT r32" below.
+- **r32 RESULT (q12, 36 runs):** sq1c2 (control) 8/12, sq1c3 (reads through the clock) 7/12, sq1c4 (thinking 2048)
+  7/12 -> neither change helps; drop both. Clock arm on q12 over 3 runs: 6, 6, 8 (mean 6.7) vs sq1 3, 4 and sq2 4, 7,
+  pub024 3 -> sq1c2 is our best local agent (e24 18/24 = sq2 level). Details in "RESULT r32" below.
 - **LB:** sk_a2 0.18, sk_a2_32 0.17, pub024 0.18 (our submission of the public 0.24 package, 2026-10-30) -> its 0.24
   was a lucky draw too. LB = ~58
   tasks: sd ~0.05; identical agents 0.12-0.26 -> never rank arms by LB. Final picks = best LOCAL arms.
@@ -47,6 +48,23 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   PASS2_IF_BEATS) -> kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS=...; run with `< <(sleep 400)` for a
   silent stdin); CPU notebooks kaggle/cells_testsignal, kaggle/cells_repro (private dataset
   ziad23samer/testsignal-candidates); results data/results/2026-10-29_*.
+
+### RESULT r32: sq1c2 8/12, sq1c3 7/12, sq1c4 7/12 on q12 (2026-10-30)
+- data/results/2026-10-30_skill_c36, 36 runs, 2.4 h, no crash. Per task (sq1c2/sq1c3/sq1c4): 11194 YYY, 12942 YYY,
+  14349 YYY, 14419 nnn, 14873 YYY, 15589 YYY, 3278 YYn, 3506 YYn, 3521 nnn, 3676 YnY, 4075 nnn, 4079 nnY.
+- | arm | solved | no patch | mean s | calls >60 s | runs refused | read_file | edit_file failed | garbled shell |
+  | sq1c2 | 8 | 2 | 414 | 13 | 7 | 115 (15 after a refusal) | 1/32 (3%) | 13/166 |
+  | sq1c3 | 7 | 2 | 459 | 16 | 8 | 0 | 7/28 (25%) | 24/334 |
+  | sq1c4 | 7 | 0 | 438 | 18 | 6 | 163 (10 after) | 3/32 (9%) | 17/207 |
+- sq1c3: the prompt worked (0 read_file calls) and after every refusal the next calls led to an edit, BUT reading
+  through the shell made edits fail (old_string copied from sed output inside a JSON string: 25% vs 3%). Both
+  no-patch runs (3521, 4075) were a deadlock: refused -> cannot read -> edit_file "old_string not found" repeatedly.
+  Slower (459 s). -> reading must stay with read_file.
+- sq1c4: thinking capped (max reasoning ~7.7k chars vs up to 18k), no-patch 0, but calls > 60 s did not drop
+  (18 vs 13) and solves did not rise -> long calls are not only thinking; 2048 is not the lever here.
+- Control sq1c2 8/12 (r31 6/12 on the same tasks): run-to-run noise on q12 is about +-2.
+- Next: sq1c2 = best local agent (q12 6, 6, 8; e24 18). Candidate for the next LB submission; further arms only
+  with a mechanism aimed at the remaining always-fail tasks (14419, 3521, 4075: wrong or no patch in all arms).
 
 ### RUN BUILT r32: sq1c2 (control) vs sq1c3 vs sq1c4 on q12 (2026-10-30)
 - User: "try both arms". sq1c3 = sq1c2 with all reading through the clock shell (prompt rewritten: sed -n through
