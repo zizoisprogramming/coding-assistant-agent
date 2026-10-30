@@ -19,8 +19,8 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   ran 0 times in 12 sq2 runs (finisher reached 3x, all SUBMIT NOW). -> sq2's 19/24 was mostly luck; sq1 = sq2 = pub024
   level. 13 of 24 runs ended with NO patch (12 at the 8-min limit, 1 empty hand-over) -> the main loss is "no edit
   in time" on hard tasks, not wrong patches (3). Next lever: get an edit into the tree on hard tasks.
-- **RUN BUILT (r30, user to run on 4 accounts):** sq1c vs sq1 on q12, kaggle/cells_skill_c12_s1..s4 (only cell2
-  differs from the sq2 notebook; same shards / timing as r29). Details in "RUN BUILT r30" below.
+- **RUN BUILT (r30, user to run on ONE account):** sq1c vs sq1 on all 12 q12 tasks, kaggle/cells_skill_c12 (only
+  cell2 differs from the sq2 notebook; 24 runs, ~1.6 h wall / ~3.2 h quota). Details in "RUN BUILT r30" below.
 - **LB:** sk_a2 0.18, sk_a2_32 0.17, pub024 0.18 (our submission of the public 0.24 package, 2026-10-30) -> its 0.24
   was a lucky draw too. LB = ~58
   tasks: sd ~0.05; identical agents 0.12-0.26 -> never rank arms by LB. Final picks = best LOCAL arms.
@@ -48,7 +48,7 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   Output cut at 5000 chars, timeout min(150, left - 10), stdin DEVNULL. Fixer prompt rewritten (time plan by the clock
   instead of call numbers); read_file kept (the harness task message names it). Risk: a hallucinated run_command =
   undeclared tool = patch lost (0 undeclared calls in 25,578 earlier calls, but run_command was always declared).
-- Cells: ARMS ["sq1c", "sq1"], SHARDS as r29. cell3b digest unchanged (run.py calls count as 'install'); read clock
+- Cells: ARMS ["sq1c", "sq1"], one notebook (user: one account), SHARDS None, STOP_H None (10.5). cell3b digest unchanged (run.py calls count as 'install'); read clock
   warnings / refusals from requests.jsonl. Sim (SIM_CELLS=cells_skill_c12_s1, armsim role fixer_c): run.py found the
   workspace, clock line in each output, git apply through the shell counted as the edit.
 - Read it: no-patch runs (r29: sq1 7/12, sq2 7/12) and solves; refusals and what the fixer did right after; crashes.

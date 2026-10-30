@@ -58,10 +58,11 @@ TASKS = Q12
 # one notebook per account: 3 tasks x 2 arms = 6 runs each; tasks dealt slow/fast by sq2's r28 time (snake order)
 _BY_TIME = ["fastapi_12942", "fastapi_14419", "fastapi_14873", "fastapi_15589", "rich_3506", "rich_4079",
             "fastapi_11194", "rich_4075", "fastapi_14349", "rich_3521", "rich_3278", "rich_3676"]
-SHARDS = [sorted(_BY_TIME[k] for k in (i, 7 - i, 8 + i)) for i in range(4)]  # None = one notebook with all TASKS
-assert sorted(sum(SHARDS, [])) == sorted(Q12)
+_SHARDS4 = [sorted(_BY_TIME[k] for k in (i, 7 - i, 8 + i)) for i in range(4)]  # r29 / c12_s1..s4
+assert sorted(sum(_SHARDS4, [])) == sorted(Q12)
+SHARDS = None  # r30 (user 2026-10-30): one account, all 12 tasks; _SHARDS4 = one notebook per account
 # 1.5 h quota = 45 min wall on L4x4 (bills 2x): setup ~10 min; no new run after 0.5 h from cell 2 -> ends by ~42 min
-STOP_H = 0.5  # None = 10.5 (whole-session runs)
+STOP_H = None  # None = 10.5 (whole-session runs); 0.5 for a 1.5 h-quota shard
 PASSES = 1  # bo3: one pass at concurrency 1 (the LB runs tasks one at a time)
 CONCURRENCY = 2  # sq2: as the single-agent e24 runs it is compared with (r25 pub024 14, sk_a2_32 15); bo3 used 1
 PASS2_IF_BEATS = None  # e24x2: ("pub024", "sk_a2_32"); user (e24x2): pass 2 only if pass 1 of the first arm solved MORE than the second; None = off
