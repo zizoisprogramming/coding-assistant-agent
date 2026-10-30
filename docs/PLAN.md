@@ -49,6 +49,16 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   silent stdin); CPU notebooks kaggle/cells_testsignal, kaggle/cells_repro (private dataset
   ziad23samer/testsignal-candidates); results data/results/2026-10-29_*.
 
+### RUN BUILT r34: sq1c2t7 (7-minute sq1c2) alone on d40 (2026-10-30)
+- sq1c2t7 = sq1c2 with every time scaled by 7/8: max_time_minutes 7, clock SESSION 420, warning 160 s, refusal
+  240 s; fixer prompt rewritten with those times (locate by ~100 s, edit by 160 s, finish from 350 s, pytest timeout
+  120). Everything else = sq1c2. dist/sq1c2t7.zip (pack OK).
+- kaggle/cells_skill_d40t7: ARMS [sq1c2t7], TASKS D40 (= s20 + u20, where pub024 got 18 + 2 = 20/40 at 270 / 411 s,
+  ~340 s mean), 1 pass, concurrency 2, ~2.2 h. Only cell2 differs from the sq2 notebook (its arm check now accepts
+  max_time_minutes 7). Sim: clock "s of 420", budgets max_time_minutes 7.
+- Read it: solved vs pub024 20/40 (s20 18, u20 2); mean agent s (must be well under ~340 s to submit); runs hitting
+  the 420 s wall; no-patch count; refusals. If score >= pub024 and time <= ~330 s -> submit dist/sq1c2t7.zip.
+
 ### RESULT r33: pub024 4/12 + 6/12 on q12 (2026-10-30)
 - data/results/2026-10-30_skill_p12, 24 runs, ~1.5 h. pub024 10/24 (42%) vs sq1c2 14/24 (58%: r31 6, r32 8) on
   the same 12, all runs made after the pick. Per task pub024 / sq1c2: 11194 nn/YY, 12942 nY/nY, 14349 nY/YY, 14419
