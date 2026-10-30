@@ -19,7 +19,10 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   ran 0 times in 12 sq2 runs (finisher reached 3x, all SUBMIT NOW). -> sq2's 19/24 was mostly luck; sq1 = sq2 = pub024
   level. 13 of 24 runs ended with NO patch (12 at the 8-min limit, 1 empty hand-over) -> the main loss is "no edit
   in time" on hard tasks, not wrong patches (3). Next lever: get an edit into the tree on hard tasks.
-- **LB:** sk_a2 0.18, sk_a2_32 0.17, pub024 packed (dist/pub024.zip; user to submit or did, score unknown). LB = ~58
+- **RUN BUILT (r30, user to run on 4 accounts):** sq1c vs sq1 on q12, kaggle/cells_skill_c12_s1..s4 (only cell2
+  differs from the sq2 notebook; same shards / timing as r29). Details in "RUN BUILT r30" below.
+- **LB:** sk_a2 0.18, sk_a2_32 0.17, pub024 0.18 (our submission of the public 0.24 package, 2026-10-30) -> its 0.24
+  was a lucky draw too. LB = ~58
   tasks: sd ~0.05; identical agents 0.12-0.26 -> never rank arms by LB. Final picks = best LOCAL arms.
 - **What we know (2026-10-29):** all single agents (sk_a2, sk_a2_32, pub024, sk_fr2) are the same level: d40 ~17-18/40,
   e24 ~16.9/24; pub024 ~10% faster (fewer tokens/call, no a.py overhead). On d40: 13 tasks always solved, 16 never,
@@ -36,6 +39,19 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   PASS2_IF_BEATS) -> kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS=...; run with `< <(sleep 400)` for a
   silent stdin); CPU notebooks kaggle/cells_testsignal, kaggle/cells_repro (private dataset
   ziad23samer/testsignal-candidates); results data/results/2026-10-29_*.
+
+### RUN BUILT r30: sq1c (clock shell) vs sq1 on q12, 4 shards (2026-10-30)
+- sq1c = sq1 whose fixer has NO run_command: its shell is skills/work scripts/run.py (scripts/agent_clock/run.py)
+  via run_skill_script args cmd. Every output ends "[clock] N s of 480 used | source edited: FILES / no source edit
+  yet"; no edit at 180 s -> "NO SOURCE EDIT YET ... make your best edit now"; at 270 s -> REFUSED until a source file
+  is edited (edit commands pass). Clock = git log _swegemma_baseline (tagged at sandbox start; sim shows 0 s at start).
+  Output cut at 5000 chars, timeout min(150, left - 10), stdin DEVNULL. Fixer prompt rewritten (time plan by the clock
+  instead of call numbers); read_file kept (the harness task message names it). Risk: a hallucinated run_command =
+  undeclared tool = patch lost (0 undeclared calls in 25,578 earlier calls, but run_command was always declared).
+- Cells: ARMS ["sq1c", "sq1"], SHARDS as r29. cell3b digest unchanged (run.py calls count as 'install'); read clock
+  warnings / refusals from requests.jsonl. Sim (SIM_CELLS=cells_skill_c12_s1, armsim role fixer_c): run.py found the
+  workspace, clock line in each output, git apply through the shell counted as the edit.
+- Read it: no-patch runs (r29: sq1 7/12, sq2 7/12) and solves; refusals and what the fixer did right after; crashes.
 
 ### ANALYSIS: why runs end with no patch (2026-10-29, 804 skill-arm runs 10-25 -> 10-29 with requests.jsonl)
 - 291 solved, 313 wrong patch, 200 NO patch. No patch: 113 never tried an edit (95 ended at the time limit, median 23
