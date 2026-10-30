@@ -49,6 +49,15 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   silent stdin); CPU notebooks kaggle/cells_testsignal, kaggle/cells_repro (private dataset
   ziad23samer/testsignal-candidates); results data/results/2026-10-29_*.
 
+### RESULT r33: pub024 4/12 + 6/12 on q12 (2026-10-30)
+- data/results/2026-10-30_skill_p12, 24 runs, ~1.5 h. pub024 10/24 (42%) vs sq1c2 14/24 (58%: r31 6, r32 8) on
+  the same 12, all runs made after the pick. Per task pub024 / sq1c2: 11194 nn/YY, 12942 nY/nY, 14349 nY/YY, 14419
+  Yn/nn, 14873 YY/YY, 15589 Yn/nY, 3278 nY/YY, 3506 nY/nY, 3521 nY/nn, 3676 nn/YY, 4075 nn/nn, 4079 Yn/Yn.
+  sq1c2 ahead on 4 tasks (+6 runs), pub024 on 2 (+2): suggestive, not proven (~1.2 se). Clock family (sq1c, sq1c2,
+  sq1c3, sq1c4) on q12: 34/60 = 57%.
+- No patch 5 each. Time: pub024 366 s, sq1c2 423 s (+16%; e24 +8%); 8-min wall hit pub024 8/24, sq1c2 14/24.
+  -> sq1c2 at 8 min is likely too slow for the 12-h scorer (pub024 ~340 s on d40 fitted; sq1c2 ~370-395 s est.).
+
 ### RUN BUILT r33: pub024 x 2 passes on q12 (2026-10-30)
 - User: fresh pub024 control on the same 12 tasks. kaggle/cells_skill_p12: ARMS [pub024], Q12, PASSES 2,
   EARLY_STOP_MAX -1 (off for this run: pub024's earlier q12 score was 3 = would stop). Only cell2 differs. 24 runs.
