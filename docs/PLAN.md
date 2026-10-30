@@ -10,7 +10,7 @@ change cell 4's printed output. **No training data from Claude, GPT or Gemini (u
 account runs its OWN notebook copy (a shared notebook made `kaggle kernels output` return only the latest version
 and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly quota is tight → small runs.
 
-### CHECKPOINT 2026-10-29 evening (NEWEST — read first; the dated entries below are the details)
+### CHECKPOINT 2026-10-30 (NEWEST — read first; the dated entries below are the details)
 - **Latest result (r28, 2026-10-29):** sq2 19/24 on e24 (best e24 reading; fair same-set single runs after the
   set was picked: pub024 14, sk_a2_32 15, sa2 18). BUT the second attempt changed no outcome (details in RESULT r28)
   -> the gain is the fixer -> finisher STRUCTURE or noise (sd ~2.2 on 24). Next: re-run sq2 (pass 2) to confirm,
@@ -23,8 +23,10 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   The clock's REFUSAL worked (refused in 8/12 runs; 3 solves came right after a refusal: 11194, 3506, 4079) even
   though 76% of the fixer's shell calls were GARBLED (model closes file_path with a backtick after the nested args
   object -> skill_name lost -> ADK INVALID_ARGUMENTS). Fix the call shape next (RESULT r30 below).
-- **RUN BUILT (r31, user to run):** sq1c2 (sq1c, shell call with positional_args) alone on e24, kaggle/cells_skill_c24
-  (only cell2 differs from the sq2 notebook; 24 runs, ~1.6 h). Details in "RUN BUILT r31" below.
+- **r31 RESULT (sq1c2 on e24):** 18/24 (sq2 r28: 19/24; diff = noise), q12 subset 6/12 (= sq1c r30), no patch 3
+  (sq2: 5), mean 309 s/task (sq2: 365). Garbled shell calls 76% -> 8% (positional_args works). Remaining no-patch
+  causes: (a) after REFUSED the fixer escapes into read_file and never edits (12942, 15589); (b) one long thinking
+  call (rich_3521: 131 s + 109 s, ~4k tokens each) -> no refusal ever fires. Details in "RESULT r31" below.
 - **LB:** sk_a2 0.18, sk_a2_32 0.17, pub024 0.18 (our submission of the public 0.24 package, 2026-10-30) -> its 0.24
   was a lucky draw too. LB = ~58
   tasks: sd ~0.05; identical agents 0.12-0.26 -> never rank arms by LB. Final picks = best LOCAL arms.
@@ -43,6 +45,25 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   PASS2_IF_BEATS) -> kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS=...; run with `< <(sleep 400)` for a
   silent stdin); CPU notebooks kaggle/cells_testsignal, kaggle/cells_repro (private dataset
   ziad23samer/testsignal-candidates); results data/results/2026-10-29_*.
+
+### RESULT r31: sq1c2 18/24 on e24 (2026-10-30)
+- data/results/2026-10-30_skill_c24, one notebook, 24 runs, 1.09 h, no crash. 18/24 vs sq2 (r28) 19/24 on the same
+  24: gain rich_4079, losses fastapi_15589 and rich_3521 (both no patch, both solved by sq2 at 480/367 s); every
+  other task the same outcome. Single runs, sd ~2.2 -> equal. q12 subset 6/12 (sq1c r30 6, sq1 4/3, sq2 4/7).
+- No patch 3 (12942, 15589, 3521) vs sq2 5; wrong patches 3 (14419, 3506, 4075; sq2 had none there). Faster: mean
+  309 s vs 365 s; 12 tasks first-edited before 120 s, all solved.
+- Call shape: run_skill_script 334 calls, 307 well-formed, 27 garbled (8%; r30 76%): 11 lacked skill_name (often
+  the FIRST call of a run), 16 had the command swallowed into a key ('<|"|>],skill_name'). Each cost one call
+  (the model resent it correctly after INVALID_ARGUMENTS).
+- REFUSED fired in 7 runs; next call edit_file/write_file in 5 (11194 Y, 3278 Y, 4079 Y, 14419 wrong, 3506 wrong);
+  in 2 the fixer switched to read_file and never edited (12942, 15589: repro printed "FIXED" before any edit, the
+  model kept reading). read_file is not behind the clock -> it is the escape route.
+- rich_3521: only 9 tool calls; two model calls took 131 s and 109 s (thinking 10.9k / 9.7k chars, ~4k tokens each;
+  thinking_budget 4096) -> 345 s gone with no edit, compaction, time-out. No refusal (no shell call after 270 s).
+  Every failed run except 4075 had a model call > 60 s; of the 17 runs with none, 16 solved.
+- Next candidates (not built): (1) reads behind the clock: drop read_file from the fixer, read through run.py
+  (sed -n / cat), so REFUSED covers everything but edits; (2) lower thinking_budget (4096 -> 2048) to cut the
+  >60 s calls; risk: shallower reasoning on hard tasks. Measure one at a time on q12.
 
 ### RUN BUILT r31: sq1c2 alone on e24 (2026-10-30)
 - sq1c2 = sq1c with the shell call reshaped: run_skill_script skill_name work, file_path scripts/run.py,
