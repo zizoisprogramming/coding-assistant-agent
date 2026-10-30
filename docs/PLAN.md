@@ -27,6 +27,8 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   (sq2: 5), mean 309 s/task (sq2: 365). Garbled shell calls 76% -> 8% (positional_args works). Remaining no-patch
   causes: (a) after REFUSED the fixer escapes into read_file and never edits (12942, 15589); (b) one long thinking
   call (rich_3521: 131 s + 109 s, ~4k tokens each) -> no refusal ever fires. Details in "RESULT r31" below.
+- **RUN BUILT (r32, user to run):** kaggle/cells_skill_c36 = sq1c2 (control) vs sq1c3 (reads through the clock) vs
+  sq1c4 (thinking 2048) on q12, 36 runs, ~2.5 h. Details in "RUN BUILT r32" below.
 - **LB:** sk_a2 0.18, sk_a2_32 0.17, pub024 0.18 (our submission of the public 0.24 package, 2026-10-30) -> its 0.24
   was a lucky draw too. LB = ~58
   tasks: sd ~0.05; identical agents 0.12-0.26 -> never rank arms by LB. Final picks = best LOCAL arms.
@@ -45,6 +47,17 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   PASS2_IF_BEATS) -> kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS=...; run with `< <(sleep 400)` for a
   silent stdin); CPU notebooks kaggle/cells_testsignal, kaggle/cells_repro (private dataset
   ziad23samer/testsignal-candidates); results data/results/2026-10-29_*.
+
+### RUN BUILT r32: sq1c2 (control) vs sq1c3 vs sq1c4 on q12 (2026-10-30)
+- User: "try both arms". sq1c3 = sq1c2 with all reading through the clock shell (prompt rewritten: sed -n through
+  run.py, "Do not use read_file"; read_file stays declared because an undeclared call drops the patch; the refusal
+  adds "Every command, reading included, runs again once a source file is edited; do not read with read_file
+  either"). sq1c4 = sq1c2 with thinking_budget 2048 (only change). sq1c2 unchanged = control.
+- kaggle/cells_skill_c36: ARMS [sq1c2, sq1c3, sq1c4], TASKS Q12, 1 pass, concurrency 2 -> 36 runs, ~2.5 h wall
+  (~5 h quota). Only cell2 differs from the sq2 notebook. Sim (SIM_CELLS=cells_skill_c36): 6/6 runs patch, clock
+  line in outputs, requests carry thinking_token_budget 4096 (sq1c2, sq1c3) / 2048 (sq1c4); sq1c3 refusal text checked.
+- Read it: solves per arm (q12 history: sq1c 6, sq1c2 6 in r31); no-patch count; read_file calls in sq1c3 (after a
+  refusal especially); model calls > 60 s and mean s/task in sq1c4; garbled calls.
 
 ### RESULT r31: sq1c2 18/24 on e24 (2026-10-30)
 - data/results/2026-10-30_skill_c24, one notebook, 24 runs, 1.09 h, no crash. 18/24 vs sq2 (r28) 19/24 on the same
