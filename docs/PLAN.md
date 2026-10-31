@@ -55,7 +55,11 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   272 s. Differ: t7 only 14349, 3063, 3470; pub024 only 14419, 15589, 3278, 4075.
 - Subsets: e24 17 (sq1c2 8-min r31 18, pub024 r25 14); q12 5 (sq1c2 6, 6, 8; pub024 3, 4, 6); the 16 tasks no arm
   had solved: 2 (rich_3470, rich_3063). The 7-min cut saved little time on e24 (300 vs 309 s) and cost ~1 task.
-- Verdict: equal to pub024 on the broad set (1 task = noise), ahead on the medium q12/e24 tasks over all runs, and
+- CORRECTION (user, 2026-10-31): pub024's "20/40" is NOT one run: it is two runs stitched (s20 r23 18/20 + u20 r24
+  2/20). On the same 20 s20 tasks pub024 scored 14 in e24x2 (r25) -> r23's 18 was a lucky draw. pub024's per-task
+  solve rate over all its runs (s20, u20, e24x2, b, p12) gives ~17.0 per d40 pass. sq1c2t7: s20 16, u20 3 = 19.
+  So sq1c2t7 19 vs pub024 ~17 expected (single runs swing +-2-3).
+- Verdict: at least equal to pub024 on the broad set, ahead on the medium q12/e24 tasks over all runs, and
   faster than pub024 (325 vs 340 s, pub024 fitted the 12-h scorer) -> submittable. dist/submission.zip =
   dist/sq1c2t7.zip (same files as this run).
 
@@ -63,7 +67,7 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
 - sq1c2t7 = sq1c2 with every time scaled by 7/8: max_time_minutes 7, clock SESSION 420, warning 160 s, refusal
   240 s; fixer prompt rewritten with those times (locate by ~100 s, edit by 160 s, finish from 350 s, pytest timeout
   120). Everything else = sq1c2. dist/sq1c2t7.zip (pack OK).
-- kaggle/cells_skill_d40t7: ARMS [sq1c2t7], TASKS D40 (= s20 + u20, where pub024 got 18 + 2 = 20/40 at 270 / 411 s,
+- kaggle/cells_skill_d40t7: ARMS [sq1c2t7], TASKS D40 (= s20 + u20, where pub024 got 18 + 2 = 20/40 in two separate runs, at 270 / 411 s,
   ~340 s mean), 1 pass, concurrency 2, ~2.2 h. Only cell2 differs from the sq2 notebook (its arm check now accepts
   max_time_minutes 7). Sim: clock "s of 420", budgets max_time_minutes 7.
 - Read it: solved vs pub024 20/40 (s20 18, u20 2); mean agent s (must be well under ~340 s to submit); runs hitting
