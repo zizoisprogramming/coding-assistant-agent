@@ -49,6 +49,15 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   silent stdin); CPU notebooks kaggle/cells_testsignal, kaggle/cells_repro (private dataset
   ziad23samer/testsignal-candidates); results data/results/2026-10-29_*.
 
+### RESULT r35: sq1c2t7 18/24 vs pub024 15/24 on e24, same run (2026-10-31)
+- data/results/2026-10-31_skill_e24t7, 48 runs, no crash. sq1c2t7 18/24, no patch 3, mean 274 s, 4 time ends |
+  pub024 15/24, no patch 6, mean 282 s, 3 time ends. Same-run differ: t7 only 12942, 14372, 14419, 15589, 3278, 4075;
+  pub024 only 11194, 14873, 3521.
+- All runs on e24: pub024 15, 14 (r25), 20 (r23+r24 stitched, lucky s20) -> mean 16.3; sq1c2t7 18, 17 (r34) ->
+  17.5; sq1c2 8-min 18 (r31). q12 fresh: pub024 10/24 vs sq1c2 14/24. Head-to-head in the same notebook: +3.
+  -> sq1c2t7 is modestly but consistently ahead of pub024 (about +1-3 per 24) and not slower: submit it
+  (dist/submission.zip = dist/sq1c2t7.zip).
+
 ### RUN BUILT r35: pub024 vs sq1c2t7 on e24, 1 pass (2026-10-31)
 - User: run both once more on the solvable tasks and compare. kaggle/cells_skill_e24t7: ARMS [pub024, sq1c2t7],
   e24 (same 24 as r25 / r31), 1 pass, concurrency 2 -> 48 runs, ~2.3 h.
