@@ -49,6 +49,15 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   silent stdin); CPU notebooks kaggle/cells_testsignal, kaggle/cells_repro (private dataset
   ziad23samer/testsignal-candidates); results data/results/2026-10-29_*.
 
+### RUN BUILT r35: pub024 vs sq1c2t7 on e24, 1 pass (2026-10-31)
+- User: run both once more on the solvable tasks and compare. kaggle/cells_skill_e24t7: ARMS [pub024, sq1c2t7],
+  e24 (same 24 as r25 / r31), 1 pass, concurrency 2 -> 48 runs, ~2.3 h.
+- cell2 AND cell4 differ from the sq2 notebook: cell4's guard allowed arms to differ only in max_tool_calls; now also
+  max_time_minutes / max_turns (pub024 8 min / 80 turns, sq1c2t7 7 min / 400). Budgets were already applied per arm
+  (Evaluator(**EVAL_CFGS[arm])); printed output unchanged. Sim: budgets per arm OK; pub024's "run_skill_script not
+  found" in the sim is the fake model's artifact (same in the e24x2 sim; pub024 ran fine on Kaggle r25, r33).
+- Earlier on e24: pub024 14 (r25), sq1c2 8-min 18 (r31), sq1c2t7 17 (inside r34). Read: solves, per-task, mean s.
+
 ### RESULT r34: sq1c2t7 19/40 on d40, 325 s/task (2026-10-31)
 - data/results/2026-10-31_skill_d40t7, 40 runs, no crash. sq1c2t7 19/40 (dev 3/8, val 7/16, test 9/16), no patch 8,
   mean 325 s, 16 time ends | pub024 (s20 + u20 runs) 20/40 (4, 7, 9), no patch 8, 340 s, 8 time ends | sk_a2 17/40,
