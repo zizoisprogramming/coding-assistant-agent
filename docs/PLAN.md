@@ -49,6 +49,16 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   silent stdin); CPU notebooks kaggle/cells_testsignal, kaggle/cells_repro (private dataset
   ziad23samer/testsignal-candidates); results data/results/2026-10-29_*.
 
+### RESULT r34: sq1c2t7 19/40 on d40, 325 s/task (2026-10-31)
+- data/results/2026-10-31_skill_d40t7, 40 runs, no crash. sq1c2t7 19/40 (dev 3/8, val 7/16, test 9/16), no patch 8,
+  mean 325 s, 16 time ends | pub024 (s20 + u20 runs) 20/40 (4, 7, 9), no patch 8, 340 s, 8 time ends | sk_a2 17/40,
+  272 s. Differ: t7 only 14349, 3063, 3470; pub024 only 14419, 15589, 3278, 4075.
+- Subsets: e24 17 (sq1c2 8-min r31 18, pub024 r25 14); q12 5 (sq1c2 6, 6, 8; pub024 3, 4, 6); the 16 tasks no arm
+  had solved: 2 (rich_3470, rich_3063). The 7-min cut saved little time on e24 (300 vs 309 s) and cost ~1 task.
+- Verdict: equal to pub024 on the broad set (1 task = noise), ahead on the medium q12/e24 tasks over all runs, and
+  faster than pub024 (325 vs 340 s, pub024 fitted the 12-h scorer) -> submittable. dist/submission.zip =
+  dist/sq1c2t7.zip (same files as this run).
+
 ### RUN BUILT r34: sq1c2t7 (7-minute sq1c2) alone on d40 (2026-10-30)
 - sq1c2t7 = sq1c2 with every time scaled by 7/8: max_time_minutes 7, clock SESSION 420, warning 160 s, refusal
   240 s; fixer prompt rewritten with those times (locate by ~100 s, edit by 160 s, finish from 350 s, pytest timeout
