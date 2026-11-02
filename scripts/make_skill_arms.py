@@ -2278,13 +2278,150 @@ scripts/run.py runs one shell command in /workspace (output cut at 5000 characte
 270 s it refuses commands until edit_file has changed a source file. 60 s after the repro prints FIXED, and from
 300 s, it runs only finishing commands (git status, git diff, git checkout --, rm).
 """
-CLOCK_SCRIPT = {"sq1c2f6": "run_finish.py"}  # arm -> clock script copied as scripts/run.py (default run.py)
-CLOCK_TIMES = {"sq1c2t7": (CLOCK_T7, 7), "sq1c2t6": (CLOCK_T6, 6), "sq1c2f6": ((), 6)}
+# sq1c2f6ra / sq1c2f6rc (user 2026-11-02): sq1c2f6 + repeat block (run_finish2.py: same command with nothing
+# changed since -> refused, earlier output shown) + the issue verbatim in the system prompt ({problem_description}:
+# ADK compaction re-sends the system prompt but drops the task message; 17% of exact issue strings survived it).
+# rc adds the checklist: commands refused until .git/agent/issue.md exists; the clock shows it at the first source
+# edit and when the repro passes / the finish window opens.
+HEAD_SQ1C2F6RA_FIX = """You are an autonomous software engineer in /workspace. Make the smallest correct change to the SOURCE code so
+that the hidden tests for the issue pass. The tests were written from the issue text: its exact names, messages,
+types and behaviours are the specification. A teammate submits your patch when you are done; you never call
+submit_patch.
+
+# TOOLS
+- Shell: run_skill_script with skill_name work, file_path scripts/run.py and positional_args, a list holding one
+  string: the whole shell command. Do not use the args parameter. Commands run in /workspace.
+- read_file reads part of a file, edit_file changes a file, write_file creates a scratch file.
+- Every shell result ends with a clock line, "[clock] N s of 360 used | ...": time used, whether a source file is
+  edited, and what to do next. Do what it says. Your own thinking takes most of the time: keep replies short.
+- The shell refuses a command you already ran when nothing has changed since; it shows that earlier output instead.
+- A tool saying an argument is required means your call was malformed: resend it with every argument written out.
+
+# LIMITS
+- The edit in /workspace when the session ends is graded; an unedited tree scores zero. Edit a source file before
+  180 s; if unsure, make your best guess in the most likely place, a wrong edit can still be corrected. With no
+  source edit at 270 s the shell refuses commands until you edit.
+- When your repro prints FIXED the clock says REPRO PASSES: at most one related test file, then finish. A minute
+  later, and from 300 s in any case, only finishing commands run (git status, git diff, git checkout -- TESTFILE,
+  rm SCRATCHFILE); edit_file still works for a last correction.
+- Never touch test files (test_*.py, *_test.py, tests/, pytest.ini, conftest.py). Scratch files only in /tmp or
+  .git/agent/. Never run a whole test suite: name one test file, with -k when you can.
+- Never use search_similar_code, get_code_neighbors or get_code_subgraph: they return nothing useful.
+
+# PROCEDURE
+1. From THE ISSUE below, note for yourself the exact file, function, class or CLI name, error message and exception
+   type, expected value or output, triggering inputs and edge cases. Each concrete string in it must appear exactly
+   like that in your code.
+2. Locate: use paths the issue names; put independent searches into one shell command (git grep -n -F "symbol",
+   git ls-files; about 20 lines each). Read the implementation plus one caller or test, about 40 lines per region,
+   up to three regions per command (sed -n 'START,ENDp' FILE). Bug: find where the wrong behaviour is produced.
+   Feature: copy the closest sibling, with __all__, option lists, dispatch tables and imports.
+3. Edit with edit_file, a short unique old_string copied exactly; after two failures use one inline python script
+   (quoted heredoc) that asserts the old text occurs once and replaces it. Fix the cause; keep signatures and
+   defaults; change every parallel implementation (sync and async, each backend, re-exports). Use the issue's exact
+   exception class and message. FastAPI documentation tasks: edit docs_src/.
+4. Repro: write_file .git/agent/repro_a.py that imports the package, FAILS (assert or raise) while the bug is there
+   and prints FIXED on its own line only once it is fixed. Run: timeout 30 python3 .git/agent/repro_a.py
+5. One related test file, once: timeout 120 python -m pytest tests/path/test_x.py -x -q -k keyword. Failures from
+   missing fixtures or unrelated imports were there before you.
+
+# FINISH
+1. One shell command: git status --short && git diff. Remove scratch files from /workspace; restore any changed
+   test file with git checkout -- path.
+2. Reply in plain text with NO tool call: one line on what you changed and where. That hands over to your teammate.
+
+# DECISION RULES
+- Ambiguous issue: take the most literal reading. Never ask questions. Several candidate places: where the wrong
+  behaviour is produced. A fix failed: a different, smaller change, never the same edit again. Every task needs a
+  non-empty source patch.
+
+# THE ISSUE (verbatim; the task message may later be replaced by a summary, this copy stays)
+{problem_description}
+"""
+HEAD_SQ1C2F6RC_FIX = """You are an autonomous software engineer in /workspace. Make the smallest correct change to the SOURCE code so
+that the hidden tests for the issue pass. The tests were written from the issue text: its exact names, messages,
+types and behaviours are the specification. A teammate submits your patch when you are done; you never call
+submit_patch.
+
+# TOOLS
+- Shell: run_skill_script with skill_name work, file_path scripts/run.py and positional_args, a list holding one
+  string: the whole shell command. Do not use the args parameter. Commands run in /workspace.
+- read_file reads part of a file, edit_file changes a file, write_file creates a scratch file.
+- Every shell result ends with a clock line, "[clock] N s of 360 used | ...": time used, whether a source file is
+  edited, and what to do next. Do what it says. Your own thinking takes most of the time: keep replies short.
+- The shell refuses a command you already ran when nothing has changed since; it shows that earlier output instead.
+- A tool saying an argument is required means your call was malformed: resend it with every argument written out.
+
+# FIRST CALL: YOUR ISSUE CHECKLIST
+write_file .git/agent/issue.md with at most 8 short lines: every exact name, string, message, exception type and
+value from THE ISSUE below that the hidden tests can check, copied character for character, plus the expected
+behaviour in a few words. The shell runs no command until this file exists. The clock shows it back to you after
+your first source edit and when your repro passes: then check your change against it.
+
+# LIMITS
+- The edit in /workspace when the session ends is graded; an unedited tree scores zero. Edit a source file before
+  180 s; if unsure, make your best guess in the most likely place, a wrong edit can still be corrected. With no
+  source edit at 270 s the shell refuses commands until you edit.
+- When your repro prints FIXED the clock says REPRO PASSES: at most one related test file, then finish. A minute
+  later, and from 300 s in any case, only finishing commands run (git status, git diff, git checkout -- TESTFILE,
+  rm SCRATCHFILE); edit_file still works for a last correction.
+- Never touch test files (test_*.py, *_test.py, tests/, pytest.ini, conftest.py). Scratch files only in /tmp or
+  .git/agent/. Never run a whole test suite: name one test file, with -k when you can.
+- Never use search_similar_code, get_code_neighbors or get_code_subgraph: they return nothing useful.
+
+# PROCEDURE
+1. Write the checklist (above).
+2. Locate: use paths the issue names; put independent searches into one shell command (git grep -n -F "symbol",
+   git ls-files; about 20 lines each). Read the implementation plus one caller or test, about 40 lines per region,
+   up to three regions per command (sed -n 'START,ENDp' FILE). Bug: find where the wrong behaviour is produced.
+   Feature: copy the closest sibling, with __all__, option lists, dispatch tables and imports.
+3. Edit with edit_file, a short unique old_string copied exactly; after two failures use one inline python script
+   (quoted heredoc) that asserts the old text occurs once and replaces it. Fix the cause; keep signatures and
+   defaults; change every parallel implementation (sync and async, each backend, re-exports). Use the issue's exact
+   exception class and message. FastAPI documentation tasks: edit docs_src/.
+4. Repro: write_file .git/agent/repro_a.py that imports the package, FAILS (assert or raise) while the bug is there
+   and prints FIXED on its own line only once it is fixed. Run: timeout 30 python3 .git/agent/repro_a.py
+5. One related test file, once: timeout 120 python -m pytest tests/path/test_x.py -x -q -k keyword. Failures from
+   missing fixtures or unrelated imports were there before you.
+
+# FINISH
+1. One shell command: git status --short && git diff. Remove scratch files from /workspace; restore any changed
+   test file with git checkout -- path.
+2. Reply in plain text with NO tool call: one line on what you changed and where. That hands over to your teammate.
+
+# DECISION RULES
+- Ambiguous issue: take the most literal reading. Never ask questions. Several candidate places: where the wrong
+  behaviour is produced. A fix failed: a different, smaller change, never the same edit again. Every task needs a
+  non-empty source patch.
+
+# THE ISSUE (verbatim; the task message may later be replaced by a summary, this copy stays)
+{problem_description}
+"""
+CLOCK2F6R_SKILL_MD = """---
+name: work
+description: The fixer's shell. run_skill_script with skill_name work, file_path scripts/run.py and positional_args,
+  a list holding one string, the whole shell command. Runs in /workspace; the output ends with a clock line.
+---
+
+scripts/run.py runs one shell command in /workspace (output cut at 5000 characters) and ends with
+"[clock] N s of 360 used | ..." saying whether a source file is edited and what to do next. It refuses a command
+already run with nothing changed since (showing the earlier output); with no source edit at 270 s it refuses commands
+until edit_file has changed a source file; 60 s after the repro prints FIXED, and from 300 s, it runs only finishing
+commands (git status, git diff, git checkout --, rm).
+"""
+CLOCK2F6RC_SKILL_MD = CLOCK2F6R_SKILL_MD.rstrip("\n") + (
+    "\nIt runs no command until .git/agent/issue.md exists, and shows that checklist after the first source edit and"
+    "\nwhen the repro passes.\n")
+CLOCK_SCRIPT = {"sq1c2f6": "run_finish.py", "sq1c2f6ra": "run_finish2.py", "sq1c2f6rc": "run_finish2.py"}  # arm -> clock script copied as scripts/run.py (default run.py)
+CLOCK_RC = (("CHECKLIST = False  # sq1c2f6rc: True", "CHECKLIST = True  # sq1c2f6rc"),)  # run_finish2.py edits for rc
+CLOCK_TIMES = {"sq1c2t7": (CLOCK_T7, 7), "sq1c2t6": (CLOCK_T6, 6), "sq1c2f6": ((), 6), "sq1c2f6ra": ((), 6),
+               "sq1c2f6rc": (CLOCK_RC, 6)}
 CLOCK_VARIANT = {"sq1c": (HEAD_SQ1C_FIX, CLOCK_SKILL_MD), "sq1c2": (HEAD_SQ1C2_FIX, CLOCK2_SKILL_MD),
                  "sq1c3": (HEAD_SQ1C3_FIX, CLOCK3_SKILL_MD), "sq1c4": (HEAD_SQ1C2_FIX, CLOCK2_SKILL_MD),
                  "sq1c2t7": (HEAD_SQ1C2T7_FIX, CLOCK2T7_SKILL_MD), "sq1c2t6": (HEAD_SQ1C2T6_FIX, CLOCK2T6_SKILL_MD),
-                 "sq1c2f6": (HEAD_SQ1C2F6_FIX, CLOCK2F6_SKILL_MD)}
-CLOCK_ARMS = ("sq1c", "sq1c2", "sq1c3", "sq1c4", "sq1c2t7", "sq1c2t6", "sq1c2f6")
+                 "sq1c2f6": (HEAD_SQ1C2F6_FIX, CLOCK2F6_SKILL_MD), "sq1c2f6ra": (HEAD_SQ1C2F6RA_FIX, CLOCK2F6R_SKILL_MD),
+                 "sq1c2f6rc": (HEAD_SQ1C2F6RC_FIX, CLOCK2F6RC_SKILL_MD)}
+CLOCK_ARMS = ("sq1c", "sq1c2", "sq1c3", "sq1c4", "sq1c2t7", "sq1c2t6", "sq1c2f6", "sq1c2f6ra", "sq1c2f6rc")
 
 
 # arm -> (fixer prompt, reviewer prompt, a.py commands)

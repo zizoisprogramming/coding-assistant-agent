@@ -1,0 +1,15 @@
+name: fixer
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/fixer.md
+tools:  # no run_command: the shell is run_skill_script work scripts/run.py (clock line in every output)
+  - read_file  # named in the harness task message
+  - edit_file
+  - write_file
+  - get_status
+  - submit_patch  # declared on all: the harness task message names it; an undeclared call drops the patch
+  - get_code_neighbors
+  - search_similar_code
+  - get_code_subgraph
+skills:
+  - skills/work
+generate_content_config: !include configs/sampling.yaml
