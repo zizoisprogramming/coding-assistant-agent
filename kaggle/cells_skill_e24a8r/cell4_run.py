@@ -113,6 +113,7 @@ def end_reason(err):
 
 TALLY, ENDS, DONE, PHASE_STATS = [0, 0], Counter(), [], []
 STOP_AT = T_START + STOP_NEW_TASKS_AFTER_H * 3600
+DEAD_SERVER, ZERO_LLM = [False], [0]  # watchdog: 2 runs in a row with 0 model calls -> no new tasks
 
 
 async def run_phase(conc, jobs, phase_no):
@@ -124,7 +125,7 @@ async def run_phase(conc, jobs, phase_no):
         async with repo_locks[iid if r.get('src') == 'public' else r['repo']]:  # our tasks: the install step's
             # import name is per repo -> one task of a repo at a time; public tasks have no such step
             async with sem:
-                if time.time() > STOP_AT:
+                if time.time() > STOP_AT or DEAD_SERVER[0]:
                     return
                 if r.get('src') != 'public':
                     ood.IMPORT_NAMES[r['repo']] = import_name(r)
@@ -165,6 +166,11 @@ async def run_phase(conc, jobs, phase_no):
             TALLY[1] += 1
             ENDS[row['end']] += 1
             DONE.append(row)
+            ZERO_LLM[0] = ZERO_LLM[0] + 1 if row['llm_calls'] == 0 else 0
+            if ZERO_LLM[0] >= 2 and not DEAD_SERVER[0]:
+                DEAD_SERVER[0] = True
+                print('WATCHDOG: 2 runs in a row got 0 model calls (model server or sandbox stuck) -> no new '
+                      'tasks; the run ends by itself after the running ones (outputs saved)', flush=True)
             el = time.time() - T_START
             eta = el / len(DONE) * (N_JOBS - len(DONE))
             print(f"[{len(DONE):3}/{N_JOBS}] {iid[:40]:40} a{attempt} {r['level']:7} resolved={row['resolved']!s:5} "
@@ -195,6 +201,8 @@ async def run_all():
     global N_JOBS
     for k, (conc, jobs) in enumerate(PHASES, 1):
         await run_phase(conc, jobs, k)
+        if DEAD_SERVER[0]:  # watchdog fired: no further pass
+            break
         if k == 1 and len(PHASES) > 1:  # per arm: only arms above EARLY_STOP_MAX get pass 2
             per_arm = {a: sum(r['resolved'] for r in DONE if r['arm'] == a and r['phase'] == 1) for a in ARMS}
             _cond = globals().get('PASS2_IF_BEATS')

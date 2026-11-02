@@ -15,6 +15,7 @@ import hashlib
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
 import time
@@ -46,6 +47,29 @@ def workspace():
         if os.path.isdir(os.path.join(cand, ".git")):
             return cand
     return os.getcwd()
+
+
+def run_group(cmd, ws, timeout):
+    """bash -c CMD in its own process group; the whole group is killed when the command ends or times out, as the
+    harness's run_command does (adk_eval_core subprocess_sandbox.py), so no runaway child outlives the call
+    (2026-11-02: an orphaned process froze a Kaggle run: tool calls slowed to 27 s, then no model calls at all)."""
+    p = subprocess.Popen(["bash", "-c", cmd], cwd=ws, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                         stdin=subprocess.DEVNULL, text=True, start_new_session=True)
+    timed_out = False
+    try:
+        out, err = p.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+    try:
+        os.killpg(p.pid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        pass
+    if timed_out:
+        try:
+            out, err = p.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            out, err = "", ""
+    return p.returncode, out or "", err or "", timed_out
 
 
 def sh(cmd, ws, timeout=30):
@@ -165,12 +189,9 @@ def main():
                 f"output would be the same. Run something different or act on it. Its output then"
                 f"{' (start)' if len(earlier) > REPEAT_SHOW else ''}:\n{earlier[:REPEAT_SHOW]}")
     else:
-        try:
-            r = subprocess.run(["bash", "-c", cmd], cwd=ws, capture_output=True, text=True, stdin=subprocess.DEVNULL,
-                               timeout=max(5, min(150, SESSION - used - 10)))
-            body = (r.stdout + (("\n[stderr]\n" + r.stderr) if r.stderr.strip() else "")).rstrip() + f"\n[exit {r.returncode}]"
-        except subprocess.TimeoutExpired:
-            body = "[timed out]"
+        code, out, err, timed_out = run_group(cmd, ws, max(5, min(150, SESSION - used - 10)))
+        body = (out + (("\n[stderr]\n" + err) if err.strip() else "")).rstrip()
+        body += "\n[timed out: the command and everything it started were stopped]" if timed_out else f"\n[exit {code}]"
         if len(body) > OUT_MAX:
             body = body[:OUT_MAX] + f"\n[output cut at {OUT_MAX} characters: narrow the command]"
         seen[key] = {"at": used, "fp": fingerprint(ws), "out": body}

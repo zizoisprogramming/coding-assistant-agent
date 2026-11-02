@@ -46,6 +46,17 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
 - **RUN BUILT (r39, user to run):** sq1c2a8 = sq1c2 (8 min) + event A only, e24 x 2, kaggle/cells_skill_e24a8.
   r38 REPLACED (user: build the others on 8 minutes): **RUN BUILT r38b (second account):** sq1c2a8ra vs sq1c2a8rc on
   e24 x 2, kaggle/cells_skill_e24a8r (cell2 only). kaggle/cells_skill_e24f6r is obsolete (6-min base).
+- **r39 (sq1c2a8) STOPPED: the run froze** after 18 good runs (14/18, mean ~219 s vs sq1c2 ~298 s on the same 18):
+  rich_4079 tools 382 s (27 s/call), then fastapi_14873, rich_3506, rich_3006 with 0 model calls in 480 s each; no
+  vLLM error in the log. Cause found (reproduced locally): the clock scripts ran commands with subprocess.run(timeout)
+  which kills bash only -> children (a looping repro, background jobs) survived on the same VM. The harness's own
+  run_command uses start_new_session + os.killpg (adk_eval_core/sandbox/subprocess_sandbox.py L81/L112). FIXED in
+  run.py, run_finish.py, run_finish2.py (run_group: own process group, whole group killed after every command; partial
+  output kept on timeout). Tested: sleep behind &&, background job holding the pipe, CPU loop -> return at the
+  timeout, 0 leftovers; events re-tested. WATCHDOG in cell4 (builder): 2 finished runs in a row with 0 model calls ->
+  no new tasks, run ends by itself (outputs saved); tested on the r39 sequence (fires after rich_3506).
+- **REBUILT with both fixes (cell2 + cell4):** kaggle/cells_skill_e24a8 (sq1c2a8, e24 x 2) and kaggle/cells_skill_e24a8r
+  (sq1c2a8ra / rc, e24 x 2). The account-2 run of the OLD 6-min notebook (cells_skill_e24f6r) has the unfixed clock.
 - **LB:** sk_a2 0.18, sk_a2_32 0.17, pub024 0.18 (our submission of the public 0.24 package, 2026-10-30) -> its 0.24
   was a lucky draw too. LB = ~58
   tasks: sd ~0.05; identical agents 0.12-0.26 -> never rank arms by LB. Final picks = best LOCAL arms.

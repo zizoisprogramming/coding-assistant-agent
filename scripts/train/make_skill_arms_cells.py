@@ -431,6 +431,20 @@ def main():
          "row = {'instance_id': iid, 'attempt': attempt, 'arm': attempt.split('.')[0], 'mode': MODE,"),
         ("    await asyncio.gather(*(one(i, a) for i, a in jobs))\n",
          "    await asyncio.gather(*(one(i, a) for i, a in jobs))  # jobs are queued in pass order (pass 1 first)\n"),
+        # watchdog (2026-11-02: a run froze, 3 tasks in a row got 0 model calls in 480 s each): after 2 finished runs
+        # in a row with 0 model calls start no new task, so the run ends by itself with its outputs saved
+        ("STOP_AT = T_START + STOP_NEW_TASKS_AFTER_H * 3600\n",
+         "STOP_AT = T_START + STOP_NEW_TASKS_AFTER_H * 3600\n"
+         "DEAD_SERVER, ZERO_LLM = [False], [0]  # watchdog: 2 runs in a row with 0 model calls -> no new tasks\n"),
+        ("                if time.time() > STOP_AT:\n                    return\n",
+         "                if time.time() > STOP_AT or DEAD_SERVER[0]:\n                    return\n"),
+        ("            DONE.append(row)\n",
+         "            DONE.append(row)\n"
+         "            ZERO_LLM[0] = ZERO_LLM[0] + 1 if row['llm_calls'] == 0 else 0\n"
+         "            if ZERO_LLM[0] >= 2 and not DEAD_SERVER[0]:\n"
+         "                DEAD_SERVER[0] = True\n"
+         "                print('WATCHDOG: 2 runs in a row got 0 model calls (model server or sandbox stuck) -> no new '\n"
+         "                      'tasks; the run ends by itself after the running ones (outputs saved)', flush=True)\n"),
     ):
         c4 = must_replace(c4, old, new)
     # a line when a pass ends; after pass 1 the run ends by itself unless an arm solved more than EARLY_STOP_MAX
@@ -441,6 +455,8 @@ def main():
                           "        await run_phase(conc, jobs, k)\n",
                       "async def run_all():\n    global N_JOBS\n    for k, (conc, jobs) in enumerate(PHASES, 1):\n"
                       "        await run_phase(conc, jobs, k)\n"
+                      "        if DEAD_SERVER[0]:  # watchdog fired: no further pass\n"
+                      "            break\n"
                       "        if k == 1 and len(PHASES) > 1:  # per arm: only arms above EARLY_STOP_MAX get pass 2\n"
                       "            per_arm = {a: sum(r['resolved'] for r in DONE if r['arm'] == a and r['phase'] == 1) for a in ARMS}\n"
                       "            _cond = globals().get('PASS2_IF_BEATS')\n"
