@@ -111,26 +111,26 @@ def edited(ws):
 
 
 def fingerprint(ws):
-    """Everything a command's output can depend on that the fixer can change: the tree and the scratch files."""
+    """What a command's output can depend on that the fixer changes: the tree (git status + diff), its scratch files in
+    .git/agent, and loose files directly in /tmp. Never folders under /tmp: the harness keeps every task's sandbox
+    there (/tmp/swegemma_sandbox_*, also the task running in parallel), which changes all the time - r38 (2026-11-02):
+    76 identical repeats, 0 refusals, because walking /tmp always saw a change."""
     h = hashlib.sha1()
     for cmd in (["git", "status", "--porcelain", "--untracked-files=all"], ["git", "diff"]):
         h.update(sh(cmd, ws)[1].encode())
-    budget = [2000]  # files looked at: /tmp on the scorer may hold anything
-    for d in (os.path.join(ws, ".git", "agent"), "/tmp"):
-        for root, dirs, names in os.walk(d):
-            dirs[:] = sorted(dirs) if root.count(os.sep) - d.count(os.sep) < 2 else []
-            for n in sorted(names):
-                budget[0] -= 1
-                if budget[0] < 0:
-                    return h.hexdigest()
-                p = os.path.join(root, n)
-                if n == "clock.json":
-                    continue
-                try:
-                    st = os.stat(p)
-                    h.update(f"{p}:{st.st_size}:{st.st_mtime_ns}".encode())
-                except OSError:
-                    pass
+    paths = []
+    for root, dirs, names in os.walk(os.path.join(ws, ".git", "agent")):
+        paths += [os.path.join(root, n) for n in names if n != "clock.json"]
+    try:
+        paths += [e.path for e in os.scandir("/tmp") if e.is_file(follow_symlinks=False)]
+    except OSError:
+        pass
+    for p in sorted(paths)[:2000]:
+        try:
+            st = os.stat(p)
+            h.update(f"{p}:{st.st_size}:{st.st_mtime_ns}".encode())
+        except OSError:
+            pass
     return h.hexdigest()
 
 

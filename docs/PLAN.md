@@ -64,6 +64,15 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   At 480 s: 5 (p1), 7 (p2). No freeze. One empty early finish (fastapi_11194 p1, 126 s): the model wrote its tool call
   as TEXT ("<|tool_call>call,read_file{...}") -> plain text = handover -> finisher submitted an empty patch. Same
   leak in 3 runs of all logged runs (~0.5%: sa2 rich_4079, sq1 fastapi_14873, this one). 8 min / 80 calls -> not LB-safe.
+- **r38 request log (account 2, 96 runs, data/results/2026-11-02_skill_e24f6r/requests; results file still missing for
+  pass 2): REPEAT BLOCK NEVER FIRED (0 refusals) although 76 identical non-repro commands were repeated** -> bug: the
+  fingerprint walked /tmp, where the harness keeps every task's sandbox (also the parallel task's) -> always "changed".
+  FIXED in run_finish2.py (git status + diff, .git/agent files, loose files directly in /tmp only); tested with a busy
+  /tmp/swegemma_sandbox_* folder (refused), a loose /tmp file and a code edit (run). r38's ra/rc numbers therefore
+  measure issue-in-prompt (+ checklist), the 300 s window and the 6-min cap, not the repeat block. rc: checklist shown
+  45x, checklist refusals 8; finish-window refusals ra 5 (4 runs), rc 10 (10 runs), first at median 320 s.
+  Rebuilt submissions/sq1c2a8ra / rc and kaggle/cells_skill_e24a8r (cell2 changed). A stuck-run stop "no repro pass by
+  T -> finish" (136 logged runs): solves really lost 12/93 at 270 s, 11 at 300, 9 at 330, 6 at 360.
 - LB fit is about the CALL budget, not the 8-min cap: every 8-min submission that fitted had 28-32 calls (mix, pub024,
   sk_a2, sk_a2_32); sq1c2 / sq1c2t7 (80 calls) timed out. But our failing runs think long (median 22 calls in ~420 s,
   ~17 s/call): budget 50 would end 1/37 failing runs early (0 solves lost), 40: 5/37 (9/63 solves above), 28: 11/37
