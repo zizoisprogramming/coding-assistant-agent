@@ -59,6 +59,25 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   silent stdin); CPU notebooks kaggle/cells_testsignal, kaggle/cells_repro (private dataset
   ziad23samer/testsignal-candidates); results data/results/2026-10-29_*.
 
+### PATTERNS: what the model obeys, and what compaction drops (2026-11-02, from r31-r35 logs, 124 clock runs)
+- COMPACTION KEEPS THE SYSTEM PROMPT, DROPS THE TASK MESSAGE: after ADK compaction (google/adk/apps/
+  llm_event_summarizer.py) the request = system prompt (re-sent every call, identical) + "For context: [model] said:
+  <summary>" + the last events. The harness task message (problem statement + workspace listing) is gone; only 17%
+  (394/2292) of the issue's exact `code` / "quoted" strings are still in context after the first compaction.
+  Compaction is frequent and early: 216 summarizer calls in 148 runs, first one at median 152 s (~14k tokens).
+  Same task, compaction before the first edit: 77% solved vs 90% otherwise (12 tasks; small, partly difficulty).
+  The fixer prompt has no {problem_description}, so the exact issue text is lost for the rest of the run.
+- PROHIBITIONS HOLD, BUT ERODE LATE: tool/format bans (graph tools, args parameter, test files, whole test suites)
+  broken in 0/620 calls at turns 1-5, 4/1175 at 6-15, 16/1736 at 16+ (test-file edits: 0, 3, 15).
+- SOFT TEXT IN A TOOL OUTPUT IS MOSTLY IGNORED; A BLOCK WORKS: the clock's "NO SOURCE EDIT YET" warning was followed
+  by an edit within 2 calls in 15/67 runs (never: 20); the REFUSAL was followed by an edit next call in 5/7 (r31)
+  and 6/8 (r30). Timing/procedure rules in the prompt (edit by 180 s) are not followed at all (67 runs unedited).
+- Literature: attention to the system prompt decays over a dialog ("instruction drift", Li et al. 2024,
+  arXiv 2402.10962; baseline fix = repeat the system prompt before each turn); Gemma 3/4 attention = 5 local (1024-
+  token window) : 1 global, so far-back text is reached only by the global layers (arXiv 2503.19786); multi-turn
+  unreliability, early assumptions anchor (Laban et al. 2025, arXiv 2505.06120). Our sliding-window explanation is a
+  hypothesis, not tested.
+
 ### RUN BUILT r37: sq1c2 (8 min) vs sq1c2f6 on e24, 2 passes (2026-11-02)
 - Time analysis (r31, r34, r35; 88 runs): 96% of agent time is model calls; solved runs spent ~100-120 s after the
   repro first printed FIXED (15 of 48 edited again after it); 16/21 failed runs on d40 hit the wall. LB 0.18 = ~80%
