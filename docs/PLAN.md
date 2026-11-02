@@ -73,6 +73,14 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   45x, checklist refusals 8; finish-window refusals ra 5 (4 runs), rc 10 (10 runs), first at median 320 s.
   Rebuilt submissions/sq1c2a8ra / rc and kaggle/cells_skill_e24a8r (cell2 changed). A stuck-run stop "no repro pass by
   T -> finish" (136 logged runs): solves really lost 12/93 at 270 s, 11 at 300, 9 at 330, 6 at 360.
+- **sq1c2a8 time vs calls (48 runs, data/results/2026-11-02_skill_e24a8/a8_time_calls.png):** calls do not separate
+  solved from failed (failed 7-54 calls, 7 of 10 <= 24 calls yet 480 s; cap 28 cuts 7/38 solved runs, ends 3/10
+  failed; 50: 2/38 vs 1/10). Time does: solved runs end by ~330 s or at 451-480 s (none between); 8/10 failed at 480 s.
+  Of the 6 late solves, 2 had their last edit before 360 s (14873 at 352, 4079 at 348) -> 6-min cap loses ~4/38.
+- **RUN BUILT r40: sq1c2a6** = sq1c2a8 with max_time_minutes 6 (clock 360; event A kept; no 300 s window; warning 180,
+  refusal 270), prompt rewritten (finish from 320 s; "when the clock says REPRO PASSES"). Fake-clock tested. Expected
+  ~17 per 24, LB ~11.5 h. kaggle/cells_skill_e24a6 (cell2 + cell4 with the watchdog), e24 x 2, 48 runs, ~2 h.
+  dist/sq1c2a6.zip. If it holds ~17: the LB candidate.
 - **RESULT r38 (6-min f6ra / f6rc, account 2, e24 x 2, results in data/results/2026-11-02_skill_e24f6r):** f6ra 16 + 14
   = 15.0 per 24 (240 s, 16/48 at the cap, 13 empty); f6rc 16 + 16 = 16.0 (252 s, 15/48 at cap, 12 empty). Per 24:
   sq1c2a8 19.0 (263 s, 8/48 at cap), sq1c2 18, pub024 14.5. The 6-min cap/window cost ~3-4 per 24 vs a8 (lost: 3278,
