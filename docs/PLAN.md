@@ -73,6 +73,13 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   45x, checklist refusals 8; finish-window refusals ra 5 (4 runs), rc 10 (10 runs), first at median 320 s.
   Rebuilt submissions/sq1c2a8ra / rc and kaggle/cells_skill_e24a8r (cell2 changed). A stuck-run stop "no repro pass by
   T -> finish" (136 logged runs): solves really lost 12/93 at 270 s, 11 at 300, 9 at 330, 6 at 360.
+- **RESULT r38 (6-min f6ra / f6rc, account 2, e24 x 2, results in data/results/2026-11-02_skill_e24f6r):** f6ra 16 + 14
+  = 15.0 per 24 (240 s, 16/48 at the cap, 13 empty); f6rc 16 + 16 = 16.0 (252 s, 15/48 at cap, 12 empty). Per 24:
+  sq1c2a8 19.0 (263 s, 8/48 at cap), sq1c2 18, pub024 14.5. The 6-min cap/window cost ~3-4 per 24 vs a8 (lost: 3278,
+  4079, 3676, 14873, 12942 = late solves). rc solved fastapi_15589 in both passes (a8 0/2, sq1c2 0/1, pub024 1/2).
+  Malformed shell calls rose: a8 7%, t7 8%, f6ra 11%, f6rc 20% (one rc run 27/34) -> the issue text at the end of the
+  system prompt and/or the checklist may provoke the garble glitch (hypothesis). rich_3882 failed in both pass-2 runs
+  (ra: 20 edit_file calls, edit loop). No freeze (0 zero-model runs) with the old clock.
 - LB fit is about the CALL budget, not the 8-min cap: every 8-min submission that fitted had 28-32 calls (mix, pub024,
   sk_a2, sk_a2_32); sq1c2 / sq1c2t7 (80 calls) timed out. But our failing runs think long (median 22 calls in ~420 s,
   ~17 s/call): budget 50 would end 1/37 failing runs early (0 solves lost), 40: 5/37 (9/63 solves above), 28: 11/37
