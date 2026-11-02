@@ -101,6 +101,13 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   write_file temp files). Fix to build: fingerprint without scanning /tmp; stat only /tmp paths named in the command.
   Harness fact: subprocess sandbox sets HOME and TMPDIR to the task's work dir; the skill executor writes
   .adk_exec_<rand>.py in the work dir per call (git-excluded via .git/info/exclude).
+- **RUN BUILT r42: sq1c2a6rc vs sq1c2a6c** (user: checklist with and without the issue text), both = sq1c2a6 (6 min,
+  event A, no window) + checklist (.git/agent/issue.md first; shown at first edit and REPRO PASSES) + repeat block.
+  rc also has the issue verbatim at the end of the system prompt; c writes the checklist from the harness task message
+  on call 1. Repeat-block fingerprint no longer scans /tmp (git status + diff, .git/agent, /tmp paths named in the
+  command); fake test: /tmp noise still refused, changed /tmp/repro.py or tree re-runs; armsim 4/4 refused.
+  Prompts written fresh (HEAD_SQ1C2A6RC_FIX / HEAD_SQ1C2A6C_FIX). kaggle/cells_skill_e24a6c (cell2 + cell4), e24 x 2,
+  96 runs, ~3.5-4 h. Bar: sq1c2a6 17.0 per 24 (r40, separate run).
 - **RESULT r38 (6-min f6ra / f6rc, account 2, e24 x 2, results in data/results/2026-11-02_skill_e24f6r):** f6ra 16 + 14
   = 15.0 per 24 (240 s, 16/48 at the cap, 13 empty); f6rc 16 + 16 = 16.0 (252 s, 15/48 at cap, 12 empty). Per 24:
   sq1c2a8 19.0 (263 s, 8/48 at cap), sq1c2 18, pub024 14.5. The 6-min cap/window cost ~3-4 per 24 vs a8 (lost: 3278,

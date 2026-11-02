@@ -3,8 +3,8 @@ plus a repeat block and, with CHECKLIST on, the fixer's issue checklist. Every o
 
 - As sq1c2f6: warning from 180 s and refusal from 270 s with no source edit; finish window 60 s after the repro
   first prints FIXED, and from 300 s (only git status / diff / checkout -- / rm then).
-- Repeat block: the exact command already ran and nothing changed since (git diff + status, files in .git/agent and
-  /tmp) -> refused, with the start of its earlier output (compaction may have dropped it from the context).
+- Repeat block: the exact command already ran and nothing changed since (git diff + status, files in .git/agent, /tmp
+  files the command names) -> refused, with the start of its earlier output (compaction may have dropped it from the context).
 - CHECKLIST (sq1c2f6rc): commands are refused until write_file has created .git/agent/issue.md (the issue's exact
   names, strings, expected behaviour); the clock shows that file after the first source edit and when the repro passes
   or the finish window opens, i.e. when names and messages are chosen and checked.
@@ -33,6 +33,7 @@ OUT_MAX = 5000  # as the harness's run_command output limit
 EDIT_CMD = re.compile(r"sed -i|git apply|\bpatch\b|open\([^)]*['\"][wa]['\"]|write_text\(|>\s*(?!/tmp|/dev/null|&)\S")
 FINISH_CMD = re.compile(r"^\s*(git (status|diff|checkout --)|rm )[^;|&`$\n]*(&&\s*git (status|diff)[^;|&`$\n]*)*$")
 FIXED_RE = re.compile(r"^\s*FIXED\b", re.M)
+TMP_PATH = re.compile(r"/tmp/[\w.@+-]+(?:/[\w.@+-]+)*")  # /tmp files a command names
 TEST_RE = re.compile(r"(^|/)(tests?|testing)/|(^|/)test_[^/]*\.py$|_test\.py$|(^|/)conftest\.py$|(^|/)pytest\.ini$")
 
 
@@ -110,22 +111,19 @@ def edited(ws):
     return [f for f in files if not TEST_RE.search(f) and not os.path.basename(f).startswith("repro")]
 
 
-def fingerprint(ws):
+def fingerprint(ws, cmd):
     """What a command's output can depend on that the fixer changes: the tree (git status + diff), its scratch files in
-    .git/agent, and loose files directly in /tmp. Never folders under /tmp: the harness keeps every task's sandbox
-    there (/tmp/swegemma_sandbox_*, also the task running in parallel), which changes all the time - r38 (2026-11-02):
-    76 identical repeats, 0 refusals, because walking /tmp always saw a change."""
+    .git/agent, and the /tmp files the command names (/tmp/repro.py). Never a scan of /tmp: r38 walked it and r41
+    listed its loose files, and both never refused (0 of 76 / 18 unchanged repeats) - other processes on the machine
+    (the parallel task, the harness) keep changing /tmp."""
     h = hashlib.sha1()
-    for cmd in (["git", "status", "--porcelain", "--untracked-files=all"], ["git", "diff"]):
-        h.update(sh(cmd, ws)[1].encode())
+    for c in (["git", "status", "--porcelain", "--untracked-files=all"], ["git", "diff"]):
+        h.update(sh(c, ws)[1].encode())
     paths = []
     for root, dirs, names in os.walk(os.path.join(ws, ".git", "agent")):
         paths += [os.path.join(root, n) for n in names if n != "clock.json"]
-    try:
-        paths += [e.path for e in os.scandir("/tmp") if e.is_file(follow_symlinks=False)]
-    except OSError:
-        pass
-    for p in sorted(paths)[:2000]:
+    paths += TMP_PATH.findall(cmd)
+    for p in sorted(set(paths))[:2000]:
         try:
             st = os.stat(p)
             h.update(f"{p}:{st.st_size}:{st.st_mtime_ns}".encode())
@@ -168,7 +166,7 @@ def main():
     files = edited(ws)
     key = hashlib.sha1(cmd.encode()).hexdigest()
     seen = state.setdefault("seen", {})
-    fp = fingerprint(ws) if cmd else ""
+    fp = fingerprint(ws, cmd) if cmd else ""
     if not cmd:
         body = "NO COMMAND: pass it as positional_args, a list holding one string: the whole shell command."
     elif CHECKLIST and checklist(ws) is None:
@@ -194,7 +192,7 @@ def main():
         body += "\n[timed out: the command and everything it started were stopped]" if timed_out else f"\n[exit {code}]"
         if len(body) > OUT_MAX:
             body = body[:OUT_MAX] + f"\n[output cut at {OUT_MAX} characters: narrow the command]"
-        seen[key] = {"at": used, "fp": fingerprint(ws), "out": body}
+        seen[key] = {"at": used, "fp": fingerprint(ws, cmd), "out": body}
         files = edited(ws)
         if files and "fixed_at" not in state and FIXED_RE.search(body):
             state["fixed_at"] = used
