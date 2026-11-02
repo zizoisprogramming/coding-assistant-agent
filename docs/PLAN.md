@@ -67,6 +67,16 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   Compaction is frequent and early: 216 summarizer calls in 148 runs, first one at median 152 s (~14k tokens).
   Same task, compaction before the first edit: 77% solved vs 90% otherwise (12 tasks; small, partly difficulty).
   The fixer prompt has no {problem_description}, so the exact issue text is lost for the rest of the run.
+- COMPACTION BUDGET (cell4 / HARNESS_README: token_threshold 14,336 on the server's real prompt_token_count, keep last
+  5 events): fixer first call ~4,700 tokens (system ~1,500 + tools + task message) -> headroom ~9,600; first call
+  after a compaction ~5,900 (system + summary + 5 events) -> headroom ~8,400; 1.32 compactions per run.
+  {problem_description} = task.problem_statement only (agent_runner.py L393): ~235 tokens median, p90 ~610, max ~890
+  -> in the system prompt it permanently costs ~2.5-3% of headroom (p90 ~7%); offset by trimming ~250 tokens of
+  prompt. Session state also gets 'hints' when a task has hints_text: 0 of 129 public tasks do.
+- User 2026-11-02: drop idea 2 (test-file block: 0/106 final patches had test/scratch files); keep idea 4 (repeat
+  block: 256 identical repeats in 124 runs, 35 runs >= 3; refuse only if no file changed since); idea 1 (issue
+  survives compaction: (a) {problem_description} in system prompt, (b) short checklist file forced by a block,
+  (c) clock shows it at first edit / finish) still being planned; idea 3 (delay compaction) parked.
 - PROHIBITIONS HOLD, BUT ERODE LATE: tool/format bans (graph tools, args parameter, test files, whole test suites)
   broken in 0/620 calls at turns 1-5, 4/1175 at 6-15, 16/1736 at 16+ (test-file edits: 0, 3, 15).
 - SOFT TEXT IN A TOOL OUTPUT IS MOSTLY IGNORED; A BLOCK WORKS: the clock's "NO SOURCE EDIT YET" warning was followed
