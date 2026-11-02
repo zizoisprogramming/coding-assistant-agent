@@ -55,6 +55,14 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   output kept on timeout). Tested: sleep behind &&, background job holding the pipe, CPU loop -> return at the
   timeout, 0 leftovers; events re-tested. WATCHDOG in cell4 (builder): 2 finished runs in a row with 0 model calls ->
   no new tasks, run ends by itself (outputs saved); tested on the r39 sequence (fires after rich_3506).
+- **r39 re-run (fixed, account 1) pass 1: sq1c2a8 18/24, mean 233 s** (sq1c2 18/24, 309 s) -> same accuracy, ~25% faster.
+  r38 (OLD 6-min f6ra/f6rc, account 2) pass 1: ra 16/24 (246 s), rc 16/24 (253 s); all losses vs sq1c2 were its
+  394-480 s solves (11194, 4079, 3278, 3676, 14873); rc gained 12942, 15589; ra or rc solves 19 tasks.
+- LB fit is about the CALL budget, not the 8-min cap: every 8-min submission that fitted had 28-32 calls (mix, pub024,
+  sk_a2, sk_a2_32); sq1c2 / sq1c2t7 (80 calls) timed out. But our failing runs think long (median 22 calls in ~420 s,
+  ~17 s/call): budget 50 would end 1/37 failing runs early (0 solves lost), 40: 5/37 (9/63 solves above), 28: 11/37
+  (17/63). -> a call budget does not brake sq1c2; next = a progress-based stop for stuck runs, picked from the r38
+  logs (what separates late solves from never-solves). User 2026-11-02: wait for r38's pass 2 + logs before building.
 - **REBUILT with both fixes (cell2 + cell4):** kaggle/cells_skill_e24a8 (sq1c2a8, e24 x 2) and kaggle/cells_skill_e24a8r
   (sq1c2a8ra / rc, e24 x 2). The account-2 run of the OLD 6-min notebook (cells_skill_e24f6r) has the unfixed clock.
 - **LB:** sk_a2 0.18, sk_a2_32 0.17, pub024 0.18 (our submission of the public 0.24 package, 2026-10-30) -> its 0.24
