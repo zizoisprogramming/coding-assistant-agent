@@ -58,6 +58,12 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
 - **r39 re-run (fixed, account 1) pass 1: sq1c2a8 18/24, mean 233 s** (sq1c2 18/24, 309 s) -> same accuracy, ~25% faster.
   r38 (OLD 6-min f6ra/f6rc, account 2) pass 1: ra 16/24 (246 s), rc 16/24 (253 s); all losses vs sq1c2 were its
   394-480 s solves (11194, 4079, 3278, 3676, 14873); rc gained 12942, 15589; ra or rc solves 19 tasks.
+- **RESULT r39 (sq1c2a8, fixed clock + watchdog, data/results/2026-11-02_skill_e24a8): pass 1 18/24 (232 s), pass 2
+  20/24 (294 s) = 38/48, mean 263 s** vs sq1c2 18/24 (309 s), pub024 14, 15. 21 tasks solved in >= 1 pass, incl.
+  rich_3521 (316 s) and rich_3506 (319 s) never solved by sq1c2, and fastapi_14419 (455 s). Event A fired in 37/48 runs.
+  At 480 s: 5 (p1), 7 (p2). No freeze. One empty early finish (fastapi_11194 p1, 126 s): the model wrote its tool call
+  as TEXT ("<|tool_call>call,read_file{...}") -> plain text = handover -> finisher submitted an empty patch. Same
+  leak in 3 runs of all logged runs (~0.5%: sa2 rich_4079, sq1 fastapi_14873, this one). 8 min / 80 calls -> not LB-safe.
 - LB fit is about the CALL budget, not the 8-min cap: every 8-min submission that fitted had 28-32 calls (mix, pub024,
   sk_a2, sk_a2_32); sq1c2 / sq1c2t7 (80 calls) timed out. But our failing runs think long (median 22 calls in ~420 s,
   ~17 s/call): budget 50 would end 1/37 failing runs early (0 solves lost), 40: 5/37 (9/63 solves above), 28: 11/37
