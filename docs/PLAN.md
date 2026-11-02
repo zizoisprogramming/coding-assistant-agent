@@ -37,7 +37,9 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   timed out: le5 (28 calls, 8 min), sq1c2 (80, 8), sq1c2t7 (80, 7), 12B. With 80 calls the clock is the only brake;
   hidden tasks are from private repos (~116-120), local fastapi/rich times underestimate cap hits. Worst case
   120 x (6 min + ~25 s) + setup = 12.8 h -> a 6-min cap fits only if roughly < 80% of runs hit it.
-- **RUN BUILT (r36, user to run):** sq1c2t6 (6-min sq1c2) alone on d40, kaggle/cells_skill_d40t6.
+- **RUN BUILT (r36, not run; user 2026-11-02: the bar is sq1c2 8-min accuracy):** sq1c2t6 alone on d40, kaggle/cells_skill_d40t6.
+- **RUN BUILT (r37, user to run):** sq1c2 (8 min, baseline) vs sq1c2f6 (finish events, 6-min cap) on e24 x 2 passes,
+  kaggle/cells_skill_e24f6 (cell2 + cell4). Goal: f6 solves >= sq1c2 while ending runs sooner. Details "RUN BUILT r37".
 - **LB:** sk_a2 0.18, sk_a2_32 0.17, pub024 0.18 (our submission of the public 0.24 package, 2026-10-30) -> its 0.24
   was a lucky draw too. LB = ~58
   tasks: sd ~0.05; identical agents 0.12-0.26 -> never rank arms by LB. Final picks = best LOCAL arms.
@@ -56,6 +58,21 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   PASS2_IF_BEATS) -> kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS=...; run with `< <(sleep 400)` for a
   silent stdin); CPU notebooks kaggle/cells_testsignal, kaggle/cells_repro (private dataset
   ziad23samer/testsignal-candidates); results data/results/2026-10-29_*.
+
+### RUN BUILT r37: sq1c2 (8 min) vs sq1c2f6 on e24, 2 passes (2026-11-02)
+- Time analysis (r31, r34, r35; 88 runs): 96% of agent time is model calls; solved runs spent ~100-120 s after the
+  repro first printed FIXED (15 of 48 edited again after it); 16/21 failed runs on d40 hit the wall. LB 0.18 = ~80%
+  failures -> on the scorer most runs hit the cap: est. 7 min 12.9 h (timed out), 6 min ~11.6 h (too tight).
+- sq1c2f6 = sq1c2 for the first 270 s (warning 180, refusal 270), plus finish events in a new clock script
+  scripts/agent_clock/run_finish.py: event A = a command prints a line starting FIXED with a source edit -> clock
+  says REPRO PASSES (one test file, then finish), 60 s later only finishing commands run (git status / diff /
+  checkout -- / rm; chained other commands refused); event B = from 300 s with a source edit the same. edit_file
+  still works. Cap max_time_minutes 6 (safety net). Prompt rewritten (repro prints FIXED on its own line only when
+  fixed). State in .git/agent/clock.json. Unit-tested with a fake clock (all events); sq1c2's run.py untouched.
+- kaggle/cells_skill_e24f6: ARMS [sq1c2, sq1c2f6], e24, PASSES 2, early stop 3 (both far above). cell2 + cell4
+  (r35's cell4, per-arm time/turns) differ from the sq2 notebook. 96 runs, ~4 h wall (~8 h quota). Sim OK.
+- Read: solves per pass per arm (bar: sq1c2 >= its 18 history); mean agent s and share at the cap; how often events
+  A/B fired and what followed (edits after FIXED, refusals in the finish window); projected LB hours for f6.
 
 ### RUN BUILT r36: sq1c2t6 (6-minute sq1c2) alone on d40 (2026-11-02)
 - User: sq1c2t7 also timed out on the scorer; go 6 min (as le6_t6, which fitted), test locally first. sq1c2t6 =
