@@ -44,7 +44,8 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
 - **r37 STOPPED by the user** after 8 runs: sq1c2f6 5/8 vs sq1c2 8/8 on the same tasks; 2 empty patches at the 360 s
   cap (rich_3278, fastapi_14349, both solved by sq1c2 at 405-480 s). User: wants faster solving, not cut-offs.
 - **RUN BUILT (r39, user to run):** sq1c2a8 = sq1c2 (8 min) + event A only, e24 x 2, kaggle/cells_skill_e24a8.
-  NOTE: r38's arms are built on sq1c2f6 (event B + 6-min cap) -> they carry the same cut-offs.
+  r38 REPLACED (user: build the others on 8 minutes): **RUN BUILT r38b (second account):** sq1c2a8ra vs sq1c2a8rc on
+  e24 x 2, kaggle/cells_skill_e24a8r (cell2 only). kaggle/cells_skill_e24f6r is obsolete (6-min base).
 - **LB:** sk_a2 0.18, sk_a2_32 0.17, pub024 0.18 (our submission of the public 0.24 package, 2026-10-30) -> its 0.24
   was a lucky draw too. LB = ~58
   tasks: sd ~0.05; identical agents 0.12-0.26 -> never rank arms by LB. Final picks = best LOCAL arms.
@@ -63,6 +64,13 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   PASS2_IF_BEATS) -> kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS=...; run with `< <(sleep 400)` for a
   silent stdin); CPU notebooks kaggle/cells_testsignal, kaggle/cells_repro (private dataset
   ziad23samer/testsignal-candidates); results data/results/2026-10-29_*.
+
+### RUN BUILT r38b: sq1c2a8ra vs sq1c2a8rc on e24, 2 passes (2026-11-02, second account; replaces r38)
+- = r38's arms on the 8-minute base: run_finish2.py with CLOCK_A8R edits (SESSION 480, FINISH_AT None, no window
+  text): event A + repeat block (+ CHECKLIST for rc); issue verbatim at the end of the system prompt; prompts
+  rewritten for 8 min (724 / 766 words vs a8 848; finish from 400 s). Fake-clock test (rc): checklist refusal, repeat
+  refusal, checklist shown at first edit, no refusal at 420 s. Sim: issue rendered, 8/8 patch, 8-min budgets.
+- kaggle/cells_skill_e24a8r: ARMS [sq1c2a8ra, sq1c2a8rc], e24, 2 passes, 96 runs, ~4 h. Compare with r39 (a8).
 
 ### RUN BUILT r39: sq1c2a8 (sq1c2 8 min + event A only) on e24, 2 passes (2026-11-02)
 - Event A alone (run_finish.py with CLOCK_A8 edits: SESSION 480, FINISH_AT None, no window text): repro prints
