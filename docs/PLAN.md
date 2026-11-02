@@ -81,6 +81,10 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   refusal 270), prompt rewritten (finish from 320 s; "when the clock says REPRO PASSES"). Fake-clock tested. Expected
   ~17 per 24, LB ~11.5 h. kaggle/cells_skill_e24a6 (cell2 + cell4 with the watchdog), e24 x 2, 48 runs, ~2 h.
   dist/sq1c2a6.zip. If it holds ~17: the LB candidate.
+- **RESULT r40 (sq1c2a6, e24 x 2, data/results/2026-11-02_skill_e24a6):** 16 + 18 = **17.0 per 24** (as predicted),
+  mean 230 s (solved 183 s) vs a8 19.0 at 263 s (solved 220 s); 18/48 runs reach 360 s vs 12/48 at 480 for a8. No
+  watchdog stop, no freeze. Tasks lost vs a8 are mostly late ones the cap cuts (14873 p1, 3676 p1, 4079 p1, 3506 p1);
+  a6 gained 11194 x2 and 15589 x1 (noise either way). Beats f6rc 16, f6ra 15, pub024 14.5.
 - **RESULT r38 (6-min f6ra / f6rc, account 2, e24 x 2, results in data/results/2026-11-02_skill_e24f6r):** f6ra 16 + 14
   = 15.0 per 24 (240 s, 16/48 at the cap, 13 empty); f6rc 16 + 16 = 16.0 (252 s, 15/48 at cap, 12 empty). Per 24:
   sq1c2a8 19.0 (263 s, 8/48 at cap), sq1c2 18, pub024 14.5. The 6-min cap/window cost ~3-4 per 24 vs a8 (lost: 3278,
