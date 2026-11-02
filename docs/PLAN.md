@@ -38,8 +38,8 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   hidden tasks are from private repos (~116-120), local fastapi/rich times underestimate cap hits. Worst case
   120 x (6 min + ~25 s) + setup = 12.8 h -> a 6-min cap fits only if roughly < 80% of runs hit it.
 - **RUN BUILT (r36, not run; user 2026-11-02: the bar is sq1c2 8-min accuracy):** sq1c2t6 alone on d40, kaggle/cells_skill_d40t6.
-- **RUN BUILT (r37, user to run):** sq1c2 (8 min, baseline) vs sq1c2f6 (finish events, 6-min cap) on e24 x 2 passes,
-  kaggle/cells_skill_e24f6 (cell2 + cell4). Goal: f6 solves >= sq1c2 while ending runs sooner. Details "RUN BUILT r37".
+- **RUN BUILT (r37, user to run):** sq1c2f6 (finish events, 6-min cap) alone on e24 x 2 passes, kaggle/cells_skill_e24f6
+  (cell2 only); bar = sq1c2 8-min history (e24 18; q12 6, 8). Goal: f6 solves >= sq1c2 while ending runs sooner. Details "RUN BUILT r37".
 - **LB:** sk_a2 0.18, sk_a2_32 0.17, pub024 0.18 (our submission of the public 0.24 package, 2026-10-30) -> its 0.24
   was a lucky draw too. LB = ~58
   tasks: sd ~0.05; identical agents 0.12-0.26 -> never rank arms by LB. Final picks = best LOCAL arms.
@@ -69,8 +69,8 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   checkout -- / rm; chained other commands refused); event B = from 300 s with a source edit the same. edit_file
   still works. Cap max_time_minutes 6 (safety net). Prompt rewritten (repro prints FIXED on its own line only when
   fixed). State in .git/agent/clock.json. Unit-tested with a fake clock (all events); sq1c2's run.py untouched.
-- kaggle/cells_skill_e24f6: ARMS [sq1c2, sq1c2f6], e24, PASSES 2, early stop 3 (both far above). cell2 + cell4
-  (r35's cell4, per-arm time/turns) differ from the sq2 notebook. 96 runs, ~4 h wall (~8 h quota). Sim OK.
+- kaggle/cells_skill_e24f6: ARMS [sq1c2f6] (user: sq1c2 already measured), e24, PASSES 2, early stop 3. Only cell2
+  needed (single arm; the folder's cell4 = r35's relaxed guard, either works). 48 runs, ~2 h wall. Sim OK.
 - Read: solves per pass per arm (bar: sq1c2 >= its 18 history); mean agent s and share at the cap; how often events
   A/B fired and what followed (edits after FIXED, refusals in the finish window); projected LB hours for f6.
 
