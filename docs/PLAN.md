@@ -85,6 +85,13 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   mean 230 s (solved 183 s) vs a8 19.0 at 263 s (solved 220 s); 18/48 runs reach 360 s vs 12/48 at 480 for a8. No
   watchdog stop, no freeze. Tasks lost vs a8 are mostly late ones the cap cuts (14873 p1, 3676 p1, 4079 p1, 3506 p1);
   a6 gained 11194 x2 and 15589 x1 (noise either way). Beats f6rc 16, f6ra 15, pub024 14.5.
+  sq1c2a6 SUBMITTED to the LB (2026-11-02).
+- **RESULT r41 (8-min a8ra / a8rc, fixed repeat block, e24 x 2, data/results/2026-11-02_skill_e24a8r):** a8rc 18 + 22
+  = **20.0 per 24** (mean 293 s, solved 255 s, 12/48 at cap); a8ra 17 + 18 = 17.5 (295 s, 16/48 at cap); a8 19.0
+  (263 s, solved 220 s). rc solved fastapi_15589 2/2 again (4/4 over r38+r41; a8/ra/a6 1/8 together) and 12942 2/2,
+  11194 2/2; lost 3506, 3676 p1, 4079 p1. +1 per 24 over a8 is within pass noise (a8: 18/20), but 15589 looks real
+  (the checklist copies exact names). Issue text alone (ra) does not help. rc is ~30 s/run slower. Repeat block and
+  garble rate need requests.jsonl (not fetched; ~100 MB).
 - **RESULT r38 (6-min f6ra / f6rc, account 2, e24 x 2, results in data/results/2026-11-02_skill_e24f6r):** f6ra 16 + 14
   = 15.0 per 24 (240 s, 16/48 at the cap, 13 empty); f6rc 16 + 16 = 16.0 (252 s, 15/48 at cap, 12 empty). Per 24:
   sq1c2a8 19.0 (263 s, 8/48 at cap), sq1c2 18, pub024 14.5. The 6-min cap/window cost ~3-4 per 24 vs a8 (lost: 3278,
