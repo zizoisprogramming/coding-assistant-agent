@@ -41,6 +41,10 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
 - **RUN BUILT (r37, user to run):** sq1c2f6 (finish events, 6-min cap) alone on e24 x 2 passes, kaggle/cells_skill_e24f6
   (cell2 only); bar = sq1c2 8-min history (e24 18; q12 6, 8). Goal: f6 solves >= sq1c2 while ending runs sooner. Details "RUN BUILT r37".
 - **RUN BUILT (r38, user's second account):** sq1c2f6ra vs sq1c2f6rc on e24 x 2, kaggle/cells_skill_e24f6r. Details below.
+- **r37 STOPPED by the user** after 8 runs: sq1c2f6 5/8 vs sq1c2 8/8 on the same tasks; 2 empty patches at the 360 s
+  cap (rich_3278, fastapi_14349, both solved by sq1c2 at 405-480 s). User: wants faster solving, not cut-offs.
+- **RUN BUILT (r39, user to run):** sq1c2a8 = sq1c2 (8 min) + event A only, e24 x 2, kaggle/cells_skill_e24a8.
+  NOTE: r38's arms are built on sq1c2f6 (event B + 6-min cap) -> they carry the same cut-offs.
 - **LB:** sk_a2 0.18, sk_a2_32 0.17, pub024 0.18 (our submission of the public 0.24 package, 2026-10-30) -> its 0.24
   was a lucky draw too. LB = ~58
   tasks: sd ~0.05; identical agents 0.12-0.26 -> never rank arms by LB. Final picks = best LOCAL arms.
@@ -59,6 +63,16 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   PASS2_IF_BEATS) -> kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS=...; run with `< <(sleep 400)` for a
   silent stdin); CPU notebooks kaggle/cells_testsignal, kaggle/cells_repro (private dataset
   ziad23samer/testsignal-candidates); results data/results/2026-10-29_*.
+
+### RUN BUILT r39: sq1c2a8 (sq1c2 8 min + event A only) on e24, 2 passes (2026-11-02)
+- Event A alone (run_finish.py with CLOCK_A8 edits: SESSION 480, FINISH_AT None, no window text): repro prints
+  FIXED with a source edit -> REPRO PASSES; 60 s later only finishing commands (edit_file still works). Warning 180,
+  refusal 270 as sq1c2. No 300 s window, no 6-min cap. Prompt rewritten. Fake-clock test: no refusal at 420 s with an
+  edit, A fires, 270 rule kept. Sim OK. dist/sq1c2a8.zip.
+- Purpose: same accuracy as sq1c2, faster solved runs. NOT an LB candidate by itself (failing runs still go to 8 min;
+  the scorer's 12-h total is set by them).
+- kaggle/cells_skill_e24a8: ARMS [sq1c2a8], e24, 2 passes, 48 runs, ~2.3 h. cell2 only.
+- Read: solves per pass vs sq1c2 18; mean s of solved runs vs sq1c2 (r31); A fired / what followed.
 
 ### RUN BUILT r38: sq1c2f6ra vs sq1c2f6rc on e24, 2 passes (2026-11-02, user's second account)
 - Both = sq1c2f6 + idea 4 + idea 1a, new clock script scripts/agent_clock/run_finish2.py (f6's run_finish.py
