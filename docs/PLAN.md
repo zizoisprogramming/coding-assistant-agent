@@ -30,8 +30,9 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
 - **r32 RESULT (q12, 36 runs):** sq1c2 (control) 8/12, sq1c3 (reads through the clock) 7/12, sq1c4 (thinking 2048)
   7/12 -> neither change helps; drop both. Clock arm on q12 over 3 runs: 6, 6, 8 (mean 6.7) vs sq1 3, 4 and sq2 4, 7,
   pub024 3 -> sq1c2 is our best local agent (e24 18/24 = sq2 level). Details in "RESULT r32" below.
-- **LB PENDING (2026-10-31):** sq1c2 8-min (dist/sq1c2.zip) submitted by the user. If it ends in Notebook Timeout ->
-  submit dist/submission.zip = sq1c2t7 (7 min, 325 s/task on d40, e24 17 + 18 vs pub024 14 + 15).
+- **LB (2026-11-02):** sq1c2 8-min (submitted 10-30) -> "exceeded the allowed runtime" (Notebook Timeout), as
+  estimated (~370-395 s/task vs pub024 ~340 s which fits). sq1c2t7 (7 min, 325 s/task on d40) submitted 11-01 02:57,
+  PENDING. Kaggle CLI via uvx needs `--with six` (new kaggle release imports six without declaring it).
 - **LB:** sk_a2 0.18, sk_a2_32 0.17, pub024 0.18 (our submission of the public 0.24 package, 2026-10-30) -> its 0.24
   was a lucky draw too. LB = ~58
   tasks: sd ~0.05; identical agents 0.12-0.26 -> never rank arms by LB. Final picks = best LOCAL arms.
