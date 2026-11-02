@@ -90,8 +90,17 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   = **20.0 per 24** (mean 293 s, solved 255 s, 12/48 at cap); a8ra 17 + 18 = 17.5 (295 s, 16/48 at cap); a8 19.0
   (263 s, solved 220 s). rc solved fastapi_15589 2/2 again (4/4 over r38+r41; a8/ra/a6 1/8 together) and 12942 2/2,
   11194 2/2; lost 3506, 3676 p1, 4079 p1. +1 per 24 over a8 is within pass noise (a8: 18/20), but 15589 looks real
-  (the checklist copies exact names). Issue text alone (ra) does not help. rc is ~30 s/run slower. Repeat block and
-  garble rate need requests.jsonl (not fetched; ~100 MB).
+  (the checklist copies exact names). Issue text alone (ra) does not help. rc is ~30 s/run slower.
+  requests.jsonl (same script for all, scratch rq.py: malformed = run_skill_script args not {work, scripts/run.py,
+  one-string positional_args}): malformed shell calls a8 7.6%, a8ra 13.1%, a8rc 11.3% (f6ra 13.3, f6rc 21.0) ->
+  the issue text in the prompt raises the glitch ~1.5x; the checklist does not add to it at 8 min.
+  Repeat block STILL 0 refusals (18 repeats with no edit/write between and identical output). The run started 17:27,
+  4 min after the fix commit (17:23), so probably the fixed code. Locally the fixed block refuses (armsim now repeats a
+  command: 4/4 refused) -> something on Kaggle changes loose /tmp files between calls (candidates: unpacked-wheel tars
+  of the parallel task, verification .patch files left by NamedTemporaryFile(delete=False), the harness's
+  write_file temp files). Fix to build: fingerprint without scanning /tmp; stat only /tmp paths named in the command.
+  Harness fact: subprocess sandbox sets HOME and TMPDIR to the task's work dir; the skill executor writes
+  .adk_exec_<rand>.py in the work dir per call (git-excluded via .git/info/exclude).
 - **RESULT r38 (6-min f6ra / f6rc, account 2, e24 x 2, results in data/results/2026-11-02_skill_e24f6r):** f6ra 16 + 14
   = 15.0 per 24 (240 s, 16/48 at the cap, 13 empty); f6rc 16 + 16 = 16.0 (252 s, 15/48 at cap, 12 empty). Per 24:
   sq1c2a8 19.0 (263 s, 8/48 at cap), sq1c2 18, pub024 14.5. The 6-min cap/window cost ~3-4 per 24 vs a8 (lost: 3278,
