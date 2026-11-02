@@ -32,7 +32,12 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   pub024 3 -> sq1c2 is our best local agent (e24 18/24 = sq2 level). Details in "RESULT r32" below.
 - **LB (2026-11-02):** sq1c2 8-min (submitted 10-30) -> "exceeded the allowed runtime" (Notebook Timeout), as
   estimated (~370-395 s/task vs pub024 ~340 s which fits). sq1c2t7 (7 min, 325 s/task on d40) submitted 11-01 02:57,
-  PENDING. Kaggle CLI via uvx needs `--with six` (new kaggle release imports six without declaring it).
+  -> ALSO "exceeded the allowed runtime" (2026-11-02). Kaggle CLI via uvx needs `--with six`.
+  Pattern: every submission that fitted had max_tool_calls 28-32 (mix, pub024, sk_a2, sk_a2_32; le6_t6 at 6 min);
+  timed out: le5 (28 calls, 8 min), sq1c2 (80, 8), sq1c2t7 (80, 7), 12B. With 80 calls the clock is the only brake;
+  hidden tasks are from private repos (~116-120), local fastapi/rich times underestimate cap hits. Worst case
+  120 x (6 min + ~25 s) + setup = 12.8 h -> a 6-min cap fits only if roughly < 80% of runs hit it.
+- **RUN BUILT (r36, user to run):** sq1c2t6 (6-min sq1c2) alone on d40, kaggle/cells_skill_d40t6.
 - **LB:** sk_a2 0.18, sk_a2_32 0.17, pub024 0.18 (our submission of the public 0.24 package, 2026-10-30) -> its 0.24
   was a lucky draw too. LB = ~58
   tasks: sd ~0.05; identical agents 0.12-0.26 -> never rank arms by LB. Final picks = best LOCAL arms.
@@ -51,6 +56,16 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   PASS2_IF_BEATS) -> kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS=...; run with `< <(sleep 400)` for a
   silent stdin); CPU notebooks kaggle/cells_testsignal, kaggle/cells_repro (private dataset
   ziad23samer/testsignal-candidates); results data/results/2026-10-29_*.
+
+### RUN BUILT r36: sq1c2t6 (6-minute sq1c2) alone on d40 (2026-11-02)
+- User: sq1c2t7 also timed out on the scorer; go 6 min (as le6_t6, which fitted), test locally first. sq1c2t6 =
+  sq1c2 with times x 6/8: max_time_minutes 6, clock SESSION 360, warning 135 s, refusal 200 s; prompt rewritten
+  (locate by ~75 s, edit by 135 s, test file only under 240 s, pytest timeout 90, finish from 300 s). 80 calls kept
+  (a 40-call cap would have cut 9 of sq1c2's 63 solves in r31-r35). dist/sq1c2t6.zip (pack OK).
+- kaggle/cells_skill_d40t6: ARMS [sq1c2t6], D40, 1 pass, ~2 h; cell2's arm check accepts 8/7/6 min (cell4 carries
+  r35's relaxed guard; a single arm passes either version). Sim: clock "s of 360", budgets 6 min.
+- In r31-r35, 52 of 100 sq1c2/t7 runs ran >= 355 s (21 of them solved) -> expect some loss vs t7 (19/40).
+- Read: solved vs t7 19/40 and pub024 ~17; share of runs at the 360 s wall (the scorer-fit risk); mean s.
 
 ### RESULT r35: sq1c2t7 18/24 vs pub024 15/24 on e24, same run (2026-10-31)
 - data/results/2026-10-31_skill_e24t7, 48 runs, no crash. sq1c2t7 18/24, no patch 3, mean 274 s, 4 time ends |
