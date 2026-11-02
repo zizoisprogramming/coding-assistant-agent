@@ -40,6 +40,7 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
 - **RUN BUILT (r36, not run; user 2026-11-02: the bar is sq1c2 8-min accuracy):** sq1c2t6 alone on d40, kaggle/cells_skill_d40t6.
 - **RUN BUILT (r37, user to run):** sq1c2f6 (finish events, 6-min cap) alone on e24 x 2 passes, kaggle/cells_skill_e24f6
   (cell2 only); bar = sq1c2 8-min history (e24 18; q12 6, 8). Goal: f6 solves >= sq1c2 while ending runs sooner. Details "RUN BUILT r37".
+- **RUN BUILT (r38, user's second account):** sq1c2f6ra vs sq1c2f6rc on e24 x 2, kaggle/cells_skill_e24f6r. Details below.
 - **LB:** sk_a2 0.18, sk_a2_32 0.17, pub024 0.18 (our submission of the public 0.24 package, 2026-10-30) -> its 0.24
   was a lucky draw too. LB = ~58
   tasks: sd ~0.05; identical agents 0.12-0.26 -> never rank arms by LB. Final picks = best LOCAL arms.
@@ -58,6 +59,22 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   PASS2_IF_BEATS) -> kaggle/cells_skill_*; sim data/sim/armsim.py (SIM_CELLS=...; run with `< <(sleep 400)` for a
   silent stdin); CPU notebooks kaggle/cells_testsignal, kaggle/cells_repro (private dataset
   ziad23samer/testsignal-candidates); results data/results/2026-10-29_*.
+
+### RUN BUILT r38: sq1c2f6ra vs sq1c2f6rc on e24, 2 passes (2026-11-02, user's second account)
+- Both = sq1c2f6 + idea 4 + idea 1a, new clock script scripts/agent_clock/run_finish2.py (f6's run_finish.py
+  untouched): repeat block = identical command with an unchanged fingerprint (git status + git diff + files in
+  .git/agent and /tmp, max 2000 files) -> REFUSED with the first 1500 chars of the earlier output (compaction may have
+  dropped it). Issue verbatim at the END of the system prompt ("# THE ISSUE (verbatim ...)" + {problem_description});
+  prompts rewritten tighter (684 / 723 words vs f6 855) to offset the ~235 issue tokens.
+- sq1c2f6rc adds 1b+1c (CHECKLIST = True): commands refused until write_file .git/agent/issue.md exists (<= 8 lines
+  of exact names/strings/values + expected behaviour); the clock appends "[issue checklist]" with the file after the
+  first source edit and again when the repro passes / the finish window opens.
+- Fake-clock unit tests: repeat refused and re-shown, runs again after an edit; checklist refusal, shown at first
+  edit, not repeated, shown at REPRO PASSES. Sim (SIM_CELLS=cells_skill_e24f6r; armsim now writes the checklist when
+  the prompt asks and checks the issue is rendered): issue in system prompt True, 8/8 runs patch.
+- kaggle/cells_skill_e24f6r: ARMS [sq1c2f6ra, sq1c2f6rc], e24, 2 passes, 96 runs, ~3.5-4 h. Same budgets -> cell2 only.
+- Read vs sq1c2f6 (r37) and sq1c2 8-min (e24 18): solves per pass; repeat refusals (count, what followed); rc: the
+  checklist's quality (exact literals vs issue), literals in final patches; compactions per run and when; mean s.
 
 ### PATTERNS: what the model obeys, and what compaction drops (2026-11-02, from r31-r35 logs, 124 clock runs)
 - COMPACTION KEEPS THE SYSTEM PROMPT, DROPS THE TASK MESSAGE: after ADK compaction (google/adk/apps/
