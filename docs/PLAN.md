@@ -108,6 +108,13 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   command); fake test: /tmp noise still refused, changed /tmp/repro.py or tree re-runs; armsim 4/4 refused.
   Prompts written fresh (HEAD_SQ1C2A6RC_FIX / HEAD_SQ1C2A6C_FIX). kaggle/cells_skill_e24a6c (cell2 + cell4), e24 x 2,
   96 runs, ~3.5-4 h. Bar: sq1c2a6 17.0 per 24 (r40, separate run).
+- **RESULT r42 (data/results/2026-11-03_skill_e24a6c):** a6rc 18 + 17 = **17.5 per 24** (mean 230 s, solved 199 s,
+  14/48 at cap); a6c 17 + 17 = **17.0** (252 s, solved 212 s, 19/48 at cap); bar a6 17.0 (230 s). Within noise of a6.
+  a6rc: 12942 2/2 (a6 0/2) but 15589 0/2; a6c: 15589 2/2. Malformed shell calls a6rc 5.9%, a6c 13.6% (a8 7.6, a8ra
+  13.1, a8rc 11.3) -> the issue text in the prompt is NOT the cause; it varies run to run. Repeat block fires now
+  (/tmp scan removed): a6rc 11 refusals in 7 runs, a6c 10 in 8 (12-13 unchanged repeats each). Checklist written on
+  call 1 in 48/48 runs both arms, never refused. Pooled checklist effect over r38/r41/r42: +0.5 to +1 per 24, each
+  within noise; fastapi_15589 checklist arms 6/8 vs plain 1/8 is the one clear signal.
 - **RESULT r38 (6-min f6ra / f6rc, account 2, e24 x 2, results in data/results/2026-11-02_skill_e24f6r):** f6ra 16 + 14
   = 15.0 per 24 (240 s, 16/48 at the cap, 13 empty); f6rc 16 + 16 = 16.0 (252 s, 15/48 at cap, 12 empty). Per 24:
   sq1c2a8 19.0 (263 s, 8/48 at cap), sq1c2 18, pub024 14.5. The 6-min cap/window cost ~3-4 per 24 vs a8 (lost: 3278,
