@@ -143,6 +143,11 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   rn vs a6rc -2.5 per 24 is ~1.7 sd, so the note may hurt or it is noise; it fired in 11-12 runs per arm, 4 solved each. Thinking 2048 (rnt):
   no harm vs rn in the same run, solved runs faster (219 vs 250 s); one failed call still wrote 8192 tokens. MISTAKE: no same-run control
   (a6 or a6rc) -> cross-run comparisons only. Decision pending; the note is not kept without a same-run win.
+- **ALL RUNS REVIEW (2026-11-05; aggregates; ~3,200 runs: rung1 252, rung2 136, rung3 392, 12B 164, generation ~700 + regraded, skill/clock 1,552):** PLATEAU: 45 full dev16 passes of
+  35 agents (single, orchestrator, locator-editor, reviewer, skills, thinking, clock, ...): mean 2.8, sd 1.02, about what identical agents would give; same few tasks solved; period means flat Oct 13 -> Nov 4.
+  LB: 0.08 -> 0.10 -> 0.12 -> 0.15 -> 0.17 -> 0.18 in Oct 6-26, then flat. Fine-tuning: 12B v1 0/16, 31B adapter test stopped at 0/7 vs base 3/7 (small; parked). Paper angle open; candidates in chat.
+- **Obedience by distance (504 fixer runs, traces; confounded, not causal):** forbidden graph tools ~0.2% in every prompt-size band (flat, no decay). Malformed shell 9-15%, no trend; 8.2% just after compaction vs 13.4% later.
+  Soft warning -> edit on next call 43/462 (9%); refusal 44/137 (32%). Own repro: passed -> solved 275/301 on finished runs (e24-heavy); dev16 6/11. Local/global attention NOT tested by traces; a controlled distance probe would be needed.
 - **RUN BUILT r45: the information test** (user 2026-11-04; also the paper's main experiment). sq1c2a6i vs sq1c2a6info, identical agents = sq1c2a6 + issue in the
   system prompt (compaction drops the task message, so added text would vanish mid-run; the sim showed it). info arm's task text gets: 19 short issues: the linked GitHub
   report (data/info_experiment/gh/issues.json, public, title + first post, no comments, cut at 3000 chars per report); 19 flagged tasks: added test lines read from
