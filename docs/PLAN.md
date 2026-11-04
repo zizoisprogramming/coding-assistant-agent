@@ -126,6 +126,13 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   Time: pub024 fits the LB at 387 s wall per run here, so a6 at 330 s has ~50 s spare (rough, concurrency 2 vs the scorer's 1); a 6.5-7 min
   cap may fit. 7 min = sq1c2t7 timed out, but it had no event A. Earlier refusal only targets the no-edit half; a forced guess on a short
   issue is usually wrong (3 edits, 1 solve).
+- **WHY HARD TASKS FAIL (2026-11-04, tasks.jsonl vs traces):** heuristic "hidden requirement" = a test literal or new def/class name that the
+  gold patch adds and the issue never mentions: 25/129 public tasks (19%; undercounts). Clock runs on those: 0/18 (12 tasks, few runs each) vs
+  70% on the rest (picked set inflates that). dev16: 15280, 14487, 14258, 3180, 15800 flagged = at most ~11/16 reachable. Examples: 14258 agent
+  raises the right error but the test wants AssertionError + an exact sentence; 14487 test wants "Validation errors:". 13920 not hidden: agent
+  patched shared.py helpers, gold unwraps in analyze_param. Short issues are a title + GitHub link (no internet in the sandbox): 22% solved,
+  29/129 of public tasks. pub024's 8 finished-empty runs all hit its 28-call limit with no edit (164-348 s), so the call limit is what saves
+  it time and costs it nothing on those runs. LB 0.12 vs 0.18 = ~3.5 tasks, within noise (sd ~2.9 tasks per submission).
 - **RUN BUILT r44: sq1c2a6rn vs sq1c2a6rnt** (user 2026-11-04: option 1 + option 2 if it does not hurt). rn = sq1c2a6rc + clock
   note REPRO SHOWS NO BUG (python script, exit 0, a FIXED line or only "passed" lines, no source edit; never grep/pytest).
   rnt = rn + thinking_budget 2048 (only difference). Replay on real runs: a8rc fires in 10/48 runs, incl. 4 of its 8 failures
