@@ -111,6 +111,14 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
 - **LB: sq1c2a6 = 0.12** (2026-11-04; ~7 of ~58 public tasks; did not time out). e24 is picked from tasks already solved,
   so its 17/24 does not predict the LB; on the 6 dev16 tasks in e24 a6 got 3/6, 4/6, the same as mix (~3.5) and pub024
   (3/6). Do not back a submission with e24 alone. First clock agent to get a score; a scorer-only problem is not excluded.
+- **PATTERNS over 432 clock runs on e24 (2026-11-04; picked tasks, so rates are inflated):** finished with a patch 314/326
+  solved (96%); stopped by the cap 0/100 (70 of them no edit at all); failures: 70 cap+empty, 30 cap+patch, 12 finished
+  wrong, 6 finished empty. 12 tasks solved 18/18 in every arm, so agents differ only on the other 12. Issue < 150 chars:
+  21% solved vs 81-93% (unpicked d40t7: 3/10 vs 16/30); 26% of public issues and 6/16 of dev16 are that short, e24 only
+  5/24. Failed runs: same calls (26 vs 23) but 2x the tokens and 12.4 vs 7.2 s per call -> a call cap cannot tell them
+  apart. Compactions do not separate (70-76% at 0-2). Per 24 by cap: 6 min 16.5, 7 min 18.0, 8 min 18.7. Time estimate
+  (118 tasks x mean wall, 15% solved): sq1c2 14.2 h (timed out), sq1c2t7 11.9 h (timed out), sq1c2a6 10.8 h (fit), a8 13.2 h,
+  a8rc 14.8 h, a6rc 10.0 h. So a8rc was not submitted: 8 min does not fit unless ~80% of hidden tasks are solved.
 - **RUN BUILT r43: sq1c2a6 vs pub024 on the full dev16 x 2** (64 runs; kaggle/cells_skill_dev16a6, cell2 + cell4;
   EARLY_STOP_MAX -1 so pass 2 always runs, as mix solves only 3-4 of 16). Arm files verified identical to the submitted
   zips. Sim OK. Each at its submitted budget (a6 6 min/80 calls; pub024 8 min/28 calls). Next fresh set: train 52.
