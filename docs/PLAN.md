@@ -143,6 +143,9 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   rn vs a6rc -2.5 per 24 is ~1.7 sd, so the note may hurt or it is noise; it fired in 11-12 runs per arm, 4 solved each. Thinking 2048 (rnt):
   no harm vs rn in the same run, solved runs faster (219 vs 250 s); one failed call still wrote 8192 tokens. MISTAKE: no same-run control
   (a6 or a6rc) -> cross-run comparisons only. Decision pending; the note is not kept without a same-run win.
+- **RUN BUILT r47: E4B on the full dev16** (user 2026-11-04, small-model bonus): sq1c2a6e4b (sq1c2a6, model line only) vs pub024e4b (pub024, model line only), 2 passes, 64 runs, early stop off. kaggle/cells_skill_dev16e4b
+  (cell2, cell3 serves E4B, cell4). dist/sq1c2a6e4b.zip, dist/pub024e4b.zip. Clock seconds unchanged although E4B decodes ~2.5x faster (rung-1y): first test the design as it is. Reference: E4B 0/4, 0/4 on 4 tasks with an early agent.
+  Unverified: whether today's wheelhouse serves E4B (it did on 10-11; the model's config could not be fetched from here). If cell 3 fails, it fails during setup.
 - **RULES UPDATE (official page pasted by the user, 2026-11-04; our saved pages were from Sep 26):** allowed models: 31B, 12B, E4B, E2B (gemma-4-*-it-qat-w4a16-ct), one model per submission. Bonus $10,000 for the top
   E2B/E4B submission; it must be one of the team's 2 final picks and stays eligible for the other prizes. My "12B is not allowed" was out of date. L4 notebooks must be attached to the competition: the replay probe needs it as an input too.
   Our E4B/12B data: 1a E4B 0/4, 0/4 on 4 tasks (2026-10-11); 12B mix 2, 1 of 16. Toeda (Zenodo): E4B 10.0% -> 15.4% on 104 public tasks with scaffolding. Small-model standings not checked.

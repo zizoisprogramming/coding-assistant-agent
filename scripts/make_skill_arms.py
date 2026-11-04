@@ -1837,6 +1837,27 @@ commands until edit_file has changed a source file.
 """
 
 
+E4B = "gemma-4-e4b-it-qat-w4a16-ct"  # r47 (user 2026-11-04): small-model bonus; every agent of a submission must use one model
+
+
+def set_model(out, model):
+    """The submission's only change: the model line of every agent yaml."""
+    changed = 0
+    for p in out.rglob("*.yaml"):
+        t = p.read_text()
+        if "gemma-4-31b-it-qat-w4a16-ct" in t:
+            p.write_text(t.replace("gemma-4-31b-it-qat-w4a16-ct", model)); changed += 1
+    assert changed, f"no model line in {out}"
+
+
+def pub024e4b():
+    out = ROOT / "submissions/pub024e4b"
+    shutil.rmtree(out, ignore_errors=True)
+    shutil.copytree(ROOT / "submissions/pub024", out)
+    set_model(out, E4B)
+    print("wrote", out.relative_to(ROOT))
+
+
 def sq1c(arm):
     """sq1 (fixer -> submit-only finisher) whose fixer has no run_command: its shell is the clock skill."""
     sq2("sq1")
@@ -1879,6 +1900,8 @@ def sq1c(arm):
         sp = out / "configs/sampling.yaml"
         assert sp.read_text().count("thinking_budget: 4096") == 1
         sp.write_text(sp.read_text().replace("thinking_budget: 4096", "thinking_budget: 2048"))
+    if arm.endswith("e4b"):
+        set_model(out, E4B)
     print("wrote", out.relative_to(ROOT), "| fixer", len(fix.split()), "words, shell = skills/work/scripts/run.py")
 
 
@@ -2415,7 +2438,7 @@ CLOCK2F6RC_SKILL_MD = CLOCK2F6R_SKILL_MD.rstrip("\n") + (
 CLOCK_SCRIPT = {"sq1c2f6": "run_finish.py", "sq1c2f6ra": "run_finish2.py", "sq1c2f6rc": "run_finish2.py", "sq1c2a8": "run_finish.py",
                 "sq1c2a8ra": "run_finish2.py", "sq1c2a8rc": "run_finish2.py",
                 "sq1c2a6": "run_finish.py", "sq1c2a6rc": "run_finish2.py", "sq1c2a6c": "run_finish2.py",
-                "sq1c2a6rn": "run_finish2.py", "sq1c2a6rnt": "run_finish2.py", "sq1c2a6i": "run_finish.py", "sq1c2a6info": "run_finish.py"}  # arm -> clock script copied as scripts/run.py (default run.py)
+                "sq1c2a6rn": "run_finish2.py", "sq1c2a6rnt": "run_finish2.py", "sq1c2a6i": "run_finish.py", "sq1c2a6info": "run_finish.py", "sq1c2a6e4b": "run_finish.py"}  # arm -> clock script copied as scripts/run.py (default run.py)
 # sq1c2a8 (user 2026-11-02): faster without cutting long tasks = sq1c2 (8 min) + event A only (repro prints FIXED ->
 # REPRO PASSES, finishing commands only 60 s later; edit_file still works). No 300 s finish window, no 6-min cap.
 # r37 (sq1c2f6) early: 5/8 vs sq1c2 8/8 on the same tasks, 2 empty patches at the 360 s cap (rich_3278, 14349).
@@ -3057,7 +3080,7 @@ CLOCK_TIMES = {"sq1c2t7": (CLOCK_T7, 7), "sq1c2t6": (CLOCK_T6, 6), "sq1c2f6": ((
                "sq1c2a8ra": (CLOCK_A8R, 8), "sq1c2a8rc": (CLOCK_A8R + CLOCK_RC, 8),
                "sq1c2a6": (CLOCK_A6, 6), "sq1c2a6rc": (CLOCK_A6R + CLOCK_RC, 6), "sq1c2a6c": (CLOCK_A6R + CLOCK_RC, 6),
                "sq1c2a6rn": (CLOCK_A6R + CLOCK_RC + CLOCK_NB, 6), "sq1c2a6rnt": (CLOCK_A6R + CLOCK_RC + CLOCK_NB, 6),
-               "sq1c2a6i": (CLOCK_A6, 6), "sq1c2a6info": (CLOCK_A6, 6)}
+               "sq1c2a6i": (CLOCK_A6, 6), "sq1c2a6info": (CLOCK_A6, 6), "sq1c2a6e4b": (CLOCK_A6, 6)}
 CLOCK_VARIANT = {"sq1c": (HEAD_SQ1C_FIX, CLOCK_SKILL_MD), "sq1c2": (HEAD_SQ1C2_FIX, CLOCK2_SKILL_MD),
                  "sq1c3": (HEAD_SQ1C3_FIX, CLOCK3_SKILL_MD), "sq1c4": (HEAD_SQ1C2_FIX, CLOCK2_SKILL_MD),
                  "sq1c2t7": (HEAD_SQ1C2T7_FIX, CLOCK2T7_SKILL_MD), "sq1c2t6": (HEAD_SQ1C2T6_FIX, CLOCK2T6_SKILL_MD),
@@ -3068,9 +3091,10 @@ CLOCK_VARIANT = {"sq1c": (HEAD_SQ1C_FIX, CLOCK_SKILL_MD), "sq1c2": (HEAD_SQ1C2_F
                  "sq1c2a6c": (HEAD_SQ1C2A6C_FIX, CLOCK2A6C_SKILL_MD), "sq1c2a6rn": (HEAD_SQ1C2A6RN_FIX, CLOCK2A6RN_SKILL_MD),
                  "sq1c2a6rnt": (HEAD_SQ1C2A6RN_FIX, CLOCK2A6RN_SKILL_MD),
                  "sq1c2a6i": (HEAD_SQ1C2A6I_FIX, CLOCK2A6_SKILL_MD),
-                 "sq1c2a6info": (HEAD_SQ1C2A6I_FIX, CLOCK2A6_SKILL_MD)}  # r45: same agent, only the task text differs (notebook)
+                 "sq1c2a6info": (HEAD_SQ1C2A6I_FIX, CLOCK2A6_SKILL_MD),
+                 "sq1c2a6e4b": (HEAD_SQ1C2A6_FIX, CLOCK2A6_SKILL_MD)}  # r47: sq1c2a6 on E4B, model line only  # r45: same agent, only the task text differs (notebook)
 CLOCK_ARMS = ("sq1c", "sq1c2", "sq1c3", "sq1c4", "sq1c2t7", "sq1c2t6", "sq1c2f6", "sq1c2f6ra", "sq1c2f6rc", "sq1c2a8",
-              "sq1c2a8ra", "sq1c2a8rc", "sq1c2a6", "sq1c2a6rc", "sq1c2a6c", "sq1c2a6rn", "sq1c2a6rnt", "sq1c2a6i", "sq1c2a6info")
+              "sq1c2a8ra", "sq1c2a8rc", "sq1c2a6", "sq1c2a6rc", "sq1c2a6c", "sq1c2a6rn", "sq1c2a6rnt", "sq1c2a6i", "sq1c2a6info", "sq1c2a6e4b")
 
 
 # arm -> (fixer prompt, reviewer prompt, a.py commands)
@@ -3131,12 +3155,14 @@ def main():
         sa2(arm)
     for arm in [a for a in wanted if a in SQ2_ARMS]:
         sq2(arm)
+    if "pub024e4b" in wanted:
+        pub024e4b()
     for arm in [a for a in wanted if a in CLOCK_ARMS]:
         sq1c(arm)
     for arm, cmds in ((a, ARMS[a]) for a in wanted if a not in VARIANTS and a not in CALL_VARIANTS
                               and a not in INSTALL_FIRST and a not in SAMPLING_VARIANTS and a not in CUSHION
                               and a not in FIXER_REVIEWER and a not in TEAM_ARMS
-                              and a not in SA2_ARMS and a not in SQ2_ARMS and a not in CLOCK_ARMS):
+                              and a not in SA2_ARMS and a not in SQ2_ARMS and a not in CLOCK_ARMS and a != "pub024e4b"):
         out = ROOT / "submissions" / arm
         shutil.rmtree(out, ignore_errors=True)
         (out / "prompts").mkdir(parents=True)
