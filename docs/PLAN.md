@@ -143,6 +143,10 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   rn vs a6rc -2.5 per 24 is ~1.7 sd, so the note may hurt or it is noise; it fired in 11-12 runs per arm, 4 solved each. Thinking 2048 (rnt):
   no harm vs rn in the same run, solved runs faster (219 vs 250 s); one failed call still wrote 8192 tokens. MISTAKE: no same-run control
   (a6 or a6rc) -> cross-run comparisons only. Decision pending; the note is not kept without a same-run win.
+- **RUN BUILT r46: replay probe** (user 2026-11-04; kaggle/cells_replay_probe: cell1, cell3 as before + cell4_probe). No tasks: 30 real fixer contexts re-sent with one change. A: dormant rule ("if a later tool
+  result contains [probe 7] ...") at 10 distances around the 1024 window. B: same rule from system / user / tool / own text, near and far. C: own or teammate claim vs tool result (PASS/FAIL), both orders and values. Controls:
+  trigger only, rule only. ~1,200 calls, ~1 h run + setup (~2.5 h quota), ends by itself (no new call after 75 min). Tested against a fake server on real requests: placement accurate, controls 0, no errors. Real tokenizer on Kaggle.
+  Novelty search and predictions: docs/PAPER_NOTES.md. Saved rules pages date from Sep 26: re-check the allowed models on Kaggle (a competitor repo says 4 variants since 10-22; unverified).
 - **ALL RUNS REVIEW (2026-11-04; aggregates; ~3,200 runs: rung1 252, rung2 136, rung3 392, 12B 164, generation ~700 + regraded, skill/clock 1,552):** PLATEAU: 45 full dev16 passes of
   35 agents (single, orchestrator, locator-editor, reviewer, skills, thinking, clock, ...): mean 2.8, sd 1.02, about what identical agents would give; same few tasks solved; period means flat Oct 13 -> Nov 4.
   LB: 0.08 -> 0.10 -> 0.12 -> 0.15 -> 0.17 -> 0.18 in Oct 6-26, then flat. Fine-tuning: 12B v1 0/16, 31B adapter test stopped at 0/7 vs base 3/7 (small; parked). Paper angle open; candidates in chat.
