@@ -119,6 +119,12 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   apart. Compactions do not separate (70-76% at 0-2). Per 24 by cap: 6 min 16.5, 7 min 18.0, 8 min 18.7. Time estimate
   (118 tasks x mean wall, 15% solved): sq1c2 14.2 h (timed out), sq1c2t7 11.9 h (timed out), sq1c2a6 10.8 h (fit), a8 13.2 h,
   a8rc 14.8 h, a6rc 10.0 h. So a8rc was not submitted: 8 min does not fit unless ~80% of hidden tasks are solved.
+- **RUN BUILT r44: sq1c2a6rn vs sq1c2a6rnt** (user 2026-11-04: option 1 + option 2 if it does not hurt). rn = sq1c2a6rc + clock
+  note REPRO SHOWS NO BUG (python script, exit 0, a FIXED line or only "passed" lines, no source edit; never grep/pytest).
+  rnt = rn + thinking_budget 2048 (only difference). Replay on real runs: a8rc fires in 10/48 runs, incl. 4 of its 8 failures
+  (3506 x2, 3521, 4075); a6rc 7/48, 1 of 13 failures. Trigger unit-tested (8 cases). kaggle/cells_skill_e34rn (cell2 + cell4),
+  e24 + rest of dev16 = 34 tasks x 2, 136 runs, ~5-5.5 h, early stop 3. Sim OK. Bars: a6rc 17.5/24 (r42); dev16 from r43 (a6, pub024).
+  Refusal at 180 s stays separate, waiting for r43.
 - **a8rc time analysis (2026-11-04; 48 runs, e24):** 8 min cannot fit by speed alone: failed runs must average ~350 s (now 484).
   First edit decides: <120 s 15/15 (ends 118 s), 270-330 s 3/3 (406 s), >330 s 6/6 (470 s), never 0/7. Refusal -> edit lag
   median 97 s. Soft cap replayed: 17/24 at 11.4 h, no better than real a6rc 17.5 at 10 h (replays understate: cap 360 gives

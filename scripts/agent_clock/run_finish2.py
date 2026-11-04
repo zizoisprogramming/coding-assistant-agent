@@ -26,6 +26,7 @@ REFUSE_AT = 270  # as sq1c2: no source edit by now -> refuse commands until one 
 FINISH_AT = 300  # finish window opens (with a source edit)
 FIXED_GRACE = 60  # finish window opens this long after the repro first printed FIXED
 CHECKLIST = False  # sq1c2f6rc: True
+NO_BUG_NOTE = False  # sq1c2a6rn: True
 CHECKLIST_FILE = ".git/agent/issue.md"
 CHECKLIST_SHOW = 1200  # characters of the checklist shown
 REPEAT_SHOW = 1500  # characters of the earlier output shown with a repeat refusal
@@ -33,6 +34,8 @@ OUT_MAX = 5000  # as the harness's run_command output limit
 EDIT_CMD = re.compile(r"sed -i|git apply|\bpatch\b|open\([^)]*['\"][wa]['\"]|write_text\(|>\s*(?!/tmp|/dev/null|&)\S")
 FINISH_CMD = re.compile(r"^\s*(git (status|diff|checkout --)|rm )[^;|&`$\n]*(&&\s*git (status|diff)[^;|&`$\n]*)*$")
 FIXED_RE = re.compile(r"^\s*FIXED\b", re.M)
+SCRIPT_CMD = re.compile(r"\bpython[\d.]*\s+(?!-m\s+pytest)\S")  # runs a script: not grep, sed or pytest
+PASS_LINE = re.compile(r"\bpass(ed|es)?\b", re.I)
 TMP_PATH = re.compile(r"/tmp/[\w.@+-]+(?:/[\w.@+-]+)*")  # /tmp files a command names
 TEST_RE = re.compile(r"(^|/)(tests?|testing)/|(^|/)test_[^/]*\.py$|_test\.py$|(^|/)conftest\.py$|(^|/)pytest\.ini$")
 
@@ -150,6 +153,14 @@ def checklist(ws):
     return text or None
 
 
+def shows_no_bug(cmd, code, out):
+    """A repro script that passes with no source edit does not show the bug: exit 0 and a FIXED line, or only "passed"
+    lines."""
+    lines = [line for line in out.splitlines() if line.strip()]
+    return (code == 0 and bool(lines) and bool(SCRIPT_CMD.search(cmd))
+            and (bool(FIXED_RE.search(out)) or all(PASS_LINE.search(line) for line in lines)))
+
+
 def finish_opens(state):
     """Seconds into the session at which the finish window opens (given a source edit)."""
     opens = FINISH_AT
@@ -167,6 +178,7 @@ def main():
     key = hashlib.sha1(cmd.encode()).hexdigest()
     seen = state.setdefault("seen", {})
     fp = fingerprint(ws, cmd) if cmd else ""
+    no_bug = False
     if not cmd:
         body = "NO COMMAND: pass it as positional_args, a list holding one string: the whole shell command."
     elif CHECKLIST and checklist(ws) is None:
@@ -194,6 +206,7 @@ def main():
             body = body[:OUT_MAX] + f"\n[output cut at {OUT_MAX} characters: narrow the command]"
         seen[key] = {"at": used, "fp": fingerprint(ws, cmd), "out": body}
         files = edited(ws)
+        no_bug = NO_BUG_NOTE and not files and shows_no_bug(cmd, code, out)
         if files and "fixed_at" not in state and FIXED_RE.search(body):
             state["fixed_at"] = used
     show = None  # the checklist, at the first source edit and when the repro passes / the finish window opens
@@ -214,6 +227,9 @@ def main():
                      "refused until a source file is edited")
     else:
         state_txt = "no source edit yet"
+    if no_bug:
+        state_txt += (" | REPRO SHOWS NO BUG: it passes with no source edit, so it does not test the issue. Change its "
+                      "input to what the issue describes and run it again, or make your best edit now")
     save_state(ws, state)
     if show:
         body += ("\n[issue checklist] your " + CHECKLIST_FILE + " - check that your change uses these exact names, "
