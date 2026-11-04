@@ -143,6 +143,11 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   rn vs a6rc -2.5 per 24 is ~1.7 sd, so the note may hurt or it is noise; it fired in 11-12 runs per arm, 4 solved each. Thinking 2048 (rnt):
   no harm vs rn in the same run, solved runs faster (219 vs 250 s); one failed call still wrote 8192 tokens. MISTAKE: no same-run control
   (a6 or a6rc) -> cross-run comparisons only. Decision pending; the note is not kept without a same-run win.
+- **RUN BUILT r45: the information test** (user 2026-11-04; also the paper's main experiment). sq1c2a6i vs sq1c2a6info, identical agents = sq1c2a6 + issue in the
+  system prompt (compaction drops the task message, so added text would vanish mid-run; the sim showed it). info arm's task text gets: 19 short issues: the linked GitHub
+  report (data/info_experiment/gh/issues.json, public, title + first post, no comments, cut at 3000 chars per report); 19 flagged tasks: added test lines read from
+  tasks.jsonl at run time (never committed; cut at 3000 chars). kaggle/cells_skill_info38, 38 tasks x 2 arms x 1 pass, 76 runs, ~4 h (~8 h quota), early stop off.
+  Paper plan: audit of 1,552 runs (information gap, selection bias, what a small model obeys, noise, time), aggregates only. Draft Nov 6-7, submit by Nov 11.
 - **RUN BUILT r44: sq1c2a6rn vs sq1c2a6rnt** (user 2026-11-04: option 1 + option 2 if it does not hurt). rn = sq1c2a6rc + clock
   note REPRO SHOWS NO BUG (python script, exit 0, a FIXED line or only "passed" lines, no source edit; never grep/pytest).
   rnt = rn + thinking_budget 2048 (only difference). Replay on real runs: a8rc fires in 10/48 runs, incl. 4 of its 8 failures

@@ -31,13 +31,13 @@ sys.path.insert(0, str(ROOT / "scripts/train"))
 import make_gen_cells as G  # noqa: E402
 from make_test_cells import must_replace  # noqa: E402
 
-OUT = ROOT / "kaggle/cells_skill_e34rn"  # SHARDS set: one folder per shard, OUT + "_s1" ...
-ARMS = ["sq1c2a6rn", "sq1c2a6rnt"]  # r44 (user 2026-11-04): a6rc + REPRO SHOWS NO BUG, with thinking 4096 / 2048, on e24 + the rest of dev16 = 34 tasks x 2; r43 = kaggle/cells_skill_dev16a6: ["sq1c2a6", "pub024"]; r43 (user 2026-11-04, after sq1c2a6 scored 0.12): head to head on the full dev16 x 2, tasks not picked for being solved; r42 = kaggle/cells_skill_e24a6c: ["sq1c2a6rc", "sq1c2a6c"]; r42 (user 2026-11-02): a6 + checklist with / without the issue text in the system prompt, repeat block without the /tmp scan, e24 x 2 (a6 r40 = 17.0 is the bar); r41 = kaggle/cells_skill_e24a8r: ["sq1c2a8ra", "sq1c2a8rc"]; r40 = kaggle/cells_skill_e24a6: ["sq1c2a6"] (user 2026-11-02, 6-min a8, e24 x 2; built with OUT/ARMS swapped); r38b (user 2026-11-02, second account, replaces r38): a8 + repeat block + issue in system prompt (ra) / + checklist (rc), e24 x 2; r39 = kaggle/cells_skill_e24a8: ["sq1c2a8"] (user 2026-11-02, stopped r37): sq1c2 8 min + event A only, e24 x 2; r38 = kaggle/cells_skill_e24f6r: ["sq1c2f6ra", "sq1c2f6rc"]  # r38 (user 2026-11-02, second account): f6 + repeat block + issue in the system prompt (ra) / + checklist file shown by the clock (rc), e24 x 2; r37 = kaggle/cells_skill_e24f6: sq1c2f6 (finish events, 6-min cap) alone, e24 x 2 passes (sq1c2 8-min history is the bar); r36 = kaggle/cells_skill_d40t6: sq1c2t6 alone on d40 (sq1c2 and sq1c2t7 timed out on the scorer); r35 = kaggle/cells_skill_e24t7: pub024 vs sq1c2t7 on e24, 1 pass; r34 = kaggle/cells_skill_d40t7: sq1c2 on 7 min, alone on d40 (score vs pub024 ~20/40 + LB time check); r33 pub024 x 2 on q12 = kaggle/cells_skill_p12; r32 = kaggle/cells_skill_c36 on q12: sq1c3 = reads through the clock, sq1c4 = thinking 2048, sq1c2 = control; r31 sq1c2 alone on e24 = kaggle/cells_skill_c24; sq1c2 = sq1c with positional_args (user 2026-10-30); r30 sq1c vs sq1 = kaggle/cells_skill_c12; sq1c = sq1 with the clock shell (user 2026-10-30), fresh sq1 control; r29 sq1 vs sq2 = kaggle/cells_skill_q12_s1..s4; sq1 = sq2 without the second attempt (user 2026-10-29); sq2 alone (r28 19/24) = kaggle/cells_skill_sq2; bo3 + sa2 (r27) = kaggle/cells_skill_bo3_sa2; bo3 alone = kaggle/cells_skill_bo3 (stopped after 8 tasks, 6 solved); e24x2 = pub024 vs sk_a2_32 (kaggle/cells_skill_e24x2); d40x2 (user: is pub024 really ahead?); u20 (r24) = kaggle/cells_skill_u20 with sk_fr2; s20 (r23) = kaggle/cells_skill_s20_fr2_pub; sk_fr2 alone = kaggle/cells_skill_s20_fr2; sk_fr = kaggle/cells_skill_s20_fr (r22 15/20); d40: sk_a2 = kaggle/cells_skill_d40 (17/40), sk_a2_32 = kaggle/cells_skill_d40_32 (18/40), pub024 = kaggle/cells_skill_d40_pub
+OUT = ROOT / "kaggle/cells_skill_info38"  # SHARDS set: one folder per shard, OUT + "_s1" ...
+ARMS = ["sq1c2a6i", "sq1c2a6info"]  # r45 (user 2026-11-04): same agent (sq1c2a6 + issue in the system prompt, so compaction cannot drop it), task text with the missing information added (info arm) vs as given; r44 = kaggle/cells_skill_e34rn: ["sq1c2a6rn", "sq1c2a6rnt"]; r44 (user 2026-11-04): a6rc + REPRO SHOWS NO BUG, with thinking 4096 / 2048, on e24 + the rest of dev16 = 34 tasks x 2; r43 = kaggle/cells_skill_dev16a6: ["sq1c2a6", "pub024"]; r43 (user 2026-11-04, after sq1c2a6 scored 0.12): head to head on the full dev16 x 2, tasks not picked for being solved; r42 = kaggle/cells_skill_e24a6c: ["sq1c2a6rc", "sq1c2a6c"]; r42 (user 2026-11-02): a6 + checklist with / without the issue text in the system prompt, repeat block without the /tmp scan, e24 x 2 (a6 r40 = 17.0 is the bar); r41 = kaggle/cells_skill_e24a8r: ["sq1c2a8ra", "sq1c2a8rc"]; r40 = kaggle/cells_skill_e24a6: ["sq1c2a6"] (user 2026-11-02, 6-min a8, e24 x 2; built with OUT/ARMS swapped); r38b (user 2026-11-02, second account, replaces r38): a8 + repeat block + issue in system prompt (ra) / + checklist (rc), e24 x 2; r39 = kaggle/cells_skill_e24a8: ["sq1c2a8"] (user 2026-11-02, stopped r37): sq1c2 8 min + event A only, e24 x 2; r38 = kaggle/cells_skill_e24f6r: ["sq1c2f6ra", "sq1c2f6rc"]  # r38 (user 2026-11-02, second account): f6 + repeat block + issue in the system prompt (ra) / + checklist file shown by the clock (rc), e24 x 2; r37 = kaggle/cells_skill_e24f6: sq1c2f6 (finish events, 6-min cap) alone, e24 x 2 passes (sq1c2 8-min history is the bar); r36 = kaggle/cells_skill_d40t6: sq1c2t6 alone on d40 (sq1c2 and sq1c2t7 timed out on the scorer); r35 = kaggle/cells_skill_e24t7: pub024 vs sq1c2t7 on e24, 1 pass; r34 = kaggle/cells_skill_d40t7: sq1c2 on 7 min, alone on d40 (score vs pub024 ~20/40 + LB time check); r33 pub024 x 2 on q12 = kaggle/cells_skill_p12; r32 = kaggle/cells_skill_c36 on q12: sq1c3 = reads through the clock, sq1c4 = thinking 2048, sq1c2 = control; r31 sq1c2 alone on e24 = kaggle/cells_skill_c24; sq1c2 = sq1c with positional_args (user 2026-10-30); r30 sq1c vs sq1 = kaggle/cells_skill_c12; sq1c = sq1 with the clock shell (user 2026-10-30), fresh sq1 control; r29 sq1 vs sq2 = kaggle/cells_skill_q12_s1..s4; sq1 = sq2 without the second attempt (user 2026-10-29); sq2 alone (r28 19/24) = kaggle/cells_skill_sq2; bo3 + sa2 (r27) = kaggle/cells_skill_bo3_sa2; bo3 alone = kaggle/cells_skill_bo3 (stopped after 8 tasks, 6 solved); e24x2 = pub024 vs sk_a2_32 (kaggle/cells_skill_e24x2); d40x2 (user: is pub024 really ahead?); u20 (r24) = kaggle/cells_skill_u20 with sk_fr2; s20 (r23) = kaggle/cells_skill_s20_fr2_pub; sk_fr2 alone = kaggle/cells_skill_s20_fr2; sk_fr = kaggle/cells_skill_s20_fr (r22 15/20); d40: sk_a2 = kaggle/cells_skill_d40 (17/40), sk_a2_32 = kaggle/cells_skill_d40_32 (18/40), pub024 = kaggle/cells_skill_d40_pub
 # the winnable dev16 tasks: tier 1 (mix 55-95%) + tier 2 (14-35% over all arms); the other 9 were 0 in ~150 runs
 WINNABLE7 = ["rich_3882", "fastapi_15589", "fastapi_11194", "rich_4079", "rich_3521", "fastapi_14419", "rich_3470"]
 SPLITS = json.load(open(ROOT / "data/splits_public.json"))
 # d40 (user 2026-10-29): the 8 winnable dev16 + val 16 + test 16 = 40 tasks; 8 tasks alone are +-2 noise per pass
-SPLIT_OF = {t: k for k in ("dev16", "val", "test") for t in SPLITS[k]}
+SPLIT_OF = {t: k for k in ("dev16", "val", "test", "train") for t in SPLITS[k]}
 TASKS = sorted(WINNABLE7 + ["rich_3180"] + SPLITS["val"] + SPLITS["test"])  # the 8 winnable only: sorted(WINNABLE7 + ["rich_3180"])
 # d40 solved (user 2026-10-29, saves quota): only the d40 tasks that sk_a2 (r20) or sk_a2_32 (r21) solved = 20 tasks
 SOLVED_D40 = sorted({r["instance_id"] for d in ("2026-10-29_skill_d40", "2026-10-29_skill_d40_32")
@@ -54,7 +54,18 @@ TASKS = sorted(SOLVED_D40 + SOLVED_U20)  # d40x2: D40, u20: UNSOLVED_D40, s20: S
 # others are solved by every arm and cannot separate sq1 from sq2). Before: pub024 3, sk_a2_32 3, sa2 6, sq2 7.
 Q12 = ["fastapi_11194", "fastapi_12942", "fastapi_14349", "fastapi_14419", "fastapi_14873", "fastapi_15589",
        "rich_3278", "rich_3506", "rich_3521", "rich_3676", "rich_4075", "rich_4079"]
-TASKS = sorted(set(SOLVED_D40 + SOLVED_U20 + SPLITS["dev16"]))  # r44 e24 + full dev16; r43 full dev16 = sorted(SPLITS["dev16"]); r42 e24 = sorted(SOLVED_D40 + SOLVED_U20)  # r37 e24; r36 D40; r35 e24 = sorted(SOLVED_D40 + SOLVED_U20); r34 D40; Q12 = r32/r33; e24 = sorted(SOLVED_D40 + SOLVED_U20) (r31: sq1c2); Q12 = r29 / r30
+# r45: tasks whose issue lacks what is needed. Reports: short issues with a linked report (data/info_experiment/gh/issues.json, public GitHub,
+# title + first post, no comments; checkboxes dropped, each cut at 3000 characters). Tests: flagged tasks (a test string or new name that the gold patch
+# adds and the issue never says), by hand without false flags; the notebook reads their added test lines from tasks.jsonl (never committed).
+_GH = json.load(open(ROOT / "data/info_experiment/gh/issues.json"))
+def _report(x):
+    body = "\n".join(l for l in (x.get("body") or "").splitlines() if not l.lstrip().startswith(("- [", "<!--")))
+    return f"# {x['title']}\n{body.strip()[:3000]}"
+INFO_REPORTS = {t: "\n\n".join(_report(x) for x in g if "body" in x) for t, g in _GH.items() if any("body" in x for x in g)}
+INFO_TESTS = ["fastapi_13786", "fastapi_14099", "fastapi_14258", "fastapi_14262", "fastapi_14479", "fastapi_14487", "fastapi_14609", "fastapi_14953", "fastapi_14962",
+              "fastapi_14964", "fastapi_15030", "fastapi_15280", "fastapi_15588", "fastapi_15661", "fastapi_15800", "rich_3061", "rich_3105", "rich_3180", "rich_3930"]
+assert not set(INFO_REPORTS) & set(INFO_TESTS)
+TASKS = sorted(set(INFO_REPORTS) | set(INFO_TESTS))  # r45; r44 e24 + full dev16 = sorted(set(SOLVED_D40 + SOLVED_U20 + SPLITS["dev16"])); r43 full dev16 = sorted(SPLITS["dev16"]); r42 e24 = sorted(SOLVED_D40 + SOLVED_U20)  # r37 e24; r36 D40; r35 e24 = sorted(SOLVED_D40 + SOLVED_U20); r34 D40; Q12 = r32/r33; e24 = sorted(SOLVED_D40 + SOLVED_U20) (r31: sq1c2); Q12 = r29 / r30
 # one notebook per account: 3 tasks x 2 arms = 6 runs each; tasks dealt slow/fast by sq2's r28 time (snake order)
 _BY_TIME = ["fastapi_12942", "fastapi_14419", "fastapi_14873", "fastapi_15589", "rich_3506", "rich_4079",
             "fastapi_11194", "rich_4075", "fastapi_14349", "rich_3521", "rich_3278", "rich_3676"]
@@ -63,10 +74,10 @@ assert sorted(sum(_SHARDS4, [])) == sorted(Q12)
 SHARDS = None  # r30 (user 2026-10-30): one account, all 12 tasks; _SHARDS4 = one notebook per account
 # 1.5 h quota = 45 min wall on L4x4 (bills 2x): setup ~10 min; no new run after 0.5 h from cell 2 -> ends by ~42 min
 STOP_H = None  # None = 10.5 (whole-session runs); 0.5 for a 1.5 h-quota shard
-PASSES = 2  # r37 (user: two passes for steadier estimates); r33 pub024 x 2: 2; bo3: one pass at concurrency 1 (the LB runs tasks one at a time)
+PASSES = 1  # r45: 1 pass, 2 arms; r37 (user: two passes for steadier estimates); r33 pub024 x 2: 2; bo3: one pass at concurrency 1 (the LB runs tasks one at a time)
 CONCURRENCY = 2  # sq2: as the single-agent e24 runs it is compared with (r25 pub024 14, sk_a2_32 15); bo3 used 1
 PASS2_IF_BEATS = None  # e24x2: ("pub024", "sk_a2_32"); user (e24x2): pass 2 only if pass 1 of the first arm solved MORE than the second; None = off
-EARLY_STOP_MAX = 12  # r44: 12 of 34 (the 12 tasks every clock run solved; user: 3 was set for the hard dev16); r43: -1, off (user asked 2 passes; mix solves 3-4 of dev16, so 3 would drop arms); r42: 3; r33: -1 (off); user: after pass 1, an arm that solved 3 or fewer stops (mix: 3.67 per pass)
+EARLY_STOP_MAX = -1  # r45: one pass; r44: 12 of 34 (the 12 tasks every clock run solved; user: 3 was set for the hard dev16); r43: -1, off (user asked 2 passes; mix solves 3-4 of dev16, so 3 would drop arms); r42: 3; r33: -1 (off); user: after pass 1, an arm that solved 3 or fewer stops (mix: 3.67 per pass)
 
 
 def arm_files(arm):
@@ -117,6 +128,21 @@ for l in open(DATA_DIR / 'tasks.jsonl'):
 assert len(ROWS) == len(TASK_SET), f'tasks missing from tasks.jsonl: {{sorted(set(TASK_SET) - set(ROWS))}}'
 print(f"SKILL ARMS: {{len(ROWS)}} tasks {{dict(Counter(SPLIT_OF[t] for t in ROWS))}} {{sorted(ROWS)}} | arms {{ARMS}} | {{ATTEMPTS}} passes | {{CONCURRENCY}} at once | "
       f"after pass 1, arms solving {{EARLY_STOP_MAX}} or fewer stop")
+INFO_ARM = {info_arm!r}  # this arm's task text gets the missing information; the other arm sees the issue as given
+INFO_REPORTS = {info_reports!r}
+INFO_TESTS = {info_tests!r}
+def info_text(iid):
+    if iid in INFO_REPORTS:
+        return "\\n\\n---\\nThe linked report from the project's issue tracker (title and first post):\\n\\n" + INFO_REPORTS[iid]
+    if iid in INFO_TESTS:
+        added = "\\n".join(l[1:] for l in ROWS[iid]['test_patch'].splitlines() if l.startswith('+') and not l.startswith('+++'))
+        return "\\n\\n---\\nWhat the hidden tests contain (their added lines):\\n\\n" + added[:3000]
+    return ''
+def info_row(r, attempt):
+    return {{**r, 'problem_statement': r['problem_statement'] + info_text(r['instance_id'])}} if INFO_ARM and attempt.split('.')[0] == INFO_ARM else r
+if INFO_ARM:
+    assert all(info_text(t) for t in ROWS), 'every task of the information test needs added text'
+    print(f"INFO TEST: {{INFO_ARM}} | reports {{len(INFO_REPORTS)}}, test lines {{len(INFO_TESTS)}} | added characters, median {{sorted(len(info_text(t)) for t in ROWS)[len(ROWS) // 2]}}, max {{max(len(info_text(t)) for t in ROWS)}}")
 SUB_ROOT = WORKING_DIR / 'submissions'
 shutil.rmtree(SUB_ROOT, ignore_errors=True)
 for arm, files in ARM_FILES.items():
@@ -391,7 +417,7 @@ def main():
     host = "print('host pytest plugins:', [Path(p).name for p in _host], '-> exit', _r.returncode, _r.stderr[-200:])\n"
     dev16 = sorted(TASKS)
     assert set(TASKS) <= set(SPLIT_OF)
-    c2 = must_replace(c2, host, host + BLOCK.format(passes=PASSES, arms=ARMS, early_stop_max=EARLY_STOP_MAX, pass2_if_beats=PASS2_IF_BEATS, arm_files={a: arm_files(a) for a in ARMS}, dev16=dev16,
+    c2 = must_replace(c2, host, host + BLOCK.format(passes=PASSES, arms=ARMS, early_stop_max=EARLY_STOP_MAX, pass2_if_beats=PASS2_IF_BEATS, info_arm="sq1c2a6info", info_reports=INFO_REPORTS, info_tests=INFO_TESTS, arm_files={a: arm_files(a) for a in ARMS}, dev16=dev16,
                                                     mix_ref=mix_reference(), gen_ref=gen_reference(),
                                                     split_of={t: SPLIT_OF[t] for t in dev16}))
     (OUT / "cell2.py").write_text(c2 + "\n" + G.sandbox_env())
@@ -427,6 +453,7 @@ def main():
          "    evaluator_for(ORDER[0], _a)\n"
          "    print(_a, '| budgets', EVAL_CFGS[_a], '| adapters', list(MANIFESTS[_a].adapters))\n"),
         ("evaluator_for(iid), time.time()", "evaluator_for(iid, attempt.split('.')[0]), time.time()"),
+        ("task, evaluator, w0 = as_task(r),", "task, evaluator, w0 = as_task(info_row(r, attempt)),"),
         ("row = {'instance_id': iid, 'attempt': attempt, 'mode': MODE,",
          "row = {'instance_id': iid, 'attempt': attempt, 'arm': attempt.split('.')[0], 'mode': MODE,"),
         ("    await asyncio.gather(*(one(i, a) for i, a in jobs))\n",
