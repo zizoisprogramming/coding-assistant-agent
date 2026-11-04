@@ -143,6 +143,9 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   rn vs a6rc -2.5 per 24 is ~1.7 sd, so the note may hurt or it is noise; it fired in 11-12 runs per arm, 4 solved each. Thinking 2048 (rnt):
   no harm vs rn in the same run, solved runs faster (219 vs 250 s); one failed call still wrote 8192 tokens. MISTAKE: no same-run control
   (a6 or a6rc) -> cross-run comparisons only. Decision pending; the note is not kept without a same-run win.
+- **RULES UPDATE (official page pasted by the user, 2026-11-04; our saved pages were from Sep 26):** allowed models: 31B, 12B, E4B, E2B (gemma-4-*-it-qat-w4a16-ct), one model per submission. Bonus $10,000 for the top
+  E2B/E4B submission; it must be one of the team's 2 final picks and stays eligible for the other prizes. My "12B is not allowed" was out of date. L4 notebooks must be attached to the competition: the replay probe needs it as an input too.
+  Our E4B/12B data: 1a E4B 0/4, 0/4 on 4 tasks (2026-10-11); 12B mix 2, 1 of 16. Toeda (Zenodo): E4B 10.0% -> 15.4% on 104 public tasks with scaffolding. Small-model standings not checked.
 - **RUN BUILT r46: replay probe** (user 2026-11-04; kaggle/cells_replay_probe: cell1, cell3 as before + cell4_probe). No tasks: 30 real fixer contexts re-sent with one change. A: dormant rule ("if a later tool
   result contains [probe 7] ...") at 10 distances around the 1024 window. B: same rule from system / user / tool / own text, near and far. C: own or teammate claim vs tool result (PASS/FAIL), both orders and values. Controls:
   trigger only, rule only. ~1,200 calls, ~1 h run + setup (~2.5 h quota), ends by itself (no new call after 75 min). Tested against a fake server on real requests: placement accurate, controls 0, no errors. Real tokenizer on Kaggle.
