@@ -133,6 +133,11 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   patched shared.py helpers, gold unwraps in analyze_param. Short issues are a title + GitHub link (no internet in the sandbox): 22% solved,
   29/129 of public tasks. pub024's 8 finished-empty runs all hit its 28-call limit with no edit (164-348 s), so the call limit is what saves
   it time and costs it nothing on those runs. LB 0.12 vs 0.18 = ~3.5 tasks, within noise (sd ~2.9 tasks per submission).
+- **Replay: stop at N calls with no edit** (real runs): N=28 dev16 a6 cut 9/32, lost 1 of 8, saves 35 s per run; e24 a6rc cut 4/48, lost 1 of 35, saves 11 s;
+  e24 a8 cut 6/48, lost 3 of 38, saves 32 s. N=24 loses 6 on e24 a6rc; N=40 saves ~2 s. Not built. Could pay for a 6.5-min cap.
+- **Short issues (<150 chars; 34 public, 30 of them rich; 22 hold a link), 32 runs (dev16 a6, e24 a6rc, a8):** gold file reached in 30/32 (often in the first seconds), edited in 15,
+  solved 8. So locating is NOT the problem: the model does not know what is wrong. Commands: read_file 317, grep 259, python 95, git log/show 0. Idea (not built, wait for r44): event
+  telling the model the issue is only a title: run the named function on edge-case inputs in one script and look for wrong output.
 - **RUN BUILT r44: sq1c2a6rn vs sq1c2a6rnt** (user 2026-11-04: option 1 + option 2 if it does not hurt). rn = sq1c2a6rc + clock
   note REPRO SHOWS NO BUG (python script, exit 0, a FIXED line or only "passed" lines, no source edit; never grep/pytest).
   rnt = rn + thinking_budget 2048 (only difference). Replay on real runs: a8rc fires in 10/48 runs, incl. 4 of its 8 failures
