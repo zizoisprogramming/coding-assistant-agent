@@ -119,6 +119,14 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   apart. Compactions do not separate (70-76% at 0-2). Per 24 by cap: 6 min 16.5, 7 min 18.0, 8 min 18.7. Time estimate
   (118 tasks x mean wall, 15% solved): sq1c2 14.2 h (timed out), sq1c2t7 11.9 h (timed out), sq1c2a6 10.8 h (fit), a8 13.2 h,
   a8rc 14.8 h, a6rc 10.0 h. So a8rc was not submitted: 8 min does not fit unless ~80% of hidden tasks are solved.
+- **a8rc time analysis (2026-11-04; 48 runs, e24):** 8 min cannot fit by speed alone: failed runs must average ~350 s (now 484).
+  First edit decides: <120 s 15/15 (ends 118 s), 270-330 s 3/3 (406 s), >330 s 6/6 (470 s), never 0/7. Refusal -> edit lag
+  median 97 s. Soft cap replayed: 17/24 at 11.4 h, no better than real a6rc 17.5 at 10 h (replays understate: cap 360 gives
+  14.5 vs real 17.5). IDEA, not built, user: wait for dev16 r43: a6rc with refusal 180 s / warning 120 s.
+  Long rounds (>=45 s): 38 of 1381 calls = 30% of model time; decode is steady ~30 tok/s (0 slow calls with few tokens), 87% of
+  the text is reasoning: the model runs code in its head before write_file (14), edit_file (9), read_file (8). 11 reach
+  ~4096 tokens, 7 of them cut mid sentence. Failed runs 1.5 long rounds per run, solved 0.65. Correction to r32's reading:
+  "calls > 60 s did not drop" at thinking 2048 proves little, as 2048 tokens at 30 tok/s is already ~68 s.
 - **RUN BUILT r43: sq1c2a6 vs pub024 on the full dev16 x 2** (64 runs; kaggle/cells_skill_dev16a6, cell2 + cell4;
   EARLY_STOP_MAX -1 so pass 2 always runs, as mix solves only 3-4 of 16). Arm files verified identical to the submitted
   zips. Sim OK. Each at its submitted budget (a6 6 min/80 calls; pub024 8 min/28 calls). Next fresh set: train 52.
