@@ -119,6 +119,13 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   apart. Compactions do not separate (70-76% at 0-2). Per 24 by cap: 6 min 16.5, 7 min 18.0, 8 min 18.7. Time estimate
   (118 tasks x mean wall, 15% solved): sq1c2 14.2 h (timed out), sq1c2t7 11.9 h (timed out), sq1c2a6 10.8 h (fit), a8 13.2 h,
   a8rc 14.8 h, a6rc 10.0 h. So a8rc was not submitted: 8 min does not fit unless ~80% of hidden tasks are solved.
+- **RESULT r43 (full dev16 x 2, data/results/2026-11-04_skill_dev16a6):** sq1c2a6 3 + 5 = 4.0/16, mean 321 s (wall 330); pub024 3 + 3 =
+  3.0/16, mean 377 s (wall 387). +1 per pass is within noise, but 15% faster. a6's 24 failures: 12 no edit (11 at cap), 12 wrong edit
+  (8 at cap, 4 finished). Finished with a patch 8/12 (e24: 96%). Repro passed 6/11 (e24: 91%). Issue < 150 chars: a6 1/12 (8 no edit),
+  pub024 0/12; longer: a6 7/20 (9 wrong edit, 4 no edit), pub024 6/20. fastapi_14487, 13920, 14258 edited wrong in all 12 runs of both.
+  Time: pub024 fits the LB at 387 s wall per run here, so a6 at 330 s has ~50 s spare (rough, concurrency 2 vs the scorer's 1); a 6.5-7 min
+  cap may fit. 7 min = sq1c2t7 timed out, but it had no event A. Earlier refusal only targets the no-edit half; a forced guess on a short
+  issue is usually wrong (3 edits, 1 solve).
 - **RUN BUILT r44: sq1c2a6rn vs sq1c2a6rnt** (user 2026-11-04: option 1 + option 2 if it does not hurt). rn = sq1c2a6rc + clock
   note REPRO SHOWS NO BUG (python script, exit 0, a FIXED line or only "passed" lines, no source edit; never grep/pytest).
   rnt = rn + thinking_budget 2048 (only difference). Replay on real runs: a8rc fires in 10/48 runs, incl. 4 of its 8 failures
