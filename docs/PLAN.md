@@ -123,7 +123,7 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   note REPRO SHOWS NO BUG (python script, exit 0, a FIXED line or only "passed" lines, no source edit; never grep/pytest).
   rnt = rn + thinking_budget 2048 (only difference). Replay on real runs: a8rc fires in 10/48 runs, incl. 4 of its 8 failures
   (3506 x2, 3521, 4075); a6rc 7/48, 1 of 13 failures. Trigger unit-tested (8 cases). kaggle/cells_skill_e34rn (cell2 + cell4),
-  e24 + rest of dev16 = 34 tasks x 2, 136 runs, ~5-5.5 h, early stop 3. Sim OK. Bars: a6rc 17.5/24 (r42); dev16 from r43 (a6, pub024).
+  e24 + rest of dev16 = 34 tasks x 2, 136 runs, ~5-5.5 h, early stop 12 of 34 (3 was set for dev16 alone; never bites here). Sim OK. Bars: a6rc 17.5/24 (r42); dev16 from r43 (a6, pub024).
   Refusal at 180 s stays separate, waiting for r43.
 - **a8rc time analysis (2026-11-04; 48 runs, e24):** 8 min cannot fit by speed alone: failed runs must average ~350 s (now 484).
   First edit decides: <120 s 15/15 (ends 118 s), 270-330 s 3/3 (406 s), >330 s 6/6 (470 s), never 0/7. Refusal -> edit lag

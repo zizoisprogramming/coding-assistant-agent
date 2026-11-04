@@ -66,7 +66,7 @@ STOP_H = None  # None = 10.5 (whole-session runs); 0.5 for a 1.5 h-quota shard
 PASSES = 2  # r37 (user: two passes for steadier estimates); r33 pub024 x 2: 2; bo3: one pass at concurrency 1 (the LB runs tasks one at a time)
 CONCURRENCY = 2  # sq2: as the single-agent e24 runs it is compared with (r25 pub024 14, sk_a2_32 15); bo3 used 1
 PASS2_IF_BEATS = None  # e24x2: ("pub024", "sk_a2_32"); user (e24x2): pass 2 only if pass 1 of the first arm solved MORE than the second; None = off
-EARLY_STOP_MAX = 3  # r44: 3; r43: -1, off (user asked 2 passes; mix solves 3-4 of dev16, so 3 would drop arms); r42: 3; r33: -1 (off); user: after pass 1, an arm that solved 3 or fewer stops (mix: 3.67 per pass)
+EARLY_STOP_MAX = 12  # r44: 12 of 34 (the 12 tasks every clock run solved; user: 3 was set for the hard dev16); r43: -1, off (user asked 2 passes; mix solves 3-4 of dev16, so 3 would drop arms); r42: 3; r33: -1 (off); user: after pass 1, an arm that solved 3 or fewer stops (mix: 3.67 per pass)
 
 
 def arm_files(arm):
