@@ -143,6 +143,7 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   rn vs a6rc -2.5 per 24 is ~1.7 sd, so the note may hurt or it is noise; it fired in 11-12 runs per arm, 4 solved each. Thinking 2048 (rnt):
   no harm vs rn in the same run, solved runs faster (219 vs 250 s); one failed call still wrote 8192 tokens. MISTAKE: no same-run control
   (a6 or a6rc) -> cross-run comparisons only. Decision pending; the note is not kept without a same-run win.
+- **RUN BUILT r48: second information pass + second replay** (user 2026-11-05). Pass 2 = rerun kaggle/cells_skill_info38 unchanged (labels stay .1; keep the folders apart), ~3.5 h. Replay = kaggle/cells_replay_probe2: get_status rule only, new contexts, 7 distances, speakers, controls, 450 calls, no conflict test, ~80 min.
 - **RESULT r45 information test (data/results/2026-11-05_skill_info38, 1 pass, 3.5 h):** base 2/38, info 15/38 (only info 14, only base 1, sign p 0.001). Linked reports: 1/19 -> 10/19 (p 0.004); no patch 10 -> 4, cap 13 -> 7. Test lines: 1/19 -> 5/19 (p 0.22). Missing information
   is a main wall on short issues; even told what the tests check, most flagged tasks still fail.
 - **RESULT r47 E4B dev16 (data/results/2026-11-05_skill_dev16e4b, 1.3 h):** sq1c2a6e4b 1 + 0, pub024e4b 0 + 0 of 16, mean ~133 s, 0 cap hits, 17-18 of 32 finish under 120 s. Only 4-5 of 32 ran no repro or pytest, so "refuse handover until a repro ran" is not the fix. 'Shell' invented once in 64 runs: my worry was overstated.
