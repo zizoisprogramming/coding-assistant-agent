@@ -138,6 +138,11 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
 - **Short issues (<150 chars; 34 public, 30 of them rich; 22 hold a link), 32 runs (dev16 a6, e24 a6rc, a8):** gold file reached in 30/32 (often in the first seconds), edited in 15,
   solved 8. So locating is NOT the problem: the model does not know what is wrong. Commands: read_file 317, grep 259, python 95, git log/show 0. Idea (not built, wait for r44): event
   telling the model the issue is only a title: run the named function on edge-case inputs in one script and look for wrong output.
+- **RESULT r44 (e34 x 2, data/results/2026-11-04_skill_e34rn, 5.3 h):** on e24: rn 14 + 16 = 15.0, rnt 18 + 15 = 16.5 (a6rc 17.5, a6 17.0, other runs).
+  Full dev16: rn 1 + 3 = 2.0/16, rnt 2 + 1 = 1.5 (a6 4.0, pub024 3.0 in r43). The 10 extra dev16 tasks: 0 solves in 40 runs. No arm improves;
+  rn vs a6rc -2.5 per 24 is ~1.7 sd, so the note may hurt or it is noise; it fired in 11-12 runs per arm, 4 solved each. Thinking 2048 (rnt):
+  no harm vs rn in the same run, solved runs faster (219 vs 250 s); one failed call still wrote 8192 tokens. MISTAKE: no same-run control
+  (a6 or a6rc) -> cross-run comparisons only. Decision pending; the note is not kept without a same-run win.
 - **RUN BUILT r44: sq1c2a6rn vs sq1c2a6rnt** (user 2026-11-04: option 1 + option 2 if it does not hurt). rn = sq1c2a6rc + clock
   note REPRO SHOWS NO BUG (python script, exit 0, a FIXED line or only "passed" lines, no source edit; never grep/pytest).
   rnt = rn + thinking_budget 2048 (only difference). Replay on real runs: a8rc fires in 10/48 runs, incl. 4 of its 8 failures
