@@ -108,6 +108,12 @@ and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly 
   command); fake test: /tmp noise still refused, changed /tmp/repro.py or tree re-runs; armsim 4/4 refused.
   Prompts written fresh (HEAD_SQ1C2A6RC_FIX / HEAD_SQ1C2A6C_FIX). kaggle/cells_skill_e24a6c (cell2 + cell4), e24 x 2,
   96 runs, ~3.5-4 h. Bar: sq1c2a6 17.0 per 24 (r40, separate run).
+- **LB: sq1c2a6 = 0.12** (2026-11-04; ~7 of ~58 public tasks; did not time out). e24 is picked from tasks already solved,
+  so its 17/24 does not predict the LB; on the 6 dev16 tasks in e24 a6 got 3/6, 4/6, the same as mix (~3.5) and pub024
+  (3/6). Do not back a submission with e24 alone. First clock agent to get a score; a scorer-only problem is not excluded.
+- **RUN BUILT r43: sq1c2a6 vs pub024 on the full dev16 x 2** (64 runs; kaggle/cells_skill_dev16a6, cell2 + cell4;
+  EARLY_STOP_MAX -1 so pass 2 always runs, as mix solves only 3-4 of 16). Arm files verified identical to the submitted
+  zips. Sim OK. Each at its submitted budget (a6 6 min/80 calls; pub024 8 min/28 calls). Next fresh set: train 52.
 - **RESULT r42 (data/results/2026-11-03_skill_e24a6c):** a6rc 18 + 17 = **17.5 per 24** (mean 230 s, solved 199 s,
   14/48 at cap); a6c 17 + 17 = **17.0** (252 s, solved 212 s, 19/48 at cap); bar a6 17.0 (230 s). Within noise of a6.
   a6rc: 12942 2/2 (a6 0/2) but 15589 0/2; a6c: 15589 2/2. Malformed shell calls a6rc 5.9%, a6c 13.6% (a8 7.6, a8ra
