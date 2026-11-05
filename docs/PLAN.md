@@ -1,6 +1,6 @@
 # Gemma 4 Developer Agent — Competition Plan (living doc)
 
-## >>> START HERE (session handoff, updated 2026-10-29) <<<
+## >>> START HERE (session handoff, updated 2026-11-05) <<<
 **User:** beginner to agents/ADK (ML engineer background); wants step-by-step plain explanations, research-backed
 claims (verify, cite), chat before building, decides when planning ends. Rules: several changes per run are fine
 (since 10-25) but bundle them into arms;
@@ -10,7 +10,19 @@ change cell 4's printed output. **No training data from Claude, GPT or Gemini (u
 account runs its OWN notebook copy (a shared notebook made `kaggle kernels output` return only the latest version
 and coincided with tasks running serially). L4x4 burns GPU quota at ~2x; weekly quota is tight → small runs.
 
-### CHECKPOINT 2026-10-30 (NEWEST — read first; the dated entries below are the details)
+### CHECKPOINT 2026-11-05 (NEWEST — read first; details in the RESULT / RUN BUILT entries below and docs/PAPER_NOTES.md)
+**Deadlines:** paper Nov 12 (aim to submit Nov 11; Kaggle Writeup, 3,000 words); main competition Dec 2, pick 2 finals; 1 scoring submission a day, 1 pending at a time. Rules changed since our Sep 26 saved pages: 31B, 12B, E4B, E2B allowed (one model per submission); $10k small-model bonus for E2B/E4B (must be a final pick).
+**Waiting on (user runs, sends `kaggle kernels output` commands or signed links):**
+- `srep7` on the LB (submitted 11-05, pending): does it fit 12 h, score vs pub024 0.18?
+- r50 `srep8` vs pub024, 38 tasks, kaggle/cells_skill_srep8, ~4.5 h. Check reporter time (srep7 median 194 s), DETAILED label vs issue length, cap hits (srep7 24), solves (srep7 8, pub024 6). If it clearly wins and fits: next submission.
+- Information test pass 2: rerun kaggle/cells_skill_info38 unchanged, user starts/finishes by Saturday Nov 7; paper only; cutoff Nov 9, otherwise report one pass plainly.
+**Next for me (not started; user must say go):** paper draft, published as a private page; then compare self-written reports with the real GitHub ones (data/info_experiment/gh/issues.json; no quota). User said wait for a go on the draft: last question asked "start the draft now?".
+**Paper story (angle not final; user wanted to brainstorm; my recommendation):** agent designs plateau on hard tasks; missing information explains much of it; plus what a small model follows. Evidence: (1) plateau: 45 full dev16 passes of 35 agents, mean 2.8, sd 1.02, chance predicts 1.05; ~3,200 runs overall. (2) Information test: 2/38 -> 15/38 (reports 1/19 -> 10/19, test lines 1/19 -> 5/19). (3) Self-written reports: srep7 8 vs pub024 6 of 38, short 6 vs 3 (partial). (4) Picked tasks mislead: 71% vs 25% vs 12%. (5) Replays: no distance effect, user > tool > ..., tool believed over claims 76 vs 3 (own claim 0/33). (6) Noise, E4B 1/64, fine-tuning failures. Predictions written before results are scored in docs/PAPER_NOTES.md (mostly wrong; report that). Related work there too: only abstracts read so far; read full texts before citing.
+**User must decide for the paper:** the rules say one Kaggle account per person and our runs used several accounts (ziad23samer, ziadsamer, fatmazenhom, engziadsamer): settle before writing methods; authors and AI-use disclosure; public analysis notebook (no competition data, describe tasks in general terms). Which notebook output replay 2 used as contexts (asked, unanswered).
+**Agents:** dist/submission.zip = srep7 (already submitted). LB: sq1c2a6 0.12, 0.12; pub024 0.18; 6-min submissions 0.12-0.15, 8-min 0.17-0.18. Best fitting agent remains pub024 / sk_a2 (0.18). Dropped: 12B (mix 2, 1 of 16; allowed but no bonus), E4B for now (1/64, finishes early, wrong patches), repro-shows-no-bug note, soft cap, refusal at 180 s (untested, only targets the no-edit half).
+**Lessons to keep:** always a same-run control; never back a submission with the picked 24 alone; 2 passes cannot measure gains under ~2 tasks; judge on dev16 / unpicked sets. Simulator: data/sim/armsim.py (gitignored); SIM_CELLS=<folder>. Date slip: folder 2026-11-06_skill_srep and "user 2026-11-06" in r49/r50 were really 2026-11-05. Analysis scripts lived in the session scratchpad (only scripts/paper/analyze_srep.py kept); rebuild others from the RESULT entries.
+
+### CHECKPOINT 2026-10-30 (read after the newest; the dated entries below are the details)
 - **Latest result (r28, 2026-10-29):** sq2 19/24 on e24 (best e24 reading; fair same-set single runs after the
   set was picked: pub024 14, sk_a2_32 15, sa2 18). BUT the second attempt changed no outcome (details in RESULT r28)
   -> the gain is the fixer -> finisher STRUCTURE or noise (sd ~2.2 on 24). Next: re-run sq2 (pass 2) to confirm,
