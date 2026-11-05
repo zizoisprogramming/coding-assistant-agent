@@ -1,0 +1,10 @@
+name: reporter
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/reporter.md
+tools:  # no edit_file, submit_patch or run_command: it only looks; an undeclared call returns an error and the run goes on
+  - read_file
+  - write_file
+  - get_status
+skills:
+  - skills/look
+generate_content_config: !include configs/sampling_reporter.yaml

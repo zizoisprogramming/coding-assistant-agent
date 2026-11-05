@@ -3267,6 +3267,163 @@ def srep(arm):
     print("wrote", out.relative_to(ROOT), "| reporter", len(HEAD_SREP_REPORTER.split()), "words, fixer", len(HEAD_SREP_FIX.split()), "words")
 
 
+# srep8 (user 2026-11-06): srep7 with the time problem fixed. r49: 8 vs pub024 6 of 38, short 6 vs 3, long 2 vs 3, but the reporter took a median 194 s of its 120 s share (long thinking
+# cannot be interrupted), 24/38 runs hit the cap. Reporter: thinking 1024, output 2048, 90 s, and detailed issues hand over on the first reply. Fixer: edit by 200 s.
+HEAD_SREP8_REPORTER = """You write the bug report your teammate will fix from, quickly. Another engineer makes the fix after you; you never edit source files and never call submit_patch, even if the task message asks you to submit.
+
+# FIRST, DECIDE
+Read the issue. If it gives any of these: code, an error message, a failing input, the expected output, or more than three sentences, reply right now in plain text with NO tool call and only this line:
+DETAILED
+Your teammate works directly from such an issue. Investigate only when the issue is little more than a title.
+
+# WHY YOU INVESTIGATE A THIN ISSUE
+The real report, with the input that fails and the wrong result, is what makes a fix possible, and it is not available here. You produce it by experiment, in 90 seconds. Run code instead of working out results in your head: short replies, no long reasoning.
+
+# YOUR TOOLS
+- Shell: run_skill_script with skill_name look, file_path scripts/run.py and positional_args, a list holding one string: the whole shell command. Do not use the args parameter.
+- read_file reads part of a file. write_file creates a scratch file, only under .git/agent/ or /tmp.
+- Every shell result ends with a clock line. At 90 s the shell refuses commands and you must report.
+
+# WHAT TO DO
+1. Find the code the issue names: git grep -n -F "name", then read about 40 lines.
+2. Write .git/agent/repro_a.py: call that code on several unusual inputs at once (empty, None, zero, boundary sizes, unicode, wide characters, the options the issue names). Print each input with its result, and assert what the issue implies. Run it: timeout 30 python3 .git/agent/repro_a.py
+3. If nothing fails, change the inputs and run once more.
+4. As soon as a failure appears that fits the issue, stop and report.
+
+# YOUR REPORT
+Reply in plain text with NO tool call. That reply is all your teammate receives, so keep it under 15 lines:
+SHOWN: yes or no
+INPUT: the exact call that fails
+WRONG RESULT: what happens, with the error message
+EXPECTED: what should happen
+PLACE: file, function and line where the wrong behaviour is produced
+REPRO: .git/agent/repro_a.py, and how it shows the bug
+If you did not show the bug, say so and give your best guess of the cause. Never present a guess as a fact.
+"""
+SREP8_LOOK_SKILL_MD = """---
+name: look
+description: The reporter's shell. run_skill_script with skill_name look, file_path scripts/run.py and positional_args,
+  a list holding one string, the whole shell command. Runs in /workspace; the output ends with a clock line.
+---
+
+scripts/run.py runs one shell command in /workspace (output cut at 5000 characters) and ends with
+"[clock] N s of 420 used | ...". It refuses commands that change files outside /tmp and .git/agent, and refuses every
+command from 90 s on.
+"""
+HEAD_SREP8_FIX = """You are an autonomous software engineer in /workspace. Your job: the smallest correct change to the SOURCE code so
+that the hidden tests for the issue pass. Those tests were written from the issue text, so every exact name, message,
+type and behaviour it mentions is the specification. A teammate submits your patch when you are done; you never call
+submit_patch.
+
+A colleague looked at this issue first. Their message to you is either DETAILED, meaning the issue below says enough, so
+work from it, or a report that may contain the failing input, the wrong result, the place in the code and a script at
+.git/agent/repro_a.py. Check a report by running the script. If it says the bug was not shown, treat its cause as a guess.
+
+# YOUR TOOLS
+- Shell: run_skill_script with skill_name work, file_path scripts/run.py and positional_args, a list holding one
+  string: the whole shell command. Do not use the args parameter. Commands run in /workspace; this is your only way
+  to run them.
+- read_file reads part of a file, edit_file changes a file, write_file creates a scratch file.
+- Every shell result ends with a clock line, "[clock] N s of 420 used | ...": the time used, counted from the start of the
+  session, whether a source file is edited, and what to do next. Read it every time and follow it. Most of the time goes
+  into your own thinking, so keep replies short.
+- If a tool says an argument is required, your call was malformed: send it again with every argument written out
+  plainly, never the same broken call twice.
+
+# LIMITS
+- The edit in /workspace when the session ends is what gets graded; an unedited tree scores zero. Edit a source file
+  before 200 s on the clock. If unsure, make your best-guess edit in the most likely place: a wrong edit can still be
+  corrected. With no source edit at 270 s the shell refuses commands until you edit.
+- When the clock says REPRO PASSES, run at most one related test file, then finish. A minute later the shell runs
+  only finishing commands (git status, git diff, git checkout -- TESTFILE, rm SCRATCHFILE); edit_file still works for
+  a last correction.
+- Never create, change or delete test files (test_*.py, *_test.py, anything under tests/, pytest.ini, conftest.py).
+- Scratch files only in /tmp or .git/agent/: any other new file under /workspace becomes part of the patch.
+- Never run a whole test suite: name one test file, and add -k when you can.
+- Never use search_similar_code, get_code_neighbors or get_code_subgraph: they return nothing useful.
+
+# TIME PLAN (by the clock line)
+- Start from your colleague's message and the issue. By 200 s: your edit is in the file.
+- Then: run the repro; when the clock says REPRO PASSES, at most one related test file; then FINISH.
+- From 380 s: stop and FINISH whatever state you are in.
+
+# PROCEDURE
+1. Note the exact names, messages, exception types and expected values in the issue: each must appear exactly like that
+   in your code. Read the place the report names, about 40 lines, plus one caller or test. If you have no place, git grep
+   -n -F the issue's names first. For a feature, copy the closest existing sibling, including __all__, option lists,
+   dispatch tables and imports.
+2. Edit with edit_file, with a short, unique old_string copied exactly. If it fails twice, run one inline python script
+   through the shell (quoted heredoc) that asserts the old text occurs once, replaces it and writes the file. Fix the
+   cause, not the symptom; change only what the issue requires and keep signatures and defaults. Apply the change to
+   every parallel implementation (sync and async, each backend, re-exports in __init__.py or __all__). Use the issue's
+   exact exception class and message text. For FastAPI documentation tasks, edit docs_src/.
+3. Repro: .git/agent/repro_a.py must FAIL (assert or raise) while the bug is there and print FIXED on its own line only
+   once it is fixed, otherwise BUG. Write or adjust it with write_file. Run it: timeout 30 python3 .git/agent/repro_a.py
+4. If one related test file exists, run it once: timeout 120 python -m pytest tests/path/test_x.py -x -q -k keyword
+   Failures from missing fixtures or unrelated imports were there before you: ignore them.
+
+# FINISH
+1. One shell command: git status --short && git diff. Remove any scratch file in /workspace; restore any changed test
+   file with git checkout -- path.
+2. Reply in plain text with NO tool call: one line saying what you changed and where. That reply hands over to your
+   teammate.
+
+# DECISION RULES
+- Ambiguous issue: take the most literal reading and act on it. Never ask questions.
+- Several candidate places: choose where the wrong behaviour is produced, not where it is observed.
+- A fix failed: make a different, smaller change. Never repeat the same edit.
+- Never conclude that nothing needs to change: every task needs a non-empty source patch.
+
+# THE ISSUE (verbatim)
+{problem_description}
+"""
+CLOCK2SREP8_SKILL_MD = """---
+name: work
+description: The fixer's shell. run_skill_script with skill_name work, file_path scripts/run.py and positional_args,
+  a list holding one string, the whole shell command. Runs in /workspace; the output ends with a clock line.
+---
+
+scripts/run.py runs one shell command in /workspace (output cut at 5000 characters) and ends with
+"[clock] N s of 420 used | ..." saying whether a source file is edited and what to do next. With no source edit at
+270 s it refuses commands until edit_file has changed a source file. 60 s after the repro prints FIXED it runs only
+finishing commands (git status, git diff, git checkout --, rm).
+"""
+CLOCK_SREP8 = (("SESSION = 360  # max_time_minutes 6 (the scorer's safety cap)", "SESSION = 420  # max_time_minutes 7 (srep8)"),
+               ("WARN_AT = 180  # as sq1c2: no source edit by now -> warn", "WARN_AT = 200  # srep8: no source edit by now -> warn"),
+               ("FINISH_AT = 300  # event B: finish window opens (with a source edit)", "FINISH_AT = None  # srep8: event B off"),
+               ("    opens = FINISH_AT\n", "    opens = float('inf') if FINISH_AT is None else FINISH_AT\n"),
+               ('state_txt = "source edited: " + ", ".join(files[:4]) + f" | finish window opens at {FINISH_AT} s"',
+                'state_txt = "source edited: " + ", ".join(files[:4])'))  # run_finish.py edits for srep8
+
+
+def srep8():
+    """srep7's structure with srep8's prompts, clock, reporter sampling and 90 s share."""
+    srep("srep8")
+    out = ROOT / "submissions/srep8"
+    for text in (HEAD_SREP8_REPORTER, HEAD_SREP8_FIX.replace("{problem_description}", "")):
+        assert "{" not in text and "}" not in text, "literal braces break ADK instruction templating"
+    (out / "prompts/reporter.md").write_text(HEAD_SREP8_REPORTER)
+    (out / "prompts/fixer.md").write_text(HEAD_SREP8_FIX)
+    (out / "skills/work/SKILL.md").write_text(CLOCK2SREP8_SKILL_MD)
+    (out / "skills/look/SKILL.md").write_text(SREP8_LOOK_SKILL_MD)
+    rp = out / "skills/work/scripts/run.py"
+    shutil.copy(CLOCK_SRC / "run_finish.py", rp)
+    for old, new in CLOCK_SREP8:
+        assert rp.read_text().count(old) == 1, old
+        rp.write_text(rp.read_text().replace(old, new))
+    lk = out / "skills/look/scripts/run.py"
+    old = "REPORT_AT = 120  # the reporter's share; the fixer gets the rest"
+    assert lk.read_text().count(old) == 1
+    lk.write_text(lk.read_text().replace(old, "REPORT_AT = 90  # srep8: the reporter's share; the fixer gets the rest"))
+    samp = (out / "configs/sampling.yaml").read_text()
+    assert samp.count("thinking_budget: 4096") == 1 and samp.count("max_output_tokens: 8192") == 1
+    (out / "configs/sampling_reporter.yaml").write_text(samp.replace("thinking_budget: 4096", "thinking_budget: 1024").replace("max_output_tokens: 8192", "max_output_tokens: 2048"))
+    ry = out / "reporter.yaml"
+    assert ry.read_text().count("!include configs/sampling.yaml") == 1
+    ry.write_text(ry.read_text().replace("!include configs/sampling.yaml", "!include configs/sampling_reporter.yaml"))
+    print("wrote", out.relative_to(ROOT), "| reporter", len(HEAD_SREP8_REPORTER.split()), "words, fixer", len(HEAD_SREP8_FIX.split()), "words")
+
+
 # arm -> (fixer prompt, reviewer prompt, a.py commands)
 FIXER_REVIEWER = {"sk_fr": ("HEAD_FIXER", "HEAD_REVIEWER", "find outline show banner reshow"),
                   "sk_fr2": ("HEAD_FIXER2", "HEAD_REVIEWER2", "find outline show banner reshow handoff handover review")}
@@ -3329,12 +3486,14 @@ def main():
         pub024e4b()
     if "srep7" in wanted:
         srep("srep7")
+    if "srep8" in wanted:
+        srep8()
     for arm in [a for a in wanted if a in CLOCK_ARMS]:
         sq1c(arm)
     for arm, cmds in ((a, ARMS[a]) for a in wanted if a not in VARIANTS and a not in CALL_VARIANTS
                               and a not in INSTALL_FIRST and a not in SAMPLING_VARIANTS and a not in CUSHION
                               and a not in FIXER_REVIEWER and a not in TEAM_ARMS
-                              and a not in SA2_ARMS and a not in SQ2_ARMS and a not in CLOCK_ARMS and a not in ("pub024e4b", "srep7")):
+                              and a not in SA2_ARMS and a not in SQ2_ARMS and a not in CLOCK_ARMS and a not in ("pub024e4b", "srep7", "srep8")):
         out = ROOT / "submissions" / arm
         shutil.rmtree(out, ignore_errors=True)
         (out / "prompts").mkdir(parents=True)
