@@ -15,6 +15,8 @@ These are guesses to be scored honestly; a wrong one gets reported as wrong.
 1. Test lines at least 6/19: WRONG, 5/19. 2. Reports +2 to +5: WRONG, +9. 3. Gradual fall, no step at 1024: step part right, fall WRONG (no fall). 4. System at least as strong as far tool/user: UNCLEAR (wide intervals).
 5. Believes the tool more: RIGHT; recency gain: not seen. 6. Own claim over a teammate's: WRONG (0/33 vs 3/46).
 
+Update with replay 2 (pooled): prediction 3: still no fall and no step. Prediction 4: system 50/87 (57%) vs far tool 20/34 (59%), far user 28/41 (68%): not supported as stated.
+
 ## Closest related work (found 2026-11-04). "Abstract" = only the abstract page was read; read the full text before citing details.
 - OpenAI, "Separating signal from noise in coding evaluations" and "Why we no longer evaluate SWE-bench Verified": audits finding broken tasks, including underspecified prompts (about 30% of SWE-Bench Pro per secondary coverage; the primary page returned 403 to our fetcher, so read it by hand).
 - Vijayvargiya et al., Ambig-SWE / "Interactive Agents to Overcome Underspecificity in Software Engineering" (arXiv 2502.13069): removes details from good issues, tests clarifying questions. Summary only.
