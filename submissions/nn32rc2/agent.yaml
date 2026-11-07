@@ -1,0 +1,6 @@
+# nn32rc2 = nn32rc with a setup agent first (scripts/make_skill_arms.py setup_arm)
+name: swe_agent
+agent_class: SequentialAgent
+sub_agents:
+  - config_path: setup.yaml
+  - config_path: main.yaml

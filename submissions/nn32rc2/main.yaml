@@ -1,0 +1,12 @@
+# nn32rc: scripts/make_skill_arms.py nnrc_arm; shell = run_command + .git/agent/run.py (scripts/agent_clock/run_phase.py)
+name: main
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/system.md
+tools:
+  - run_command
+  - read_file
+  - edit_file
+  - write_file
+  - get_status
+  - submit_patch
+generate_content_config: !include configs/sampling.yaml

@@ -3697,7 +3697,7 @@ def phase_arm(arm):
 
 # nn32rc family (user 2026-11-06): the no-numbers design with commands through the real run_command and a script installed once, as sk_a2 did (fit the LB, reads through its script 98%).
 # Every agent of 7-8 min on the skill shell timed out; this tests that shell. nn32rc base; nn32rcn no read_file (the leak after a refusal); nn32rcs short reading commands.
-def nnrc_prompt(no_read=False, reads=False):
+def nnrc_prompt(no_read=False, reads=False, setup=False):
     read_line = ("- To read a file, use the shell with sed -n 'START,ENDp' FILE. There is no other reading tool.\n" if no_read
                  else "- read_file reads part of a file.\n")
     short = ("""- Short commands for reading, through the same shell:
@@ -3706,18 +3706,18 @@ def nnrc_prompt(no_read=False, reads=False):
   python .git/agent/run.py 'lines FILE START END' shows numbered lines.
   Prefer these to raw searches and reads.
 """ if reads else "")
-    return """You are an autonomous software engineer fixing an issue in /workspace. Make the smallest correct change to the source code so that the hidden tests pass. Those tests were written from the issue, so its exact names, messages, types and behaviour are the specification.
-
+    first = "" if setup else """
 # First
 Your first call is run_skill_script with skill_name work and file_path scripts/install.py, with no other arguments. It prints READY and sets up your shell. It is not a package install: never run pip.
-
+"""
+    return """You are an autonomous software engineer fixing an issue in /workspace. Make the smallest correct change to the source code so that the hidden tests pass. Those tests were written from the issue, so its exact names, messages, types and behaviour are the specification.
+""" + first + """
 # Tools
 - Shell: run_command with the command python .git/agent/run.py 'the whole shell command', in single quotes. If the command itself contains single quotes, write it on the following lines:
   python .git/agent/run.py <<'EOF'
   the whole shell command
   EOF
-  Run every command this way, and never without python .git/agent/run.py: only this form shows your state.
-""" + read_line + short + """- edit_file changes a file: old_string is short, unique and copied exactly from the source. write_file only for a new source file the issue requires.
+  Run every command this way, and never without python .git/agent/run.py: only this form shows your state.""" + (" The setup step has already installed it.\n" if setup else "\n") + read_line + short + """- edit_file changes a file: old_string is short, unique and copied exactly from the source. write_file only for a new source file the issue requires.
 - If edit_file says an argument is missing, your call was malformed. Send it again with every argument written plainly. If that fails too, make the change with an inline python script through the shell.
 
 # The state line
@@ -3793,7 +3793,7 @@ def nnrc_arm(arm):
 # Clock agents through run_command (user 2026-11-07): sq1c2 and sq1c2a8rc unchanged except the transport: an install call puts their own clock script at .git/agent/run.py
 # and every command goes through run_command (as sk_a2, which fit the LB). Every 7-8 min agent on the skill shell timed out although local agent time matched pub024's.
 # The script gets two changes only: the start time is cached (one git process less per call) and a command may come on stdin without ever blocking.
-CLOCK_RC = {"sq1c2x": "sq1c2", "sq1c2a8rcx": "sq1c2a8rc"}
+CLOCK_RC_ARMS = {"sq1c2x": "sq1c2", "sq1c2a8rcx": "sq1c2a8rc"}
 RC_SHELL = """- First call: run_skill_script with skill_name work and file_path scripts/install.py, with no other arguments. It
   prints READY and installs your shell. It is not a package install: never run pip.
 - Shell: run_command with the command python .git/agent/run.py 'the whole shell command', in single quotes. If the
@@ -3843,7 +3843,7 @@ RC_OLD_SHELL = {"sq1c2": """- Shell: run_skill_script with skill_name work, file
 
 
 def clock_rc(arm):
-    base = CLOCK_RC[arm]
+    base = CLOCK_RC_ARMS[arm]
     out = ROOT / "submissions" / arm
     shutil.rmtree(out, ignore_errors=True)
     shutil.copytree(ROOT / "submissions" / base, out)
@@ -3873,6 +3873,84 @@ def clock_rc(arm):
         script = script.replace(old, new)
     rp.write_text(script)
     shutil.copy(CLOCK_SRC / "install_run.py", sk / "scripts/install.py")
+    print("wrote", out.relative_to(ROOT), "| from", base)
+
+
+# Setup-agent versions (user 2026-11-07): r55/r56 showed the model skips a first install call (23 of 24 runs started with run_command), so the install is its own agent, as le6
+# did (installed 16/16): SequentialAgent [setup, main] or [setup, fixer, finisher]. The setup agent has one tool path (the skill) and stops; the main agent has no skill.
+SETUP_ARMS = {"nn32rc2": "nn32rc", "nn32rcn2": "nn32rcn", "sq1c2a8rcx2": "sq1c2a8rcx"}
+SETUP_MD = """Your only job is to install the shell for the next agent. Do not read code or work on the task.
+
+Call run_skill_script with skill_name work and file_path scripts/install.py, with no other arguments. Then reply
+with a single line, INSTALLED, and stop. If the call fails, call it again exactly the same way, then reply and stop.
+"""
+SETUP_YAML = """name: setup
+description: Installs the shell, .git/agent/run.py, for the next agent. Makes a single call.
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/setup.md
+tools:
+  - get_status
+skills:
+  - skills/work
+generate_content_config: !include configs/setup_sampling.yaml
+"""
+SETUP_SAMPLING = """# Setup step (as le6): a single tool call, no reasoning needed.
+temperature: 0.2
+top_p: 0.95
+max_output_tokens: 512
+thinking_config:
+  include_thoughts: true
+  thinking_budget: 128
+"""
+RC_SHELL_SETUP = """- Shell: run_command with the command python .git/agent/run.py 'the whole shell command', in single quotes. The
+  setup step has already installed it. If the command itself contains single quotes, write it on the following lines:
+  python .git/agent/run.py <<'EOF'
+  the whole shell command
+  EOF
+  Commands run in /workspace. Run every command this way, never without python .git/agent/run.py: only this form
+  shows the clock line.
+"""
+
+
+def setup_arm(arm):
+    base = SETUP_ARMS[arm]
+    (nnrc_arm if base in NNRC_ARMS else clock_rc)(base)
+    out = ROOT / "submissions" / arm
+    shutil.rmtree(out, ignore_errors=True)
+    shutil.copytree(ROOT / "submissions" / base, out)
+    (out / "prompts/setup.md").write_text(SETUP_MD)
+    (out / "setup.yaml").write_text(SETUP_YAML)
+    (out / "configs/setup_sampling.yaml").write_text(SETUP_SAMPLING)
+    skills = "skills:\n  - skills/work\n"
+    if base in NNRC_ARMS:
+        no_read, reads = NNRC_ARMS[base]
+        text = nnrc_prompt(no_read, reads, setup=True)
+        assert not re.search(r"\d", text) and "install.py" not in text and "run_skill_script" not in text
+        (out / "prompts/system.md").write_text(text)
+        ay = out / "agent.yaml"
+        main = ay.read_text()
+        assert main.count(skills) == 1 and main.count("name: swe_agent\n") == 1
+        main = main.replace(skills, "").replace("name: swe_agent\n", "name: main\n")
+        (out / "main.yaml").write_text(main)
+        ay.write_text(f"# {arm} = {base} with a setup agent first (scripts/make_skill_arms.py setup_arm)\nname: swe_agent\nagent_class: SequentialAgent\n"
+                      "sub_agents:\n  - config_path: setup.yaml\n  - config_path: main.yaml\n")
+    else:
+        fx = out / "prompts/fixer.md"
+        text = fx.read_text()
+        for old, new in ((RC_SHELL, RC_SHELL_SETUP),
+                         ("# AFTER THE INSTALL: YOUR ISSUE CHECKLIST\nYour next call: write_file .git/agent/issue.md", "# FIRST CALL: YOUR ISSUE CHECKLIST\nwrite_file .git/agent/issue.md")):
+            assert text.count(old) == 1, old[:50]
+            text = text.replace(old, new)
+        assert "run_skill_script" not in text and "install.py" not in text
+        fx.write_text(text)
+        fy = out / "fixer.yaml"
+        assert fy.read_text().count(skills) == 1
+        fy.write_text(fy.read_text().replace(skills, ""))
+        ay = out / "agent.yaml"
+        a = "sub_agents:\n  - config_path: fixer.yaml\n"
+        assert ay.read_text().count(a) == 1
+        ay.write_text(f"# {arm} = {base} with a setup agent first (scripts/make_skill_arms.py setup_arm)\n"
+                      + ay.read_text().replace(a, "sub_agents:\n  - config_path: setup.yaml\n  - config_path: fixer.yaml\n"))
     print("wrote", out.relative_to(ROOT), "| from", base)
 
 
@@ -3946,14 +4024,16 @@ def main():
         phase_arm(arm)
     for arm in [a for a in wanted if a in NNRC_ARMS]:
         nnrc_arm(arm)
-    for arm in [a for a in wanted if a in CLOCK_RC]:
+    for arm in [a for a in wanted if a in CLOCK_RC_ARMS]:
         clock_rc(arm)
+    for arm in [a for a in wanted if a in SETUP_ARMS]:
+        setup_arm(arm)
     for arm in [a for a in wanted if a in CLOCK_ARMS]:
         sq1c(arm)
     for arm, cmds in ((a, ARMS[a]) for a in wanted if a not in VARIANTS and a not in CALL_VARIANTS
                               and a not in INSTALL_FIRST and a not in SAMPLING_VARIANTS and a not in CUSHION
                               and a not in FIXER_REVIEWER and a not in TEAM_ARMS
-                              and a not in SA2_ARMS and a not in SQ2_ARMS and a not in CLOCK_ARMS and a not in ("pub024e4b", "srep7", "srep8", "pubstop") and a not in PHASE_ARMS and a not in NNRC_ARMS and a not in CLOCK_RC):
+                              and a not in SA2_ARMS and a not in SQ2_ARMS and a not in CLOCK_ARMS and a not in ("pub024e4b", "srep7", "srep8", "pubstop") and a not in PHASE_ARMS and a not in NNRC_ARMS and a not in CLOCK_RC_ARMS and a not in SETUP_ARMS):
         out = ROOT / "submissions" / arm
         shutil.rmtree(out, ignore_errors=True)
         (out / "prompts").mkdir(parents=True)
