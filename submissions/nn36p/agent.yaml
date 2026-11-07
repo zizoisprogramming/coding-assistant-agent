@@ -1,0 +1,13 @@
+# nn36p: scripts/make_skill_arms.py phase_arm; shell = scripts/agent_clock/run_phase.py
+name: swe_agent
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/system.md
+tools:
+  - read_file
+  - edit_file
+  - write_file
+  - get_status
+  - submit_patch
+skills:
+  - skills/work
+generate_content_config: !include configs/sampling.yaml

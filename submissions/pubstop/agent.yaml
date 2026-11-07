@@ -1,0 +1,16 @@
+# pubstop = pub024 with the stop-after-last-edit shell (skills/work, scripts/run.py) instead of run_command
+name: swe_agent
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/system.md
+tools:
+  - read_file
+  - edit_file
+  - write_file
+  - get_status
+  - submit_patch
+  - get_code_neighbors
+  - search_similar_code
+  - get_code_subgraph
+skills:
+  - skills/work
+generate_content_config: !include configs/sampling.yaml

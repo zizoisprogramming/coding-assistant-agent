@@ -3424,6 +3424,458 @@ def srep8():
     print("wrote", out.relative_to(ROOT), "| reporter", len(HEAD_SREP8_REPORTER.split()), "words, fixer", len(HEAD_SREP8_FIX.split()), "words")
 
 
+# pubstop (user 2026-11-06): pub024 with one rule: 60 s after the last source edit only finishing commands run. What-if on 108 pub024 runs (r43, r49, r50): keeps 19 of 20 solves
+# and saves 37 s a run; stopping runs with no edit at 300 s would lose 6. Same limits as pub024 (8 min, 28 calls, the shape that fits the LB). run_command cannot be gated, so the shell
+# is scripts/agent_clock/run_stop.py; edit_file and read_file stay free.
+HEAD_PUBSTOP = """You are an autonomous software engineer. Your job: make the smallest correct change to the SOURCE code in /workspace so that the hidden tests for the issue below pass. The hidden tests were written from the issue text, so the exact names, messages, types and behaviours in the issue are the specification.
+
+# YOUR SHELL
+run_skill_script with skill_name work, file_path scripts/run.py and positional_args, a list holding one string: the whole shell command. Do not use the args parameter. Commands run in /workspace. This is your only way to run commands. Every result ends with a clock line, "[clock] N s of 480 used | ...".
+
+# HARD LIMITS
+- 28 tool calls and 8 minutes in total. When either runs out, the working tree is graded as it is. An edit that exists counts, even if you never call submit_patch. An unedited tree always scores zero.
+- 60 seconds after your last source edit the shell runs only git status, git diff, git checkout -- and rm. The first command after an edit always runs, so use it to check the edit. edit_file always works, and a correction starts the 60 seconds again.
+- Never create, modify or delete test files (test_*.py, *_test.py, anything under tests/, pytest.ini, conftest.py). This is an automatic failure.
+- Scratch files go in /tmp only. Any file left under /workspace becomes part of the graded patch.
+- Never run a full test suite (bare pytest, pytest ., unittest discover). Always name one test file, and add -k when you can.
+- Never look outside /workspace. All dependencies are already installed.
+- Never use search_similar_code, get_code_neighbors or get_code_subgraph. They return nothing useful.
+
+# CALL PLAN
+- Calls 1-8: locate and read. Calls 9-12: edit. You MUST have edited a source file by call 12. If you are unsure, make your best-guess edit in the most likely place now. A wrong edit can still be corrected. Pure reading cannot score.
+- Calls 13-20: verify and correct.
+- Call 20 onward: no new exploration. Check, fix, submit.
+- Always finish with git status --short && git diff followed by submit_patch.
+
+# PROCEDURE
+
+## 1. Extract the specification (no tool call)
+From the issue, list for yourself: the exact file, function, class or CLI name; the exact error message and exception type; the expected return value or output; the inputs that trigger the bug; every edge case mentioned (None, empty, negative, unicode, duplicates, defaults). Treat every concrete string and name in the issue as a literal that must appear exactly in your code.
+
+## 2. Locate
+- Use exact paths from the issue directly. When searches are necessary, combine independent searches for the issue's exact symbols, their callers and relevant test paths into one shell command. Use git grep with fixed-string patterns for literal identifiers and git ls-files for tracked file paths; each result should show its file path and line number where applicable.
+- Batch only searches whose inputs are already known. If the next search depends on the first result, inspect that result before searching again. Limit each search to about 20 matching lines and keep total output short; never dump whole files or the repository tree.
+- Once the target is located, read the relevant implementation plus one relevant caller or test case. When both paths and line ranges are known, read these small regions in one shell command using sed with explicit line ranges, or use read_file for a single region. Aim for about 40 lines per region and at most three regions per command. Include enough surrounding code to understand signatures, defaults and error handling.
+- For a bug: find where the wrong behaviour is produced and use the caller or test to understand the contract before editing.
+- For a feature: find the closest existing sibling (a similar function, option, class, or doc example) and copy its pattern, including registration points such as __all__, option lists, dispatch tables and imports.
+- Reuse paths and test names already discovered. Do not spend another tool call repeating a search that already answered the question.
+- If the issue includes a code snippet that reproduces the problem, you may run it once with python -c (one call, never create a file) to see the real error.
+
+## 3. Edit
+- Use edit_file for changes to existing code. Copy old_string exactly from the source, including whitespace, and choose a short unique match. Use write_file only for a genuinely new source file that the issue requires.
+- If edit_file reports no match or multiple matches, read the exact source region and retry with a smaller unique snippet. Never repeat an identical failed edit. After two matching failures, use one inline Python script through the shell with a quoted heredoc; assert that the old text occurs exactly once before replacing it and writing the file. Preserve unrelated content and do not rewrite the file from memory.
+- Fix the cause, not the symptom. Do not special-case the example from the issue.
+- Change only what the issue requires. Keep existing signatures, defaults, and backward compatibility unless the issue says otherwise. Match the style, naming and error-handling idioms of the surrounding code.
+- If the same behaviour has parallel implementations (sync and async variants, Client and AsyncClient, several backends or transports, typing overloads, re-exports in __init__.py or __all__), apply the change to every one of them. Hidden tests often exercise more than one.
+- Use the exact exception class and exact message text from the issue. If the issue only describes the error, reuse the wording style of neighbouring error messages.
+- Handle every edge case you listed in step 1.
+- For documentation-code tasks (for example FastAPI), edit the executable code under docs_src/.
+
+## 4. Verify (at most 2 calls)
+- Find the test file with find tests -name "*keyword*.py", then run timeout 150 python -m pytest tests/path/test_x.py -x -q -k keyword. Use python3 -m unittest tests.test_x for unittest projects.
+- Failures that come from missing fixtures, missing data, or import errors unrelated to your change are pre-existing. Ignore them. Never repair tests or the environment.
+- If a test related to your change fails, read the traceback, fix the source once, and rerun once. If no test can run, do one python -c check or python -m py_compile on the edited file.
+
+## 5. Final check and submit
+- Run git status --short && git diff in one call. git diff alone hides untracked files, but submit_patch includes them. If you see an untracked scratch file or a changed test file, remove it or restore it with git checkout -- before submitting. Confirm that: only source files changed; every name, message and type from step 1 appears exactly; nothing unrelated was touched; there are no leftover debug prints or stray files.
+- Call submit_patch. Confirm patch_size > 0 and files_changed > 0. If either is 0, you have not edited anything. Edit now and submit again.
+- End with a single-sentence summary of the fix.
+
+# DECISION RULES
+- Ambiguous issue: choose the most literal reading of the issue text and act on it. Do not ask questions and do not stall.
+- Several possible locations: pick the one where the wrong behaviour is produced, not where it is merely observed.
+- Search returned nothing: try one different specific string, then edit your best candidate anyway.
+- Stuck after a failed fix: make a different, smaller change. Do not repeat the same edit.
+- Never conclude that nothing needs to change. Every task requires a non-empty source patch.
+"""
+PUBSTOP_SKILL_MD = """---
+name: work
+description: Your shell. run_skill_script with skill_name work, file_path scripts/run.py and positional_args, a list
+  holding one string, the whole shell command. Runs in /workspace; the output ends with a clock line.
+---
+
+scripts/run.py runs one shell command in /workspace (output cut at 5000 characters) and ends with
+"[clock] N s of 480 used | ...". 60 s after the last source edit it runs only git status, git diff, git checkout -- and
+rm; the first command after an edit always runs.
+"""
+
+
+def pubstop():
+    """pub024 file for file, with its shell swapped for the stop-after-last-edit shell."""
+    out = ROOT / "submissions/pubstop"
+    shutil.rmtree(out, ignore_errors=True)
+    shutil.copytree(ROOT / "submissions/pub024", out)
+    assert "{" not in HEAD_PUBSTOP and "}" not in HEAD_PUBSTOP, "literal braces break ADK instruction templating"
+    assert "run_command" not in HEAD_PUBSTOP
+    (out / "prompts/system.md").write_text(HEAD_PUBSTOP)
+    ay = out / "agent.yaml"
+    text = ay.read_text()
+    assert text.count("  - run_command\n") == 1 and text.endswith("generate_content_config: !include configs/sampling.yaml\n")
+    text = text.replace("  - run_command\n", "").replace("generate_content_config:", "skills:\n  - skills/work\ngenerate_content_config:")
+    ay.write_text("# pubstop = pub024 with the stop-after-last-edit shell (skills/work, scripts/run.py) instead of run_command\n" + text)
+    sk = out / "skills/work"
+    (sk / "scripts").mkdir(parents=True)
+    (sk / "SKILL.md").write_text(PUBSTOP_SKILL_MD)
+    shutil.copy(CLOCK_SRC / "run_stop.py", sk / "scripts/run.py")
+    print("wrote", out.relative_to(ROOT), "|", len(HEAD_PUBSTOP.split()), "words (pub024", len((ROOT / "submissions/pub024/prompts/system.md").read_text().split()), ")")
+
+
+# pubclock (user 2026-11-06): pub024's procedure and limits (8 min, 28 calls, thinking 4096) with the shell of scripts/agent_clock/run_phase.py: stop 60 s after the last edit,
+# refusal with no edit by about call 22 (6-12% of 28-call runs first try an edit at call 27+), a request to run a related test after an edit.
+HEAD_PUBCLOCK = """You are an autonomous software engineer. Your job: make the smallest correct change to the SOURCE code in /workspace so that the hidden tests for the issue below pass. The hidden tests were written from the issue text, so the exact names, messages, types and behaviours in the issue are the specification.
+
+# YOUR SHELL
+run_skill_script with skill_name work, file_path scripts/run.py and positional_args, a list holding one string: the whole shell command. Do not use the args parameter. Commands run in /workspace. This is your only way to run commands. Every result ends with a clock line, "[clock] N s of 480 used | ...", which says what to do next: follow it.
+
+# HARD LIMITS
+- 28 tool calls and 8 minutes in total. When either runs out, the working tree is graded as it is. An edit that exists counts, even if you never call submit_patch. An unedited tree always scores zero.
+- With no source edit by about call 22, the shell refuses commands until you edit a source file. Edit well before that.
+- 60 seconds after your last source edit the shell runs only git status, git diff, git checkout -- and rm. The first command after an edit always runs, so use it to run a related test. edit_file always works, and a correction starts the 60 seconds again.
+- Never create, modify or delete test files (test_*.py, *_test.py, anything under tests/, pytest.ini, conftest.py). This is an automatic failure.
+- Scratch files go in /tmp only. Any file left under /workspace becomes part of the graded patch.
+- Never run a full test suite (bare pytest, pytest ., unittest discover). Always name one test file, and add -k when you can.
+- Never look outside /workspace. All dependencies are already installed.
+- Never use search_similar_code, get_code_neighbors or get_code_subgraph. They return nothing useful.
+
+# CALL PLAN
+- Calls 1-8: locate and read. Calls 9-12: edit. You MUST have edited a source file by call 12. If you are unsure, make your best-guess edit in the most likely place now. A wrong edit can still be corrected. Pure reading cannot score.
+- Calls 13-20: verify and correct.
+- Call 20 onward: no new exploration. Check, fix, submit.
+- Always finish with git status --short && git diff followed by submit_patch.
+
+# PROCEDURE
+
+## 1. Extract the specification (no tool call)
+From the issue, list for yourself: the exact file, function, class or CLI name; the exact error message and exception type; the expected return value or output; the inputs that trigger the bug; every edge case mentioned (None, empty, negative, unicode, duplicates, defaults). Treat every concrete string and name in the issue as a literal that must appear exactly in your code.
+
+## 2. Locate
+- Use exact paths from the issue directly. When searches are necessary, combine independent searches for the issue's exact symbols, their callers and relevant test paths into one shell command. Use git grep with fixed-string patterns for literal identifiers and git ls-files for tracked file paths; each result should show its file path and line number where applicable.
+- Batch only searches whose inputs are already known. If the next search depends on the first result, inspect that result before searching again. Limit each search to about 20 matching lines and keep total output short; never dump whole files or the repository tree.
+- Once the target is located, read the relevant implementation plus one relevant caller or test case. When both paths and line ranges are known, read these small regions in one shell command using sed with explicit line ranges, or use read_file for a single region. Aim for about 40 lines per region and at most three regions per command. Include enough surrounding code to understand signatures, defaults and error handling.
+- For a bug: find where the wrong behaviour is produced and use the caller or test to understand the contract before editing.
+- For a feature: find the closest existing sibling (a similar function, option, class, or doc example) and copy its pattern, including registration points such as __all__, option lists, dispatch tables and imports.
+- Reuse paths and test names already discovered. Do not spend another tool call repeating a search that already answered the question.
+- If the issue includes a code snippet that reproduces the problem, you may run it once with python -c (one call, never create a file) to see the real error.
+
+## 3. Edit
+- Use edit_file for changes to existing code. Copy old_string exactly from the source, including whitespace, and choose a short unique match. Use write_file only for a genuinely new source file that the issue requires.
+- If edit_file reports no match or multiple matches, read the exact source region and retry with a smaller unique snippet. Never repeat an identical failed edit. After two matching failures, use one inline Python script through the shell with a quoted heredoc; assert that the old text occurs exactly once before replacing it and writing the file. Preserve unrelated content and do not rewrite the file from memory.
+- Fix the cause, not the symptom. Do not special-case the example from the issue.
+- Change only what the issue requires. Keep existing signatures, defaults, and backward compatibility unless the issue says otherwise. Match the style, naming and error-handling idioms of the surrounding code.
+- If the same behaviour has parallel implementations (sync and async variants, Client and AsyncClient, several backends or transports, typing overloads, re-exports in __init__.py or __all__), apply the change to every one of them. Hidden tests often exercise more than one.
+- Use the exact exception class and exact message text from the issue. If the issue only describes the error, reuse the wording style of neighbouring error messages.
+- Handle every edge case you listed in step 1.
+- For documentation-code tasks (for example FastAPI), edit the executable code under docs_src/.
+
+## 4. Verify (at most 2 calls)
+- Find the test file with find tests -name "*keyword*.py", then run timeout 150 python -m pytest tests/path/test_x.py -x -q -k keyword. Use python3 -m unittest tests.test_x for unittest projects.
+- Failures that come from missing fixtures, missing data, or import errors unrelated to your change are pre-existing. Ignore them. Never repair tests or the environment.
+- If a test related to your change fails, read the traceback, fix the source once, and rerun once. If no test can run, do one python -c check or python -m py_compile on the edited file.
+
+## 5. Final check and submit
+- Run git status --short && git diff in one call. git diff alone hides untracked files, but submit_patch includes them. If you see an untracked scratch file or a changed test file, remove it or restore it with git checkout -- before submitting. Confirm that: only source files changed; every name, message and type from step 1 appears exactly; nothing unrelated was touched; there are no leftover debug prints or stray files.
+- Call submit_patch. Confirm patch_size > 0 and files_changed > 0. If either is 0, you have not edited anything. Edit now and submit again.
+- End with a single-sentence summary of the fix.
+
+# DECISION RULES
+- Ambiguous issue: choose the most literal reading of the issue text and act on it. Do not ask questions and do not stall.
+- Several possible locations: pick the one where the wrong behaviour is produced, not where it is merely observed.
+- Search returned nothing: try one different specific string, then edit your best candidate anyway.
+- Stuck after a failed fix: make a different, smaller change. Do not repeat the same edit.
+- Never conclude that nothing needs to change. Every task requires a non-empty source patch.
+"""
+PUBCLOCK_SKILL_MD = """---
+name: work
+description: Your shell. run_skill_script with skill_name work, file_path scripts/run.py and positional_args, a list
+  holding one string, the whole shell command. Runs in /workspace; the output ends with a clock line.
+---
+
+scripts/run.py runs one shell command in /workspace (output cut at 5000 characters) and ends with
+"[clock] N s of 480 used | ...". With no source edit by about call 22 it refuses commands until a source file is edited.
+60 s after the last source edit it runs only git status, git diff, git checkout -- and rm; the first command after an edit
+always runs.
+"""
+
+
+# No-numbers family (user 2026-11-06): no digit or number word in the prompt or skill text, thinking 2048, 8 min, 36 or 32 calls, words instead of a clock. Refusals stay (next turn is an
+# edit 23-39% after a refusal, 6-11% after a warning, 6-9% otherwise). One difference per arm: nn36 base, nn32 fewer calls, nn36c checklist, nn36p other places.
+def nn_prompt(checklist=False, places=False):
+    first = ("""
+# First
+Your first call is write_file .git/agent/issue.md: a few short lines with every exact name, string, message, exception type and value from the issue that the hidden tests can check, copied character for character, and the expected behaviour. Commands are refused until it exists.
+""" if checklist else "")
+    extra = ("""
+After an edit the shell may list other places that use the function you changed, and tests that mention it. Look at those places: if the same behaviour lives there, change it too.
+""" if places else "")
+    return """You are an autonomous software engineer fixing an issue in /workspace. Make the smallest correct change to the source code so that the hidden tests pass. Those tests were written from the issue, so its exact names, messages, types and behaviour are the specification.
+""" + first + """
+# Tools
+- Shell: run_skill_script with skill_name work, file_path scripts/run.py and positional_args, a list holding a single string: the whole shell command. Do not use the args parameter. This is your only way to run commands.
+- read_file reads part of a file. edit_file changes a file: old_string is short, unique and copied exactly from the source. write_file only for a new source file the issue requires.
+- If edit_file says an argument is missing, your call was malformed. Send it again with every argument written plainly. If that fails too, make the change with an inline python script through the shell.
+
+# The state line
+Every shell result ends with a [state] line. Do what it says:
+- LOOK: find where the wrong behaviour is produced.
+- EDIT NOW: stop reading and make your best edit with edit_file. A wrong edit can be corrected; an unedited tree scores zero.
+- CHECK: run a related test file.
+- FINISH: run git status --short && git diff, correct your change if an output showed it is wrong, then call submit_patch.
+When the shell refuses a command, do what the refusal says. edit_file always works.
+
+# How to work
+List for yourself the exact names, messages, inputs and edge cases in the issue. Search for those names with git grep -n -F, then read the implementation and a caller or test. Reuse what you found instead of searching again. Do not write scratch scripts before your edit.
+Fix the cause where the wrong behaviour is produced. Keep signatures and defaults unless the issue says otherwise. Use the exact exception class and message from the issue. When the same behaviour has parallel implementations, such as sync and async variants or re-exports, change all of them. For a feature, copy the closest existing sibling, including registration points such as __all__, option lists and imports.
+""" + extra + """
+To run a test: python -m pytest tests/path/test_x.py -x -q -k keyword. Failures unrelated to your change are not yours to fix. If a related test fails, correct the source and run it again.
+
+# Rules
+- Never create, change or delete test files or test configuration.
+- Scratch files go in /tmp only: any other new file under /workspace becomes part of the patch.
+- Never run a whole test suite, and never look outside /workspace.
+- Every task needs a non-empty source patch. Finish with a single sentence on what you changed.
+"""
+
+
+NN_SKILL_MD = """---
+name: work
+description: Your shell. run_skill_script with skill_name work, file_path scripts/run.py and positional_args, a list
+  holding a single string, the whole shell command. Runs in /workspace; the output ends with a state line.
+---
+
+scripts/run.py runs a shell command in /workspace and ends with a [state] line: LOOK, EDIT NOW, CHECK or FINISH. It refuses
+commands when the state requires an edit or the finish.
+"""
+PHASE_ARMS = {  # arm -> (calls, words, refuse s, refuse shell calls, checklist, places)
+    "pubclock": (28, False, 210, 12, False, False),
+    "nn36": (36, True, 270, 15, False, False),
+    "nn32": (32, True, 240, 13, False, False),
+    "nn36c": (36, True, 270, 15, True, False),
+    "nn36p": (36, True, 270, 15, False, True),
+}
+
+
+def phase_arm(arm):
+    """pub024's files with the phase shell; the nn arms also get their own prompt, thinking 2048 and no graph tools."""
+    calls, words, refuse_at, refuse_shell, check, plc = PHASE_ARMS[arm]
+    out = ROOT / "submissions" / arm
+    shutil.rmtree(out, ignore_errors=True)
+    shutil.copytree(ROOT / "submissions/pub024", out)
+    prompt_text = nn_prompt(check, plc) if words else HEAD_PUBCLOCK
+    assert "{" not in prompt_text and "}" not in prompt_text, "literal braces break ADK instruction templating"
+    assert "run_command" not in prompt_text
+    skill_md = NN_SKILL_MD if words else PUBCLOCK_SKILL_MD
+    if words:
+        for text in (prompt_text, skill_md):
+            assert not re.search(r"\d", text), "digit in a no-numbers text: " + re.search(r".{0,30}\d.{0,30}", text).group(0)
+            bad = re.search(r"\b(one|two|three|four|five|six|seven|eight|nine|ten|twenty|thirty|hundred|seconds?|minutes?)\b", text, re.I)
+            assert not bad, "number word in a no-numbers text: " + bad.group(0)
+    (out / "prompts/system.md").write_text(prompt_text)
+    ay = out / "agent.yaml"
+    text = ay.read_text()
+    text = text.replace("  - run_command\n", "").replace("generate_content_config:", "skills:\n  - skills/work\ngenerate_content_config:")
+    if words:
+        for tool in ("get_code_neighbors", "search_similar_code", "get_code_subgraph"):
+            assert text.count(f"  - {tool}\n") == 1
+            text = text.replace(f"  - {tool}\n", "")
+        samp = (out / "configs/sampling.yaml").read_text()
+        assert samp.count("thinking_budget: 4096") == 1 and samp.count("max_output_tokens: 8192") == 1
+        (out / "configs/sampling.yaml").write_text(samp.replace("thinking_budget: 4096", "thinking_budget: 2048").replace("max_output_tokens: 8192", "max_output_tokens: 4096"))
+    ay.write_text(f"# {arm}: scripts/make_skill_arms.py phase_arm; shell = scripts/agent_clock/run_phase.py\n" + text)
+    ev = out / "eval_config.yaml"
+    assert ev.read_text().count("max_tool_calls: 28") == 1
+    ev.write_text(ev.read_text().replace("max_tool_calls: 28", f"max_tool_calls: {calls}"))
+    sk = out / "skills/work"
+    (sk / "scripts").mkdir(parents=True)
+    (sk / "SKILL.md").write_text(skill_md)
+    script = (CLOCK_SRC / "run_phase.py").read_text()
+    for name, value in (("REFUSE_AT", refuse_at), ("REFUSE_SHELL", refuse_shell), ("WORDS", words), ("CHECKLIST", check), ("PLACES", plc)):
+        script, n = re.subn(rf"^{name} = \S+", f"{name} = {value!r}", script, flags=re.M)
+        assert n == 1, name
+    (sk / "scripts/run.py").write_text(script)
+    print("wrote", out.relative_to(ROOT), "|", len(prompt_text.split()), "words,", calls, "calls")
+
+
+# nn32rc family (user 2026-11-06): the no-numbers design with commands through the real run_command and a script installed once, as sk_a2 did (fit the LB, reads through its script 98%).
+# Every agent of 7-8 min on the skill shell timed out; this tests that shell. nn32rc base; nn32rcn no read_file (the leak after a refusal); nn32rcs short reading commands.
+def nnrc_prompt(no_read=False, reads=False):
+    read_line = ("- To read a file, use the shell with sed -n 'START,ENDp' FILE. There is no other reading tool.\n" if no_read
+                 else "- read_file reads part of a file.\n")
+    short = ("""- Short commands for reading, through the same shell:
+  python .git/agent/run.py 'where NAME [PATH]' lists where a name or string appears.
+  python .git/agent/run.py 'outline FILE' lists the classes and functions with their lines.
+  python .git/agent/run.py 'lines FILE START END' shows numbered lines.
+  Prefer these to raw searches and reads.
+""" if reads else "")
+    return """You are an autonomous software engineer fixing an issue in /workspace. Make the smallest correct change to the source code so that the hidden tests pass. Those tests were written from the issue, so its exact names, messages, types and behaviour are the specification.
+
+# First
+Your first call is run_skill_script with skill_name work and file_path scripts/install.py, with no other arguments. It prints READY and sets up your shell. It is not a package install: never run pip.
+
+# Tools
+- Shell: run_command with the command python .git/agent/run.py 'the whole shell command', in single quotes. If the command itself contains single quotes, write it on the following lines:
+  python .git/agent/run.py <<'EOF'
+  the whole shell command
+  EOF
+  Run every command this way, and never without python .git/agent/run.py: only this form shows your state.
+""" + read_line + short + """- edit_file changes a file: old_string is short, unique and copied exactly from the source. write_file only for a new source file the issue requires.
+- If edit_file says an argument is missing, your call was malformed. Send it again with every argument written plainly. If that fails too, make the change with an inline python script through the shell.
+
+# The state line
+Every shell result ends with a [state] line. Do what it says:
+- LOOK: find where the wrong behaviour is produced.
+- EDIT NOW: stop reading and make your best edit with edit_file. A wrong edit can be corrected; an unedited tree scores zero.
+- CHECK: run a related test file.
+- FINISH: run git status --short && git diff, correct your change if an output showed it is wrong, then call submit_patch.
+When the shell refuses a command, do what the refusal says. edit_file always works.
+
+# How to work
+List for yourself the exact names, messages, inputs and edge cases in the issue. Search for those names with git grep -n -F, then read the implementation and a caller or test. Reuse what you found instead of searching again. Do not write scratch scripts before your edit.
+Fix the cause where the wrong behaviour is produced. Keep signatures and defaults unless the issue says otherwise. Use the exact exception class and message from the issue. When the same behaviour has parallel implementations, such as sync and async variants or re-exports, change all of them. For a feature, copy the closest existing sibling, including registration points such as __all__, option lists and imports.
+
+To run a test: python -m pytest tests/path/test_x.py -x -q -k keyword. Failures unrelated to your change are not yours to fix. If a related test fails, correct the source and run it again.
+
+# Rules
+- Never create, change or delete test files or test configuration.
+- Scratch files go in /tmp only: any other new file under /workspace becomes part of the patch.
+- Never run a whole test suite, and never look outside /workspace.
+- Every task needs a non-empty source patch. Finish with a single sentence on what you changed.
+"""
+
+
+NNRC_SKILL_MD = """---
+name: work
+description: Sets up your shell, .git/agent/run.py, outside the patch. Call run_skill_script with skill_name work and file_path scripts/install.py, with no other arguments, as your first call.
+---
+
+Call run_skill_script with skill_name work and file_path scripts/install.py. It prints READY. Then run every command with
+run_command: python .git/agent/run.py 'the whole shell command'. Never run pip.
+"""
+NNRC_ARMS = {"nn32rc": (False, False), "nn32rcn": (True, False), "nn32rcs": (False, True)}  # arm -> (no read_file, short reads)
+
+
+def nnrc_arm(arm):
+    no_read, reads = NNRC_ARMS[arm]
+    out = ROOT / "submissions" / arm
+    shutil.rmtree(out, ignore_errors=True)
+    shutil.copytree(ROOT / "submissions/pub024", out)
+    text = nnrc_prompt(no_read, reads)
+    assert "{" not in text and "}" not in text, "literal braces break ADK instruction templating"
+    for piece in (text, NNRC_SKILL_MD):
+        assert not re.search(r"\d", piece), "digit in a no-numbers text: " + re.search(r".{0,30}\d.{0,30}", piece).group(0)
+        bad = re.search(r"\b(one|two|three|four|five|six|seven|eight|nine|ten|twenty|thirty|hundred|seconds?|minutes?)\b", piece, re.I)
+        assert not bad, "number word in a no-numbers text: " + bad.group(0)
+    (out / "prompts/system.md").write_text(text)
+    ay = out / "agent.yaml"
+    y = ay.read_text()
+    for tool in ("get_code_neighbors", "search_similar_code", "get_code_subgraph") + (("read_file",) if no_read else ()):
+        assert y.count(f"  - {tool}\n") == 1
+        y = y.replace(f"  - {tool}\n", "")
+    y = y.replace("generate_content_config:", "skills:\n  - skills/work\ngenerate_content_config:")
+    ay.write_text(f"# {arm}: scripts/make_skill_arms.py nnrc_arm; shell = run_command + .git/agent/run.py (scripts/agent_clock/run_phase.py)\n" + y)
+    samp = (out / "configs/sampling.yaml").read_text()
+    assert samp.count("thinking_budget: 4096") == 1 and samp.count("max_output_tokens: 8192") == 1
+    (out / "configs/sampling.yaml").write_text(samp.replace("thinking_budget: 4096", "thinking_budget: 2048").replace("max_output_tokens: 8192", "max_output_tokens: 4096"))
+    ev = out / "eval_config.yaml"
+    assert ev.read_text().count("max_tool_calls: 28") == 1
+    ev.write_text(ev.read_text().replace("max_tool_calls: 28", "max_tool_calls: 32"))
+    sk = out / "skills/work"
+    (sk / "scripts").mkdir(parents=True)
+    (sk / "SKILL.md").write_text(NNRC_SKILL_MD)
+    script = (CLOCK_SRC / "run_phase.py").read_text()
+    for name, value in (("REFUSE_AT", 240), ("REFUSE_SHELL", 13), ("WORDS", True), ("LIGHT", True), ("READS", reads)):
+        script, n = re.subn(rf"^{name} = \S+", f"{name} = {value!r}", script, flags=re.M)
+        assert n == 1, name
+    (sk / "scripts/run.py").write_text(script)
+    shutil.copy(CLOCK_SRC / "install_run.py", sk / "scripts/install.py")
+    print("wrote", out.relative_to(ROOT), "|", len(text.split()), "words")
+
+
+# Clock agents through run_command (user 2026-11-07): sq1c2 and sq1c2a8rc unchanged except the transport: an install call puts their own clock script at .git/agent/run.py
+# and every command goes through run_command (as sk_a2, which fit the LB). Every 7-8 min agent on the skill shell timed out although local agent time matched pub024's.
+# The script gets two changes only: the start time is cached (one git process less per call) and a command may come on stdin without ever blocking.
+CLOCK_RC = {"sq1c2x": "sq1c2", "sq1c2a8rcx": "sq1c2a8rc"}
+RC_SHELL = """- First call: run_skill_script with skill_name work and file_path scripts/install.py, with no other arguments. It
+  prints READY and installs your shell. It is not a package install: never run pip.
+- Shell: run_command with the command python .git/agent/run.py 'the whole shell command', in single quotes. If the
+  command itself contains single quotes, write it on the following lines:
+  python .git/agent/run.py <<'EOF'
+  the whole shell command
+  EOF
+  Commands run in /workspace. Run every command this way, never without python .git/agent/run.py: only this form
+  shows the clock line.
+"""
+RC_SKILL_MD = """---
+name: work
+description: Installs the fixer's shell, .git/agent/run.py, outside the patch. Call run_skill_script with skill_name work and file_path scripts/install.py, with no other arguments, as the first call.
+---
+
+Call run_skill_script with skill_name work and file_path scripts/install.py. It prints READY. Then run every command with
+run_command: python .git/agent/run.py 'the whole shell command'. Every output ends with a clock line, "[clock] N s of 480 used | ...".
+"""
+RC_STARTED_OLD = '    code, out = sh(["git", "log", "-1", "--format=%ct", "_swegemma_baseline"], ws)\n    if code == 0 and out.strip().isdigit():\n        return int(out.strip())\n'
+RC_STARTED_NEW = (
+    '    cache = os.path.join(ws, ".git", "agent", "t_base")  # clock_rc: the start time once, not a git process per call\n'
+    '    try:\n'
+    '        return int(open(cache).read())\n'
+    '    except (OSError, ValueError):\n'
+    '        pass\n'
+    '    code, out = sh(["git", "log", "-1", "--format=%ct", "_swegemma_baseline"], ws)\n'
+    '    if code == 0 and out.strip().isdigit():\n'
+    '        os.makedirs(os.path.dirname(cache), exist_ok=True)\n'
+    '        open(cache, "w").write(out.strip())\n'
+    '        return int(out.strip())\n')
+RC_COMMAND_OLD = '    return " ".join(argv).strip()\n'
+RC_COMMAND_NEW = (
+    '    text = " ".join(argv).strip()\n'
+    "    if not text:  # clock_rc: python .git/agent/run.py <<'EOF'; never wait on a silent open stdin\n"
+    '        try:\n'
+    '            if select.select([sys.stdin], [], [], 0.2)[0]:\n'
+    '                text = sys.stdin.read().strip()\n'
+    '        except (OSError, ValueError):\n'
+    '            pass\n'
+    '    return text\n')
+RC_OLD_SHELL = {"sq1c2": """- Shell: run_skill_script with skill_name work, file_path scripts/run.py and positional_args, a list holding one
+  string: the whole shell command. Do not use the args parameter. It runs in /workspace. This is your only way to run
+  commands.
+""", "sq1c2a8rc": """- Shell: run_skill_script with skill_name work, file_path scripts/run.py and positional_args, a list holding one
+  string: the whole shell command. Do not use the args parameter. Commands run in /workspace.
+"""}
+
+
+def clock_rc(arm):
+    base = CLOCK_RC[arm]
+    out = ROOT / "submissions" / arm
+    shutil.rmtree(out, ignore_errors=True)
+    shutil.copytree(ROOT / "submissions" / base, out)
+    fx = out / "prompts/fixer.md"
+    text = fx.read_text()
+    assert text.count(RC_OLD_SHELL[base]) == 1
+    text = text.replace(RC_OLD_SHELL[base], RC_SHELL)
+    if base == "sq1c2a8rc":
+        a = "# FIRST CALL: YOUR ISSUE CHECKLIST\nwrite_file .git/agent/issue.md"
+        assert text.count(a) == 1
+        text = text.replace(a, "# AFTER THE INSTALL: YOUR ISSUE CHECKLIST\nYour next call: write_file .git/agent/issue.md")
+    assert "positional_args" not in text and text.count("run_skill_script") == 1
+    fx.write_text(text)
+    y = out / "fixer.yaml"
+    t = y.read_text()
+    a = "tools:  # no run_command: the shell is run_skill_script work scripts/run.py (clock line in every output)\n"
+    assert t.count(a) == 1
+    y.write_text(t.replace(a, "tools:  # run_command runs .git/agent/run.py (the clock), installed by run_skill_script work scripts/install.py\n  - run_command\n"))
+    ay = out / "agent.yaml"
+    ay.write_text(f"# {arm} = {base} with its shell through run_command (scripts/make_skill_arms.py clock_rc)\n" + ay.read_text())
+    sk = out / "skills/work"
+    (sk / "SKILL.md").write_text(RC_SKILL_MD)
+    rp = sk / "scripts/run.py"
+    script = rp.read_text()
+    for old, new in ((RC_STARTED_OLD, RC_STARTED_NEW), (RC_COMMAND_OLD, RC_COMMAND_NEW), ("import os\n", "import os\nimport select\n")):
+        assert script.count(old) == 1, old[:40]
+        script = script.replace(old, new)
+    rp.write_text(script)
+    shutil.copy(CLOCK_SRC / "install_run.py", sk / "scripts/install.py")
+    print("wrote", out.relative_to(ROOT), "| from", base)
+
+
 # arm -> (fixer prompt, reviewer prompt, a.py commands)
 FIXER_REVIEWER = {"sk_fr": ("HEAD_FIXER", "HEAD_REVIEWER", "find outline show banner reshow"),
                   "sk_fr2": ("HEAD_FIXER2", "HEAD_REVIEWER2", "find outline show banner reshow handoff handover review")}
@@ -3488,12 +3940,20 @@ def main():
         srep("srep7")
     if "srep8" in wanted:
         srep8()
+    if "pubstop" in wanted:
+        pubstop()
+    for arm in [a for a in wanted if a in PHASE_ARMS]:
+        phase_arm(arm)
+    for arm in [a for a in wanted if a in NNRC_ARMS]:
+        nnrc_arm(arm)
+    for arm in [a for a in wanted if a in CLOCK_RC]:
+        clock_rc(arm)
     for arm in [a for a in wanted if a in CLOCK_ARMS]:
         sq1c(arm)
     for arm, cmds in ((a, ARMS[a]) for a in wanted if a not in VARIANTS and a not in CALL_VARIANTS
                               and a not in INSTALL_FIRST and a not in SAMPLING_VARIANTS and a not in CUSHION
                               and a not in FIXER_REVIEWER and a not in TEAM_ARMS
-                              and a not in SA2_ARMS and a not in SQ2_ARMS and a not in CLOCK_ARMS and a not in ("pub024e4b", "srep7", "srep8")):
+                              and a not in SA2_ARMS and a not in SQ2_ARMS and a not in CLOCK_ARMS and a not in ("pub024e4b", "srep7", "srep8", "pubstop") and a not in PHASE_ARMS and a not in NNRC_ARMS and a not in CLOCK_RC):
         out = ROOT / "submissions" / arm
         shutil.rmtree(out, ignore_errors=True)
         (out / "prompts").mkdir(parents=True)

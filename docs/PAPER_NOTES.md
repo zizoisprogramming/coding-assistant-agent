@@ -17,6 +17,9 @@ These are guesses to be scored honestly; a wrong one gets reported as wrong.
 
 Update with replay 2 (pooled): prediction 3: still no fall and no step. Prediction 4: system 50/87 (57%) vs far tool 20/34 (59%), far user 28/41 (68%): not supported as stated.
 
+## Self-written report vs real report (r49 + r50, 2026-11-05)
+Same agent family with the model writing its own bug report first, against a same-run control, 2 runs, 38 tasks each: all tasks 12 vs 14 of 76, short issues 8 vs 8 of 56. The real public report in r45 (one pass so far, different arms): reports group 1/19 to 10/19. The model's report does not replace the missing information. Caveat: the srep arms also had a 7-minute cap against the control's 8, and the report used about a third of the time, so this is a test of the whole design, not of report content alone. Its own label does not separate outcomes in r50: SHOWN yes 1/15, no 3/21.
+
 ## Closest related work (found 2026-11-04). "Abstract" = only the abstract page was read; read the full text before citing details.
 - OpenAI, "Separating signal from noise in coding evaluations" and "Why we no longer evaluate SWE-bench Verified": audits finding broken tasks, including underspecified prompts (about 30% of SWE-Bench Pro per secondary coverage; the primary page returned 403 to our fetcher, so read it by hand).
 - Vijayvargiya et al., Ambig-SWE / "Interactive Agents to Overcome Underspecificity in Software Engineering" (arXiv 2502.13069): removes details from good issues, tests clarifying questions. Summary only.
