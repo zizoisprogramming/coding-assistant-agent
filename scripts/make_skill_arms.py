@@ -3878,7 +3878,23 @@ def clock_rc(arm):
 
 # Setup-agent versions (user 2026-11-07): r55/r56 showed the model skips a first install call (23 of 24 runs started with run_command), so the install is its own agent, as le6
 # did (installed 16/16): SequentialAgent [setup, main] or [setup, fixer, finisher]. The setup agent has one tool path (the skill) and stops; the main agent has no skill.
-SETUP_ARMS = {"nn32rc2": "nn32rc", "nn32rcn2": "nn32rcn", "sq1c2a8rcx2": "sq1c2a8rcx"}
+SETUP_ARMS = {"nn32rc2": "nn32rc", "nn32rcn2": "nn32rcn", "sq1c2a8rcx2": "sq1c2a8rcx",
+              "nn32rc3": "nn32rc", "nn32rcn3": "nn32rcn", "sq1c2a8rcx3": "sq1c2a8rcx"}
+# The ...3 arms (user 2026-11-07, r57 log): the ...2 setup agent kept calling run_command, a tool only the next agent has, because its skill
+# text and the install output both said "run every command with run_command" (written for r55's single agent). A not-found tool call is
+# rejected before the harness counts it, so only the time cap ends such a loop. In ...3 the setup agent's skill and install output say
+# only: installed, reply INSTALLED and stop. Everything the main agent sees is unchanged.
+SETUP_CLEAN = {"nn32rc3", "nn32rcn3", "sq1c2a8rcx3"}
+SETUP_SKILL_MD = """---
+name: work
+description: Installs the next agent's shell, .git/agent/run.py, outside the patch. One call; after it, reply INSTALLED and stop.
+---
+
+Call run_skill_script with skill_name work and file_path scripts/install.py, with no other arguments. It prints
+INSTALLED. Then reply with that one word and stop: the next agent does the task.
+"""
+SETUP_INSTALL_OLD = "print(\"READY. Run every command with run_command: python .git/agent/run.py 'the whole shell command'\")"
+SETUP_INSTALL_NEW = "print(\"INSTALLED. Your job is done: reply INSTALLED and stop. The next agent does the task.\")"
 SETUP_MD = """Your only job is to install the shell for the next agent. Do not read code or work on the task.
 
 Call run_skill_script with skill_name work and file_path scripts/install.py, with no other arguments. Then reply
@@ -3921,6 +3937,13 @@ def setup_arm(arm):
     (out / "prompts/setup.md").write_text(SETUP_MD)
     (out / "setup.yaml").write_text(SETUP_YAML)
     (out / "configs/setup_sampling.yaml").write_text(SETUP_SAMPLING)
+    if arm in SETUP_CLEAN:
+        (out / "skills/work/SKILL.md").write_text(SETUP_SKILL_MD)
+        inst = out / "skills/work/scripts/install.py"
+        assert inst.read_text().count(SETUP_INSTALL_OLD) == 1
+        inst.write_text(inst.read_text().replace(SETUP_INSTALL_OLD, SETUP_INSTALL_NEW))
+        for f in ("skills/work/SKILL.md", "skills/work/scripts/install.py", "prompts/setup.md", "setup.yaml"):
+            assert "run_command" not in (out / f).read_text(), f
     skills = "skills:\n  - skills/work\n"
     if base in NNRC_ARMS:
         no_read, reads = NNRC_ARMS[base]
