@@ -22,7 +22,7 @@ for job, q in J.items():
             except Exception: a = {}
             if pend: nxt[pend, "through" if name == "run_command" and "agent/run.py" in str(a.get("command", "")) else name]; nxt[pend, ("through" if name == "run_command" and "agent/run.py" in str(a.get("command", "")) else "raw shell" if name == "run_command" else name)] += 1; pend = None
             if name == "run_skill_script":
-                if "install.py" in str(a.get("file_path")) and "READY" in res:
+                if "install.py" in str(a.get("file_path")) and ("READY" in res or "INSTALLED" in res):
                     x["install_ok"] += 1; first_install = first_install or n
                 elif '"error_code"' in res: x["skill_garbled"] += 1
                 else: x["skill_other"] += 1
