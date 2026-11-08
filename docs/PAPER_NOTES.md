@@ -36,3 +36,6 @@ Same agent family with the model writing its own bug report first, against a sam
 - Real, naturally thin issues with the real linked report added, under a same-run control, on a small local model.
 - A plateau across 35 agent designs measured against the spread identical agents would give.
 - A controlled distance test around a local-attention window with dormant rules; own text vs tool vs teammate conflict in a coding agent's real context.
+
+## Information test pass 2 (r61, 2026-11-08)
+Prediction written before the result: info >= base + 8 of 38; reports beat test lines again. Result: base 4/38, info 15/38 (+11): RIGHT. Pooled 2 passes: 6/76 vs 30/76, only info 27 vs only base 3, sign p 0.00001; info solved the same 13 tasks in both passes. Group split still to redo with r45's grouping.
