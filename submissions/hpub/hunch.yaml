@@ -1,0 +1,8 @@
+name: hunch
+model: gemma-4-31b-it-qat-w4a16-ct
+description: Reads the issue without tools and notes what the hidden tests will likely check.
+instruction: !include prompts/hunch.md
+include_contents: none  # fresh: the issue is in its system prompt
+# no tools: one reply
+output_key: hunch
+generate_content_config: !include configs/hunch_sampling.yaml

@@ -1,0 +1,7 @@
+# evidence + note (evhunch) and checker (autochk): one call, then a considered reply (as the r60 hunch)
+temperature: 0.2
+top_p: 0.95
+max_output_tokens: 6144
+thinking_config:
+  thinking_budget: 4096
+  include_thoughts: true

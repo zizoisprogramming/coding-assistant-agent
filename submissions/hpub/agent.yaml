@@ -1,0 +1,6 @@
+# hpub: scripts/make_mine_arms.py; the r60 hunch note (no tools, one reply) -> pub024 unchanged
+name: swe_agent
+agent_class: SequentialAgent
+sub_agents:
+  - config_path: hunch.yaml
+  - config_path: fixer.yaml
