@@ -19,6 +19,8 @@ import subprocess
 import sys
 import time
 
+ONCE = False  # evid2 (r64): True -> a second call is refused (r63: told to make one call, the agent made 2-17)
+DONE_FILE = os.path.join(".git", "agent", "evidence_done")
 DEADLINE = 40  # seconds for all sections; the rest is skipped with a note
 CALL_TIMEOUT = 12  # seconds per git call
 MAX_NAMES = 5
@@ -161,12 +163,21 @@ def main():
               "[\"function_name\", \"ClassName\", \"option_name\"].")
         return
     ws = workspace()
+    done = os.path.join(ws, DONE_FILE)
+    if ONCE and os.path.exists(done):
+        print("ALREADY DONE: the search ran once and its result is above. Do not call it again. "
+              "Reply with the single line EVIDENCE READY and stop.")
+        return
     parts = [f"REPOSITORY EVIDENCE for {', '.join(names)} (read-only searches; the issue stays the specification)"]
     for n in names:
         parts.extend(section(ws, n, start))
     text = "\n".join(parts)
     if len(text) > OUT_MAX:
         text = text[:OUT_MAX] + "\n[cut]"
+    if ONCE:
+        os.makedirs(os.path.dirname(done), exist_ok=True)
+        open(done, "w").write(",".join(names))
+        text += "\nThis was the only search: a second call is refused. Reply with the single line EVIDENCE READY and stop."
     print(text + f"\n[done in {time.time() - start:.0f} s]")
 
 

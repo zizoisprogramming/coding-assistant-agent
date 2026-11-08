@@ -1,0 +1,7 @@
+# cap2k: pub024's sampling with the output cap lowered from 8192 to 2048 (thinking budget 4096 -> 1536, under the cap)
+temperature: 0.2
+top_p: 0.95
+max_output_tokens: 2048
+thinking_config:
+  thinking_budget: 1536
+  include_thoughts: true

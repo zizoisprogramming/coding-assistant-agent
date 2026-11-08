@@ -111,6 +111,15 @@ CHECK READY: python .git/agent/check.py prints FAIL lines now and every line pri
 # THE ISSUE (verbatim)
 {problem_description}"""
 
+CHECKER_FAST_SAMPLING = """# autochk2 checker: r63's checker took 71-218 s to write the script with thinking 4096; less thinking
+temperature: 0.2
+top_p: 0.95
+max_output_tokens: 4096
+thinking_config:
+  thinking_budget: 1024
+  include_thoughts: true
+"""
+
 SKILL_MD = """---
 name: evidence
 description: Searches the repository's tests, definitions, git history and changelog for a few exact names from the issue. Call run_skill_script with skill_name evidence, file_path scripts/evidence.py and positional_args holding the names.
@@ -150,11 +159,15 @@ def eval_config(extra_calls):
     return y.replace("max_tool_calls: 28\n", f"max_tool_calls: {28 + extra_calls}\n")
 
 
-def evidence_stage(name, prompt, sampling, desc):
+def evidence_stage(name, prompt, sampling, desc, once=False):
     tools = "tools:\n  - get_status\nskills:\n  - skills/evidence\n"
+    script = EVIDENCE_PY.read_text()
+    assert "\nONCE = False  #" in script
+    if once:
+        script = script.replace("\nONCE = False  #", "\nONCE = True  #", 1)
     return {f"{name}.yaml": STAGE_YAML.format(name=name, model=MODEL, description=desc, tools=tools),
             f"prompts/{name}.md": prompt, f"configs/{name}_sampling.yaml": sampling,
-            "skills/evidence/SKILL.md": SKILL_MD, "skills/evidence/scripts/evidence.py": EVIDENCE_PY.read_text()}
+            "skills/evidence/SKILL.md": SKILL_MD, "skills/evidence/scripts/evidence.py": script}
 
 
 def arm_files(arm):
@@ -184,12 +197,28 @@ def arm_files(arm):
                                 "Runs one repository search for names in the issue, then writes a short note. Makes a single call."))
         f["agent.yaml"] = sequential(arm, "evidence", "one evidence-script call and a note -> pub024 unchanged")
         f["eval_config.yaml"] = eval_config(1)
+    elif arm == "evid2":  # r64: evid1 with the script refusing a second call (r63: 2-17 calls of one name each)
+        f.update(evidence_stage("evidence", EVIDENCE_MD, EVIDENCE_SAMPLING,
+                                "Runs one repository search for names in the issue. Makes a single call.", once=True))
+        f["agent.yaml"] = sequential(arm, "evidence", "one evidence-script call (a second is refused) -> pub024 unchanged")
+        f["eval_config.yaml"] = eval_config(1)
+    elif arm == "autochk2":  # r64: autochk with the checker's thinking 4096 -> 1024 (r63: 71-218 s to write the check)
+        f.update({k: v for k, v in arm_files("autochk").items() if k.startswith(("checker", "prompts/checker", "agent", "eval"))})
+        f["configs/checker_sampling.yaml"] = CHECKER_FAST_SAMPLING
+        f["agent.yaml"] = f["agent.yaml"].replace("# autochk:", "# autochk2:", 1).replace(
+            "a check script written from the issue", "a check script written from the issue with little thinking", 1)
+    elif arm == "cap2k32":  # r64: cap2k with 32 calls (r63: 2 cap2k runs used all 28 calls by 252 s with no edit)
+        f = arm_files("cap2k")
+        y = f["eval_config.yaml"]
+        assert "max_tool_calls: 28\n" in y
+        f["eval_config.yaml"] = y.replace("max_tool_calls: 28\n", "max_tool_calls: 32\n")
     else:
         raise SystemExit(f"unknown arm {arm}")
     return f
 
 
-ARMS = ["hpub", "cap2k", "autochk", "evid1", "evhunch"]
+ARMS = ["hpub", "cap2k", "autochk", "evid1", "evhunch"]  # r63 (evid1 / evhunch were built with ONCE absent: committed copies)
+ARMS_R64 = ["evid2", "autochk2", "cap2k32"]
 
 
 def build(arm):
@@ -207,5 +236,5 @@ def build(arm):
 
 
 if __name__ == "__main__":
-    for a in sys.argv[1:] or ARMS:
+    for a in sys.argv[1:] or ARMS_R64:
         build(a)
