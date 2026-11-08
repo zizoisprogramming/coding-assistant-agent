@@ -1,0 +1,14 @@
+# sc_none: scripts/make_scout_arms.py; the fixer alone, started fresh with the issue in its system prompt
+name: swe_agent
+model: gemma-4-31b-it-qat-w4a16-ct
+description: Fixes the issue with the smallest source change and submits it.
+instruction: !include prompts/fixer.md
+include_contents: none  # fresh: its system prompt holds the issue, and compaction never drops the system prompt
+tools:
+  - run_command
+  - read_file
+  - edit_file
+  - write_file
+  - get_status
+  - submit_patch
+generate_content_config: !include configs/sampling.yaml

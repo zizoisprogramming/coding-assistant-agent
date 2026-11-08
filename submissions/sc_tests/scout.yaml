@@ -1,0 +1,9 @@
+name: scout
+model: gemma-4-31b-it-qat-w4a16-ct
+description: Quotes what the existing tests say about the issue's names.
+instruction: !include prompts/scout.md
+include_contents: none  # fresh: the issue is in its system prompt
+tools:
+  - run_command
+output_key: tests_brief
+generate_content_config: !include configs/scout_sampling.yaml

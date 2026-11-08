@@ -1,0 +1,13 @@
+name: fixer
+model: gemma-4-31b-it-qat-w4a16-ct
+description: Fixes the issue with the smallest source change and submits it.
+instruction: !include prompts/fixer.md
+include_contents: none  # fresh: its system prompt holds the issue and the brief note, and compaction never drops the system prompt
+tools:
+  - run_command
+  - read_file
+  - edit_file
+  - write_file
+  - get_status
+  - submit_patch
+generate_content_config: !include configs/sampling.yaml
