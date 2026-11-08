@@ -1,0 +1,7 @@
+# autochk2 checker: r63's checker took 71-218 s to write the script with thinking 4096; less thinking
+temperature: 0.2
+top_p: 0.95
+max_output_tokens: 4096
+thinking_config:
+  thinking_budget: 1024
+  include_thoughts: true

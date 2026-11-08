@@ -21,6 +21,7 @@ Earlier agents reach pub024 as user text: ADK shows another agent's replies and 
 said: ..." (flows/llm_flows/contents.py _present_other_agent_message). Every stage before pub024 has include_contents: none
 and the issue in its system prompt, because the harness re-runs the root agent after a nudge.
 """
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -120,6 +121,52 @@ thinking_config:
   include_thoughts: true
 """
 
+EVID3_MD = """Your only job is one search of the repository for the agent who fixes the issue after you. Your reply is copied into
+that agent's instructions and stays in front of it for the whole task, so it must hold real lines from the repository, not
+your opinions. You will not read code and you will not work on the fix.
+
+Choose two to four exact names from the issue below that the fix most likely touches: functions, methods, classes,
+options or parameters, written exactly as they appear in the issue or as they would appear in the code. Prefer the most
+specific names, such as convert_underscores, over common words, such as Header.
+
+Call run_skill_script with skill_name evidence, file_path scripts/evidence.py and positional_args holding those names,
+one name per item. That is your only call.
+
+Then reply with the lines of its result that best show where the fix belongs and how this code is meant to behave: where
+the names are defined, tests that use them, and the lines an earlier commit changed around them. Copy each line exactly as
+it was printed, with its file:line or commit, at most 15 lines and nothing else. If nothing in the result bears on the
+issue, reply with the single line NOTHING RELEVANT.
+
+# THE ISSUE (verbatim)
+{problem_description}"""
+EVID3_REPLY = "Now reply with at most 15 lines of this result, copied exactly, and stop."
+EVID3_SAMPLING = """# evid3 evidence stage: one call, then up to 15 copied lines (r64's stage replied one line with 1024 / 512)
+temperature: 0.2
+top_p: 0.95
+max_output_tokens: 1536
+thinking_config:
+  thinking_budget: 512
+  include_thoughts: true
+"""
+
+# r65: the stages' replies go into the fixer's system prompt (ADK output_key -> {key?}), which every request re-sends and
+# compaction keeps. In r64 they reached the fixer as "For context" user text, which compaction removed at 93-252 s.
+# pub024's prompt is kept word for word (r60's rewritten fixer was slower) and one section is added at its end.
+EVIDENCE_SECTION = """
+
+# REPOSITORY EVIDENCE (found before you started; it stays here for the whole task)
+Lines copied from a search of this repository for names in the issue: where they are defined, tests that use them, and
+lines that earlier commits changed around them. Use them to find and understand the code; the issue stays the
+specification.
+{evidence?}"""
+CHECK_SECTION = """
+
+# CHECK SCRIPT (written before you started; this note stays here for the whole task)
+A script built from the issue's own examples is at .git/agent/check.py. It lives under .git, so it never enters the patch.
+Run `python .git/agent/check.py` after each edit: its FAIL lines show what still differs from the issue. It was written
+without seeing the code, so when a FAIL line contradicts the issue, the issue wins. The note left with it:
+{check?}"""
+
 SKILL_MD = """---
 name: evidence
 description: Searches the repository's tests, definitions, git history and changelog for a few exact names from the issue. Call run_skill_script with skill_name evidence, file_path scripts/evidence.py and positional_args holding the names.
@@ -148,8 +195,27 @@ def pub_files():
 
 
 def sequential(arm, first, why):
+    firsts = [first] if isinstance(first, str) else first
     return (f"# {arm}: scripts/make_mine_arms.py; {why}\nname: swe_agent\nagent_class: SequentialAgent\nsub_agents:\n"
-            f"  - config_path: {first}.yaml\n  - config_path: fixer.yaml\n")
+            + "".join(f"  - config_path: {x}.yaml\n" for x in firsts) + "  - config_path: fixer.yaml\n")
+
+
+def fixer_with(f, *sections):
+    """pub024's prompt word for word plus sections at its end, as prompts/fixer.md (system.md is dropped)."""
+    y = f["fixer.yaml"]
+    assert y.count("instruction: !include prompts/system.md\n") == 1
+    f["fixer.yaml"] = y.replace("instruction: !include prompts/system.md\n", "instruction: !include prompts/fixer.md\n", 1)
+    base = f.pop("prompts/system.md")
+    assert "{" not in base and "}" not in base  # nothing in pub024's text is read as a template field
+    f["prompts/fixer.md"] = base.rstrip("\n") + "".join(sections) + "\n"
+
+
+def checker_stage(f, output_key=None):
+    f["checker.yaml"] = STAGE_YAML.format(name="checker", model=MODEL, tools="tools:\n  - write_file\n" + (
+        f"output_key: {output_key}\n" if output_key else ""),
+        description="Writes .git/agent/check.py from the issue for the next agent. Makes a single call.")
+    f["prompts/checker.md"] = CHECKER_MD
+    f["configs/checker_sampling.yaml"] = CHECKER_FAST_SAMPLING
 
 
 def eval_config(extra_calls):
@@ -159,12 +225,18 @@ def eval_config(extra_calls):
     return y.replace("max_tool_calls: 28\n", f"max_tool_calls: {28 + extra_calls}\n")
 
 
-def evidence_stage(name, prompt, sampling, desc, once=False):
+def evidence_stage(name, prompt, sampling, desc, once=False, reply=None, output_key=None):
     tools = "tools:\n  - get_status\nskills:\n  - skills/evidence\n"
+    if output_key:
+        tools += f"output_key: {output_key}\n"
     script = EVIDENCE_PY.read_text()
     assert "\nONCE = False  #" in script
     if once:
         script = script.replace("\nONCE = False  #", "\nONCE = True  #", 1)
+    if reply:
+        old_reply = '\nREPLY = "Reply with the single line EVIDENCE READY and stop."  #'
+        assert script.count(old_reply) == 1
+        script = script.replace(old_reply, f"\nREPLY = {reply!r}  #", 1)
     return {f"{name}.yaml": STAGE_YAML.format(name=name, model=MODEL, description=desc, tools=tools),
             f"prompts/{name}.md": prompt, f"configs/{name}_sampling.yaml": sampling,
             "skills/evidence/SKILL.md": SKILL_MD, "skills/evidence/scripts/evidence.py": script}
@@ -212,21 +284,50 @@ def arm_files(arm):
         y = f["eval_config.yaml"]
         assert "max_tool_calls: 28\n" in y
         f["eval_config.yaml"] = y.replace("max_tool_calls: 28\n", "max_tool_calls: 32\n")
+    elif arm == "evid3":  # r65: evid2's search; its reply (up to 15 copied lines) goes into the fixer's system prompt
+        f.update(evidence_stage("evidence", EVID3_MD, EVID3_SAMPLING,
+                                "Runs one repository search for names in the issue and copies the lines that matter.",
+                                once=True, reply=EVID3_REPLY, output_key="evidence"))
+        fixer_with(f, EVIDENCE_SECTION)
+        f["agent.yaml"] = sequential(arm, "evidence", "one evidence call, its reply kept in pub024's system prompt")
+        f["eval_config.yaml"] = eval_config(1)
+    elif arm == "autochk3":  # r65: autochk2's checker; its CHECK READY note goes into the fixer's system prompt
+        checker_stage(f, output_key="check")
+        fixer_with(f, CHECK_SECTION)
+        f["agent.yaml"] = sequential(arm, "checker", "a check script from the issue, its note kept in pub024's system prompt")
+        f["eval_config.yaml"] = eval_config(1)
+    elif arm == "evchk":  # r65: both stages, both sections
+        f.update(evidence_stage("evidence", EVID3_MD, EVID3_SAMPLING,
+                                "Runs one repository search for names in the issue and copies the lines that matter.",
+                                once=True, reply=EVID3_REPLY, output_key="evidence"))
+        checker_stage(f, output_key="check")
+        fixer_with(f, EVIDENCE_SECTION, CHECK_SECTION)
+        f["agent.yaml"] = sequential(arm, ["evidence", "checker"],
+                                     "evidence search and check script, both kept in pub024's system prompt")
+        f["eval_config.yaml"] = eval_config(2)
     else:
         raise SystemExit(f"unknown arm {arm}")
     return f
 
 
 ARMS = ["hpub", "cap2k", "autochk", "evid1", "evhunch"]  # r63 (evid1 / evhunch were built with ONCE absent: committed copies)
-ARMS_R64 = ["evid2", "autochk2", "cap2k32"]
+ARMS_R64 = ["evid2", "autochk2", "cap2k32"]  # evid2's committed copy predates the REPLY / stored-result change
+ARMS_R65 = ["evid3", "autochk3", "evchk"]
 
 
 def build(arm):
     files = arm_files(arm)
-    for rel, text in files.items():  # every {placeholder} is the harness's problem_description
-        if rel.endswith(".md") and rel.startswith("prompts/") and rel != "prompts/system.md":
+    pub_text = (PUB / "prompts/system.md").read_text()
+    for rel, text in files.items():  # stage prompts: only {problem_description}; the fixer: pub024's text + {evidence?} {check?}
+        if rel == "prompts/fixer.md":
+            assert text.startswith(pub_text.rstrip("\n")), arm
+            assert set(re.findall(r"{[^}]*}", text)) <= {"{evidence?}", "{check?}"} and text.count("{") == text.count("}"), arm
+        elif rel.endswith(".md") and rel.startswith("prompts/") and rel != "prompts/system.md":
             assert "{problem_description}" in text and text.count("{") == 1, (arm, rel)
-    assert files["prompts/system.md"] == (PUB / "prompts/system.md").read_text()
+    assert files.get("prompts/system.md", pub_text) == pub_text
+    for key in ("evidence", "check"):  # every {key?} has a stage with that output_key, and the other way round
+        assert (f"{{{key}?}}" in files.get("prompts/fixer.md", "")) == any(
+            f"output_key: {key}\n" in t for r, t in files.items() if r.endswith(".yaml")), (arm, key)
     out = ROOT / "submissions" / arm
     shutil.rmtree(out, ignore_errors=True)
     for rel, text in files.items():
@@ -236,5 +337,5 @@ def build(arm):
 
 
 if __name__ == "__main__":
-    for a in sys.argv[1:] or ARMS_R64:
+    for a in sys.argv[1:] or ARMS_R65:
         build(a)

@@ -20,7 +20,8 @@ import sys
 import time
 
 ONCE = False  # evid2 (r64): True -> a second call is refused (r63: told to make one call, the agent made 2-17)
-DONE_FILE = os.path.join(".git", "agent", "evidence_done")
+DONE_FILE = os.path.join(".git", "agent", "evidence_done")  # holds the first result, shown again on a refused call
+REPLY = "Reply with the single line EVIDENCE READY and stop."  # evid3 (r65) swaps this: the stage's reply becomes its output
 DEADLINE = 40  # seconds for all sections; the rest is skipped with a note
 CALL_TIMEOUT = 12  # seconds per git call
 MAX_NAMES = 5
@@ -164,9 +165,9 @@ def main():
         return
     ws = workspace()
     done = os.path.join(ws, DONE_FILE)
-    if ONCE and os.path.exists(done):
-        print("ALREADY DONE: the search ran once and its result is above. Do not call it again. "
-              "Reply with the single line EVIDENCE READY and stop.")
+    if ONCE and os.path.exists(done):  # also after the harness re-runs the stage with no history: show the result again
+        print("ALREADY DONE: the search already ran and a second call is refused. Its result was:\n"
+              + open(done, errors="replace").read() + "\n" + REPLY)
         return
     parts = [f"REPOSITORY EVIDENCE for {', '.join(names)} (read-only searches; the issue stays the specification)"]
     for n in names:
@@ -176,8 +177,8 @@ def main():
         text = text[:OUT_MAX] + "\n[cut]"
     if ONCE:
         os.makedirs(os.path.dirname(done), exist_ok=True)
-        open(done, "w").write(",".join(names))
-        text += "\nThis was the only search: a second call is refused. Reply with the single line EVIDENCE READY and stop."
+        open(done, "w").write(text)
+        text += "\nThis was the only search: a second call is refused. " + REPLY
     print(text + f"\n[done in {time.time() - start:.0f} s]")
 
 

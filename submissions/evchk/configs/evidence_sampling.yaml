@@ -1,0 +1,7 @@
+# evid3 evidence stage: one call, then up to 15 copied lines (r64's stage replied one line with 1024 / 512)
+temperature: 0.2
+top_p: 0.95
+max_output_tokens: 1536
+thinking_config:
+  thinking_budget: 512
+  include_thoughts: true

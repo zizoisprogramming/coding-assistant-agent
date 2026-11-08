@@ -1,0 +1,9 @@
+name: checker
+model: gemma-4-31b-it-qat-w4a16-ct
+description: Writes .git/agent/check.py from the issue for the next agent. Makes a single call.
+instruction: !include prompts/checker.md
+include_contents: none  # fresh: the issue is in its system prompt (the harness re-runs the root agent after a nudge)
+tools:
+  - write_file
+output_key: check
+generate_content_config: !include configs/checker_sampling.yaml
