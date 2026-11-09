@@ -1,0 +1,8 @@
+name: checklist
+model: gemma-4-31b-it-qat-w4a16-ct
+description: Copies the issue's exact names, messages and expected behaviour into a five-line checklist. Makes no tool call.
+instruction: !include prompts/checklist.md
+include_contents: none  # fresh: the issue is in its system prompt (the harness re-runs the root agent after a nudge)
+# no tools: one reply
+output_key: checklist
+generate_content_config: !include configs/checklist_sampling.yaml

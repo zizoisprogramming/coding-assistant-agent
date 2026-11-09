@@ -187,6 +187,44 @@ Run `python .git/agent/check.py` after each edit: its FAIL lines show what still
 without seeing the code, so when a FAIL line contradicts the issue, the issue wins. The note left with it:
 {check?}"""
 
+# r70 (user 2026-11-10 "yes do so and try to add checklist to this pub as well"): kf's slim version and a checklist stage.
+# r69's kf section (602 tokens) removed garbled edits (1/12 vs 9/17) but cost ~16 s more summarising (the prompt is re-sent
+# every request, so compaction comes sooner) and its general heredoc advice turned quick python -c checks into long
+# scripts (~70 s/run). KF2 keeps only the garbled-call entry, worded for that one message.
+KF2_SECTION = """
+
+# IF AN EDIT CALL IS CUT APART
+If a tool result says "mandatory input parameters are not present", your edit_file or write_file call was cut apart: a text ended with a backtick or a stray quote and swallowed the next argument. Do not send the same call again. End every text right after its last character, never with a backtick. If it fails a second time, make the change with one run_command running a Python heredoc that asserts the old text occurs exactly once and then replaces it."""
+
+# The checklist stage copies, it does not guess: r60/r62's hunch (no tools, thinking 4096, guessed what the tests check)
+# tied pub024 9-9 over 24 task-runs and cost ~60 s. The one clear checklist signal so far is the issue's exact names copied
+# (fastapi_15589: 6/8 with the clock agents' checklist vs 1/8 without, r38/r41/r42).
+CHECKLIST_MD = """Your only job is to copy a checklist from the issue below for the engineer who fixes it after you. You have no tools and you will not see any code. Copy, do not guess: every item must be text that appears in the issue or follows directly from it.
+
+Reply with these five lines and nothing else. Write none when the issue gives nothing for a line.
+NAMES: every exact function, class, method, parameter, option, field, file and command name in the issue
+MESSAGES: every exact error message, exception type, warning and output string in the issue, copied character for character
+INPUTS: the calls, arguments or data that show the problem
+EXPECTED: what the issue says should happen instead, one short clause per behaviour
+EDGE CASES: the special cases the issue mentions (None, empty, defaults, async or sync variants, other backends)
+
+# THE ISSUE (verbatim)
+{problem_description}
+"""
+CHECKLIST_SAMPLING = """# checklist stage (r70): one reply, no tools; copying needs little reasoning
+temperature: 0.2
+top_p: 0.95
+max_output_tokens: 1536
+thinking_config:
+  thinking_budget: 512
+  include_thoughts: true
+"""
+CHECKLIST_SECTION = """
+
+# CHECKLIST (copied from the issue before you started; it stays here for the whole task)
+These lines are the specification from step 1. Before submit_patch, compare your diff with every line.
+{checklist?}"""
+
 SKILL_MD = """---
 name: evidence
 description: Searches the repository's tests, definitions, git history and changelog for a few exact names from the issue. Call run_skill_script with skill_name evidence, file_path scripts/evidence.py and positional_args holding the names.
@@ -321,6 +359,17 @@ def arm_files(arm):
         fixer_with(f, EVIDENCE_SECTION)
         f["agent.yaml"] = sequential(arm, "evidence", "one evidence call (source, definition history), its reply kept in pub024's system prompt")
         f["eval_config.yaml"] = eval_config(1)
+    elif arm == "kf2":  # r70: pub024 + the garbled-call entry only (r69 kf, cut from 602 to ~100 tokens)
+        fixer_with(f, KF2_SECTION)
+        f["agent.yaml"] = f.pop("fixer.yaml").replace("name: fixer\n", "name: swe_agent\n", 1)
+    elif arm == "kf2c":  # r70: kf2 + a checklist stage (no tools, one reply) kept in the fixer's system prompt
+        fixer_with(f, KF2_SECTION, CHECKLIST_SECTION)
+        f["checklist.yaml"] = STAGE_YAML.format(name="checklist", model=MODEL, tools="# no tools: one reply\noutput_key: checklist\n",
+                                                description="Copies the issue's exact names, messages and expected behaviour into a five-line checklist. Makes no tool call.")
+        f["prompts/checklist.md"] = CHECKLIST_MD
+        f["configs/checklist_sampling.yaml"] = CHECKLIST_SAMPLING
+        f["agent.yaml"] = sequential(arm, "checklist", "a five-line checklist copied from the issue, kept in kf2's system prompt")
+        f["eval_config.yaml"] = eval_config(0)
     elif arm == "autochk3":  # r65: autochk2's checker; its CHECK READY note goes into the fixer's system prompt
         checker_stage(f, output_key="check")
         fixer_with(f, CHECK_SECTION)
@@ -344,6 +393,7 @@ ARMS = ["hpub", "cap2k", "autochk", "evid1", "evhunch"]  # r63 (evid1 / evhunch 
 ARMS_R64 = ["evid2", "autochk2", "cap2k32"]  # evid2's committed copy predates the REPLY / stored-result change
 ARMS_R65 = ["evid3", "autochk3", "evchk"]  # evid3's committed copy predates the EVID4 switch (same behaviour)
 ARMS_R67 = ["evid4"]
+ARMS_R70 = ["kf2", "kf2c"]
 
 
 def build(arm):
@@ -352,11 +402,11 @@ def build(arm):
     for rel, text in files.items():  # stage prompts: only {problem_description}; the fixer: pub024's text + {evidence?} {check?}
         if rel == "prompts/fixer.md":
             assert text.startswith(pub_text.rstrip("\n")), arm
-            assert set(re.findall(r"{[^}]*}", text)) <= {"{evidence?}", "{check?}"} and text.count("{") == text.count("}"), arm
+            assert set(re.findall(r"{[^}]*}", text)) <= {"{evidence?}", "{check?}", "{checklist?}"} and text.count("{") == text.count("}"), arm
         elif rel.endswith(".md") and rel.startswith("prompts/") and rel != "prompts/system.md":
             assert "{problem_description}" in text and text.count("{") == 1, (arm, rel)
     assert files.get("prompts/system.md", pub_text) == pub_text
-    for key in ("evidence", "check"):  # every {key?} has a stage with that output_key, and the other way round
+    for key in ("evidence", "check", "checklist"):  # every {key?} has a stage with that output_key, and the other way round
         assert (f"{{{key}?}}" in files.get("prompts/fixer.md", "")) == any(
             f"output_key: {key}\n" in t for r, t in files.items() if r.endswith(".yaml")), (arm, key)
     out = ROOT / "submissions" / arm
@@ -368,5 +418,5 @@ def build(arm):
 
 
 if __name__ == "__main__":
-    for a in sys.argv[1:] or ARMS_R67:
+    for a in sys.argv[1:] or ARMS_R70:
         build(a)

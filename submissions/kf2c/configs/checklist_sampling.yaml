@@ -1,0 +1,7 @@
+# checklist stage (r70): one reply, no tools; copying needs little reasoning
+temperature: 0.2
+top_p: 0.95
+max_output_tokens: 1536
+thinking_config:
+  thinking_budget: 512
+  include_thoughts: true
