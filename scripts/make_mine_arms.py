@@ -139,6 +139,26 @@ issue, reply with the single line NOTHING RELEVANT.
 
 # THE ISSUE (verbatim)
 {problem_description}"""
+EVID4_MD = """Your only job is one search of the repository for the agent who fixes the issue after you. Your reply is copied into
+that agent's instructions and stays in front of it for the whole task, so it must hold real lines from the repository, not
+your opinions. You will not read code and you will not work on the fix.
+
+Choose two to four search terms from the issue below. Good terms are the exact names the fix most likely touches
+(functions, methods, classes, options, parameters), written as they appear in the issue or would appear in the code, and
+exact strings quoted in the issue, such as an error message or an option value. Prefer specific terms, such as
+convert_underscores or "Invalid header", over common words, such as Header.
+
+Call run_skill_script with skill_name evidence, file_path scripts/evidence.py and positional_args holding those terms, one
+term per item. That is your only call. For each term it shows the source lines that use it, where it is defined, how that
+definition changed in earlier commits, tests that use it and changelog lines.
+
+Then reply with the lines of its result that best show where the fix belongs and how this code is meant to behave. Copy
+each line exactly as it was printed, with its file:line or commit, at most 15 lines and nothing else. If nothing in the
+result bears on the issue, reply with the single line NOTHING RELEVANT.
+
+# THE ISSUE (verbatim)
+{problem_description}"""
+
 EVID3_REPLY = "Now reply with at most 15 lines of this result, copied exactly, and stop."
 EVID3_SAMPLING = """# evid3 evidence stage: one call, then up to 15 copied lines (r64's stage replied one line with 1024 / 512)
 temperature: 0.2
@@ -225,7 +245,7 @@ def eval_config(extra_calls):
     return y.replace("max_tool_calls: 28\n", f"max_tool_calls: {28 + extra_calls}\n")
 
 
-def evidence_stage(name, prompt, sampling, desc, once=False, reply=None, output_key=None):
+def evidence_stage(name, prompt, sampling, desc, once=False, reply=None, output_key=None, evid4=False):
     tools = "tools:\n  - get_status\nskills:\n  - skills/evidence\n"
     if output_key:
         tools += f"output_key: {output_key}\n"
@@ -233,6 +253,9 @@ def evidence_stage(name, prompt, sampling, desc, once=False, reply=None, output_
     assert "\nONCE = False  #" in script
     if once:
         script = script.replace("\nONCE = False  #", "\nONCE = True  #", 1)
+    if evid4:
+        assert script.count("\nEVID4 = False  #") == 1
+        script = script.replace("\nEVID4 = False  #", "\nEVID4 = True  #", 1)
     if reply:
         old_reply = '\nREPLY = "Reply with the single line EVIDENCE READY and stop."  #'
         assert script.count(old_reply) == 1
@@ -291,6 +314,13 @@ def arm_files(arm):
         fixer_with(f, EVIDENCE_SECTION)
         f["agent.yaml"] = sequential(arm, "evidence", "one evidence call, its reply kept in pub024's system prompt")
         f["eval_config.yaml"] = eval_config(1)
+    elif arm == "evid4":  # r67: evid3 + source lines and the definition's own history (git log -L); terms may be quoted strings
+        f.update(evidence_stage("evidence", EVID4_MD, EVID3_SAMPLING,
+                                "Runs one repository search for terms in the issue and copies the lines that matter.",
+                                once=True, reply=EVID3_REPLY, output_key="evidence", evid4=True))
+        fixer_with(f, EVIDENCE_SECTION)
+        f["agent.yaml"] = sequential(arm, "evidence", "one evidence call (source, definition history), its reply kept in pub024's system prompt")
+        f["eval_config.yaml"] = eval_config(1)
     elif arm == "autochk3":  # r65: autochk2's checker; its CHECK READY note goes into the fixer's system prompt
         checker_stage(f, output_key="check")
         fixer_with(f, CHECK_SECTION)
@@ -312,7 +342,8 @@ def arm_files(arm):
 
 ARMS = ["hpub", "cap2k", "autochk", "evid1", "evhunch"]  # r63 (evid1 / evhunch were built with ONCE absent: committed copies)
 ARMS_R64 = ["evid2", "autochk2", "cap2k32"]  # evid2's committed copy predates the REPLY / stored-result change
-ARMS_R65 = ["evid3", "autochk3", "evchk"]
+ARMS_R65 = ["evid3", "autochk3", "evchk"]  # evid3's committed copy predates the EVID4 switch (same behaviour)
+ARMS_R67 = ["evid4"]
 
 
 def build(arm):
@@ -337,5 +368,5 @@ def build(arm):
 
 
 if __name__ == "__main__":
-    for a in sys.argv[1:] or ARMS_R65:
+    for a in sys.argv[1:] or ARMS_R67:
         build(a)

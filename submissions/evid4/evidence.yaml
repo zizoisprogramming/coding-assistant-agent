@@ -1,0 +1,11 @@
+name: evidence
+model: gemma-4-31b-it-qat-w4a16-ct
+description: Runs one repository search for terms in the issue and copies the lines that matter.
+instruction: !include prompts/evidence.md
+include_contents: none  # fresh: the issue is in its system prompt (the harness re-runs the root agent after a nudge)
+tools:
+  - get_status
+skills:
+  - skills/evidence
+output_key: evidence
+generate_content_config: !include configs/evidence_sampling.yaml

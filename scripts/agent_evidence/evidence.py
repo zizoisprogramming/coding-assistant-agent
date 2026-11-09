@@ -33,6 +33,11 @@ HUNK_TRIES = 5  # changed lines come from the newest of the first HUNK_TRIES com
 HUNK_LINES = 18
 WINDOW = 3  # context lines around each changed line that has the name
 LOG_LINES = 3
+EVID4 = False  # evid4 (r67): True -> also source lines that use the name (r66: NOTHING RELEVANT in 7/32 runs) and the
+#                 function's own history, git log -L over its current lines (r66: evid3 helped where history mattered)
+SRC_LINES = 5
+FUNC_COMMITS = 2
+FUNC_LINES = 22
 LINE_MAX = 150
 TEST_PATHS = [":(glob)**/test/**/*.py", ":(glob)**/tests/**/*.py", ":(glob)**/testing/**/*.py", ":(glob)**/test_*.py", ":(glob)**/*_test.py"]
 PY = [":(glob)**/*.py"]  # history and changed lines: Python files only (docs translations drown everything else)
@@ -123,18 +128,63 @@ def newest_hunks(ws, commit, name, start):
     return out[:HUNK_LINES]
 
 
+def func_range(ws, path, name):
+    """(first, last) line of the def / class NAME in PATH (the last part of a dotted name), or None."""
+    import ast
+    short_name = name.split(".")[-1]
+    try:
+        tree = ast.parse(open(os.path.join(ws, path), errors="replace").read())
+    except (OSError, SyntaxError, ValueError):
+        return None
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and node.name == short_name:
+            return node.lineno, getattr(node, "end_lineno", node.lineno)
+    return None
+
+
+def func_history(ws, defs, name, start):
+    """Changed lines from the newest FUNC_COMMITS commits that touched the definition's current lines (git log -L)."""
+    for d in defs[:1]:
+        path = d.split(":", 1)[0]
+        rng = func_range(ws, path, name)
+        if not rng:
+            continue
+        lines = git(ws, ["log", f"-L{rng[0]},{rng[1]}:{path}", "--no-merges", f"-n{FUNC_COMMITS}", "--format=@@@ %h %ad %s",
+                         "--date=short", "--no-color"], start) or []
+        out = []
+        for ln in lines:
+            if ln.startswith("@@@ "):
+                out.append("  commit " + short(ln[4:]))
+            elif ln[:1] in "+-" and not ln.startswith(("+++", "---")) and ln[1:].strip():
+                out.append("    " + short(ln))
+        if any(not o.startswith("  commit") for o in out):
+            return [f"history of {path}:{rng[0]}-{rng[1]} (newest first):"] + out[:FUNC_LINES]
+    return []
+
+
 def section(ws, name, start):
     out = [f"== {name}"]
+    if EVID4:  # the name in source code (not tests): also catches error messages and option strings
+        src = git(ws, ["grep", "-n", "-I", "-F", "-e", name, "--"] + PY
+                  + [":(exclude,glob)" + p[len(":(glob)"):] for p in TEST_PATHS], start)
+        if src is None:
+            return out + ["  (skipped: time)"]
+        src.sort(key=lambda t: t.startswith(("docs_src/", "docs/", "scripts/", "examples/", "benchmarks/")))  # package code first
+        out.append(f"source lines: {len(src)}" + ("" if src else " (none)"))
+        out.extend("  " + short(t) for t in src[:SRC_LINES])
     tests = git(ws, ["grep", "-n", "-I", "-F", "-e", name, "--"] + TEST_PATHS, start)
     if tests is None:
         return out + ["  (skipped: time)"]
     out.append(f"tests mentioning it: {len(tests)} lines" + ("" if tests else " (none)"))
     out.extend("  " + short(t) for t in tests[:TEST_LINES])
-    if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name):
-        defs = git(ws, ["grep", "-n", "-I", "-E", "-e", rf"^[[:space:]]*(async def|def|class) {name}([^A-Za-z0-9_]|$)", "--", "*.py"], start) or []
+    ident = name.split(".")[-1] if EVID4 else name  # evid4: Segment.split_cells -> split_cells
+    if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", ident):
+        defs = git(ws, ["grep", "-n", "-I", "-E", "-e", rf"^[[:space:]]*(async def|def|class) {ident}([^A-Za-z0-9_]|$)", "--", "*.py"], start) or []
         if defs:
             out.append("defined at:")
             out.extend("  " + short(d) for d in defs[:DEF_LINES])
+            if EVID4:
+                out.extend(func_history(ws, defs, name, start))
     log = git(ws, ["log", "-S", name, "--no-merges", "--format=%h %ad %s", "--date=short", f"-n{COMMITS}", "--"] + PY, start)
     if log is None:
         return out + ["  (history skipped: time)"]
