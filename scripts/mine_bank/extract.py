@@ -1,7 +1,7 @@
-"""One row per run: outcome + full call sequence with timing. Usage: extract.py OUT.jsonl"""
+"""One row per run: outcome + full call sequence with timing. Usage: extract.py OUT.jsonl [FOLDER_GLOB] (default: all results)"""
 import collections, glob, json, os, sys
 out = open(sys.argv[1], "w"); n = 0
-for D in sorted(glob.glob("data/results/2026-*")):
+for D in sorted(glob.glob(sys.argv[2] if len(sys.argv) > 2 else "data/results/2026-*")):
     rq = D + "/requests/requests.jsonl"; gp = D + "/results/gen_per_task.jsonl"
     if not (os.path.exists(rq) and os.path.exists(gp)): continue
     G = {}
