@@ -1,0 +1,7 @@
+# race2 (r75): scripts/make_race_arm.py. A scout writes notes, then two engineers race in parallel; the first
+# submit_patch ends the task (swegemma agent_runner.py breaks on patch_submitted + a final text event).
+name: swe_agent
+agent_class: SequentialAgent
+sub_agents:
+  - config_path: scout.yaml
+  - config_path: race.yaml

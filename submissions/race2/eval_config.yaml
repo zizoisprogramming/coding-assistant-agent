@@ -1,0 +1,5 @@
+evaluation:
+  timeout_seconds: 240
+  max_tool_calls: 44  # shared: scout ~10 + two engineers ~14 each, plus slack
+  max_time_minutes: 8
+  max_turns: 120
