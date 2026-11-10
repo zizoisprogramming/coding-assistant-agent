@@ -1,7 +1,8 @@
 # Project: Kaggle "Gemma 4 Developer Agent" competition entry
 
 Goal: build an autonomous SWE agent on `gemma-4-31b-it-qat-w4a16-ct` (Google ADK Agent Config: YAML + prompts +
-skills + optional LoRA) for https://www.kaggle.com/competitions/gemma-4-developer-agent, plus a paper-track writeup.
+skills + optional LoRA) for https://www.kaggle.com/competitions/gemma-4-developer-agent. The only goal is winning the
+main leaderboard (the side writeup track was dropped for good by the user on 2026-11-10; do not raise it).
 
 **Read `docs/PLAN.md` first** — its "START HERE" section has current status, all decisions, and the next agenda.
 Everything below it is verified research (rules, harness internals, forum findings, papers).

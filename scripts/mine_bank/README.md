@@ -9,3 +9,6 @@ Added 2026-11-10 (docs/PLAN.md "MINING 2026-11-10b"; these read data/results/202
   controlled for the call index of the edit.
 - first_edit_vs_budget.py: first source-edit call index by max_tool_calls (sk_a2 28 vs sk_a2_32), pub024 hazard by call.
 - refusal_next.py FOLDER...: gated-shell arms, move after the first refusal and time to the first working edit.
+- decode_vs_inflight.py: decode tok/s by the number of requests in flight on the same server.
+- bestof_sim.py: best-of-k and race (first submit ends the task) simulated from real single-agent runs.
+- race_compaction_risk.py: how often a branch compacts before a race ends (the ADK ParallelAgent crash condition).
