@@ -1,0 +1,11 @@
+# main: run_command runs .git/agent/run.py (the gate); no read_file, so reads go through the gate too
+name: main
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/system.md
+tools:
+  - run_command
+  - edit_file
+  - write_file
+  - get_status
+  - submit_patch
+generate_content_config: !include configs/sampling.yaml

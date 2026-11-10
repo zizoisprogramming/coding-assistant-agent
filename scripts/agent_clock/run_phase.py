@@ -13,6 +13,7 @@ Runs one shell command in /workspace and enforces the rules below; the switches 
   skill wrapper are what make the skill shell too slow on the scorer): the start time is kept in the state, the tree is only
   looked at again after a command when it can edit. The command may also come on stdin.
 - READS: short reading commands, where NAME [PATH], outline FILE, lines FILE START END, under the same rules.
+- REMIND (r76 rc arms): the last line also says to keep every command in python .git/agent/run.py.
 
     run_skill_script skill_name=work file_path=scripts/run.py positional_args=["git grep -n foo"]
 """
@@ -40,6 +41,7 @@ CHECKLIST = False
 PLACES = False
 LIGHT = False
 READS = False
+REMIND = False  # r76 rc arms: the last line also says to keep every command in python .git/agent/run.py (a tool-output line steers ~4x more than a prompt rule, r58)
 READ_LINES = 200  # most lines one "lines" command shows
 WHERE_LINES = 30  # most matches one "where" command shows
 CHECKLIST_FILE = ".git/agent/issue.md"
@@ -238,7 +240,8 @@ def status(files, state, used, shell):
         word = "FINISH: git status --short && git diff, then submit_patch. If an output showed your change is wrong, correct it first"
     else:
         word = "CHECK: source edited (" + ", ".join(files[:4]) + "). Run a related test file now"
-    return f"[state] {word}" if WORDS else f"[clock] {used} s of {SESSION} used | {word}"
+    line = f"[state] {word}" if WORDS else f"[clock] {used} s of {SESSION} used | {word}"
+    return line + " | every command: python .git/agent/run.py '...'" if REMIND else line
 
 
 def main():

@@ -1,0 +1,6 @@
+# evidc (r76): evid3's evidence stage made cheap (thinking off, 8 s script, last 500 commits) + combo1 as the fixer (scripts/make_plus_arms.py)
+name: swe_agent
+agent_class: SequentialAgent
+sub_agents:
+  - config_path: evidence.yaml
+  - config_path: fixer.yaml

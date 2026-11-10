@@ -1,0 +1,8 @@
+# t7rc (r76): sq1c2t7 (7-min clock, refusal at 240 s, fixer hands over, finisher submits) with its shell through run_command
+# after a setup agent installs it (the LB fit pattern of sk_a2 / nn32rcn2), 32 calls instead of 80 (scripts/make_plus_arms.py)
+name: swe_agent
+agent_class: SequentialAgent
+sub_agents:
+  - config_path: setup.yaml
+  - config_path: fixer.yaml
+  - config_path: finisher.yaml

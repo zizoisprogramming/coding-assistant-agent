@@ -119,6 +119,15 @@ def test_words_arm_adds_no_digits():
     assert not re.search(r"\d", joined.replace("git status", "")), joined
 
 
+
+def test_remind_adds_the_prefix_to_the_last_line_and_stays_digit_free():
+    env = setup(WORDS=True, LIGHT=True, REMIND=True)
+    out = run(env, "echo a")
+    last = out.strip().splitlines()[-1]
+    assert last.startswith("[state] LOOK") and "every command: python .git/agent/run.py" in last, last
+    assert not re.search(r"\d", last), last
+    assert "every command" not in run(setup(WORDS=True), "echo a")
+
 def test_numbered_arm_shows_seconds():
     env = setup()
     assert re.search(r"\[clock\] \d+ s of 480 used", run(env, "echo a"))

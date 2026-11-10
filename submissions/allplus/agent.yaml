@@ -1,0 +1,8 @@
+# allplus (r76): every change with a measured plus in one agent (scripts/make_plus_arms.py): ONE setup call installs the gate and
+# runs the cheap evidence search (thinking off; copied lines kept in the engineer's system prompt), then the engineer:
+# combo1's contract and edit rules + the gate's state words + a worked example + REMIND, no read_file, no graph tools
+name: swe_agent
+agent_class: SequentialAgent
+sub_agents:
+  - config_path: setup.yaml
+  - config_path: main.yaml

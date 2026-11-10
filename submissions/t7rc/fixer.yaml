@@ -1,0 +1,11 @@
+name: fixer
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/fixer.md
+tools:  # run_command runs .git/agent/run.py (the clock), installed by the setup agent
+  - run_command
+  - read_file
+  - edit_file
+  - write_file
+  - get_status
+  - submit_patch  # declared as in sq1c2t7; the prompt says the teammate submits
+generate_content_config: !include configs/sampling.yaml

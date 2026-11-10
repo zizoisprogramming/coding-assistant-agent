@@ -1,0 +1,9 @@
+name: setup
+description: Installs the shell, .git/agent/run.py, for the engineer. Makes a single call.
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/setup.md
+tools:
+  - get_status
+skills:
+  - skills/work
+generate_content_config: !include configs/setup_sampling.yaml
