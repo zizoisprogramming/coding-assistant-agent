@@ -1,5 +1,15 @@
 """combo1 (r72, user 2026-11-10 "get the best of agents into one"): pub024's recipe with every zero-cost fix the run bank
-supports, nothing that costs time. Run: python3 scripts/make_combo_arm.py
+supports, nothing that costs time. Run: python3 scripts/make_combo_arm.py [combo1 combo2 combo1en]
+
+r73 (user 2026-11-10 "make both please as new arms on the full dev16, so we have combo ctrl, combo1 + edit now, combo2"):
+  combo2   combo1 with the garbled-call rule moved out of the edit section into its own final section, worded as kf2's
+           (kf2: 0/30 garbled edit calls in r70-r71; combo1's in-section bullet: 14/36 in r72, 10 resent).
+  combo1en combo1 + nn32's forced edit: no run_command; every shell command goes through skill "sh" (scripts/agent_clock/
+           run_phase.py as scripts/run.py, LIGHT) with positional_args; the status line says LOOK / EDIT NOW / CHECK; from
+           the 12th shell command or 240 s with no source edit, commands are refused until edit_file changes a source file.
+           Stop-after-edit and checklist are off. nn32 / nn36p cut no-patch runs 21 -> 7 / 4 over 42 paired tasks.
+           Shape: positional_args (8% garbled in r31) not args (object form: 76% garbled in r30). LB risk: every 7-8 min
+           agent with a skill shell timed out (cause unknown; no parser stalls locally on the same vLLM 0.19.1).
 
 Evidence (docs/PLAN.md "MINING 2026-11-09b", RESULT r69-r71, "COMBINE 2026-11-10"):
   kept   pub024's recipe: our best LB (0.18) and the lineage of every top public config (8 min, 28 calls, T0.2,
@@ -115,5 +125,97 @@ def build():
           f"1 added (garbled call); tools {len(re.findall(r'^  - ', y, re.M))}")
 
 
+KF2_SECTION = """
+
+# IF AN EDIT CALL IS CUT APART
+If a tool result says "mandatory input parameters are not present", your edit_file or write_file call was cut apart: a text ended with a backtick or a stray quote and swallowed the next argument. Do not send the same call again. End every text right after its last character, never with a backtick. If it fails a second time, make the change with one run_command running a Python heredoc that asserts the old text occurs exactly once and then replaces it.
+"""
+GARBLE_BULLET = ("- If a tool result says \"mandatory input parameters are not present\", your edit_file or write_file call was cut apart: a text ended with a backtick or a stray quote and swallowed the next argument. Do not send the same call again. End every text right after its last character, never with a backtick. If it fails a second time, use the heredoc script described next.\n")
+
+# combo1en: combo1's text with every run_command route rewritten for the gated shell, plus a SHELL section.
+EN_REPLACE = [
+    ("- Scratch files go in /tmp only, and only through run_command (for example `cat > /tmp/check.py <<'EOF'`). write_file only writes inside /workspace, and any file left under /workspace becomes part of the graded patch.\n",
+     "- Scratch files go in /tmp only, and only through the shell (for example `cat > /tmp/check.py <<'EOF'`). write_file only writes inside /workspace, and any file left under /workspace becomes part of the graded patch.\n"),
+    ("combine independent searches for the issue's exact symbols, their callers and relevant test paths into one run_command.",
+     "combine independent searches for the issue's exact symbols, their callers and relevant test paths into one shell command."),
+    ("read these small regions in one run_command using sed with explicit line ranges",
+     "read these small regions in one shell command using sed with explicit line ranges"),
+    ("After two matching failures, use one inline Python script through run_command with a quoted heredoc;",
+     "After two matching failures, use one inline Python script through the shell with a quoted heredoc;"),
+]
+EN_SHELL = """
+# SHELL
+There is no run_command. Run every shell command with run_skill_script: skill_name "sh", file_path "scripts/run.py", and positional_args a list holding one string, the whole command, for example ["git grep -n -F 'parse_args' -- '*.py' | head -20"]. Do not use the args parameter. If a tool result says an argument is required, the call was cut apart: write it out plainly; never send the same broken call again.
+The last line of every shell output shows where you are: LOOK, then EDIT NOW, then CHECK after a source edit. When no source file has been edited for a while, the shell refuses commands until you edit one with edit_file. Then make your best edit in the most likely place, where the wrong behaviour is produced; you can correct it afterwards.
+"""
+EN_SKILL_MD = """---
+name: sh
+description: The shell. Runs one shell command in /workspace. Call run_skill_script with skill_name sh, file_path scripts/run.py and positional_args holding one string, the whole command.
+---
+
+Call run_skill_script with skill_name sh, file_path scripts/run.py and positional_args a list holding one string: the whole
+shell command. Do not use the args parameter. The output ends with a state line (LOOK, EDIT NOW, CHECK). With no source
+edit for a while, commands are refused until edit_file changes a source file.
+"""
+EN_CONSTS = [("STOP_AFTER = 60  #", "STOP_AFTER = 10 ** 6  # combo1en: stop rule off;"),
+             ("REFUSE_AT = 210  #", "REFUSE_AT = 240  # combo1en (nn32's time);"),
+             ("REFUSE_SHELL = 12\n", "REFUSE_SHELL = 12  # combo1en\n"),
+             ("WORDS = False\n", "WORDS = True  # combo1en: [state] LOOK / EDIT NOW / CHECK, no seconds\n"),
+             ("LIGHT = False\n", "LIGHT = True  # combo1en: fewer git processes per command\n")]
+
+
+def write_arm(out, prompt, tools, extra_files=None):
+    if out.exists():
+        shutil.rmtree(out)
+    shutil.copytree(PUB, out)
+    y = (PUB / "agent.yaml").read_text()
+    for t in DEAD:
+        y = y.replace(f"  - {t}\n", "")
+    y = y.replace("tools:\n  - run_command\n  - read_file\n  - edit_file\n  - write_file\n  - get_status\n  - submit_patch\n",
+                  "tools:\n" + "".join(f"  - {t}\n" for t in tools if not t.startswith("skills/"))
+                  + ("skills:\n" + "".join(f"  - {t}\n" for t in tools if t.startswith("skills/")) if any(t.startswith("skills/") for t in tools) else ""), 1)
+    y = y.replace("name: swe_agent\n", f"name: swe_agent  # {out.name}: scripts/make_combo_arm.py\n", 1)
+    (out / "agent.yaml").write_text(y)
+    (out / "prompts/system.md").write_text(prompt)
+    for rel, text in (extra_files or {}).items():
+        (out / rel).parent.mkdir(parents=True, exist_ok=True)
+        (out / rel).write_text(text)
+    assert "{" not in prompt and "}" not in prompt
+    for f in ("eval_config.yaml", "configs/sampling.yaml"):
+        assert (out / f).read_bytes() == (PUB / f).read_bytes(), f
+    return y
+
+
+def build_combo2():
+    assert SYSTEM_MD.count(GARBLE_BULLET) == 1
+    prompt = SYSTEM_MD.replace(GARBLE_BULLET, "", 1).rstrip("\n") + "\n" + KF2_SECTION
+    write_arm(ROOT / "submissions/combo2", prompt, ["run_command", "read_file", "edit_file", "write_file", "get_status", "submit_patch"])
+    assert "mandatory input parameters are not present" in prompt and prompt.count("mandatory input") == 1
+    assert prompt.index("# IF AN EDIT CALL IS CUT APART") > prompt.index("# DECISION RULES")
+    print("submissions/combo2: combo1 with the garbled-call rule as its own final section")
+
+
+def build_combo1en():
+    prompt = SYSTEM_MD
+    for old, new in EN_REPLACE:
+        assert prompt.count(old) == 1, old[:60]
+        prompt = prompt.replace(old, new, 1)
+    anchor = "\n# CALL PLAN\n"
+    assert prompt.count(anchor) == 1
+    prompt = prompt.replace(anchor, "\n" + EN_SHELL.strip("\n") + "\n" + anchor, 1)
+    assert "run_command" in prompt.split("# IF")[0] or True
+    assert prompt.count("run_command") == 1 and "There is no run_command." in prompt, "only the SHELL section names run_command"
+    script = (ROOT / "scripts/agent_clock/run_phase.py").read_text()
+    for old, new in EN_CONSTS:
+        assert script.count(old) == 1, old
+        script = script.replace(old, new, 1)
+    y = write_arm(ROOT / "submissions/combo1en", prompt, ["read_file", "edit_file", "write_file", "get_status", "submit_patch", "skills/sh"],
+                  {"skills/sh/SKILL.md": EN_SKILL_MD, "skills/sh/scripts/run.py": script})
+    assert "run_command" not in y and "skills:\n  - skills/sh\n" in y
+    print("submissions/combo1en: combo1 + gated shell (skill sh, positional_args), refusal at the 12th command or 240 s without a source edit")
+
+
 if __name__ == "__main__":
-    build()
+    import sys
+    for arm in sys.argv[1:] or ["combo1", "combo2", "combo1en"]:
+        {"combo1": build, "combo2": build_combo2, "combo1en": build_combo1en}[arm]()

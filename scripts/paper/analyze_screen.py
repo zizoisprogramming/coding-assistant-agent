@@ -5,7 +5,8 @@ TEST = re.compile(r"(^|/)(tests?|testing)/|(^|/)test_[^/]*\.py$|_test\.py$|conft
 G = {}
 for r in map(json.loads, open(D + "/results/gen_per_task.jsonl")): G[r["arm"], r["instance_id"]] = r
 print(json.dumps(json.load(open(D + "/results/phases.json"))).replace(" ", "")[:220])
-ARMS = list(dict.fromkeys(a for a, _ in G)); ARMS = ["pub024"] + [a for a in ARMS if a != "pub024"]; TASKS = sorted({t for _, t in G})
+CTRL = __import__("os").environ.get("CTRL", "pub024")  # the control arm (r73: combo1)
+ARMS = list(dict.fromkeys(a for a, _ in G)); ARMS = [CTRL] + [a for a in ARMS if a != CTRL]; TASKS = sorted({t for _, t in G})
 print(len(G), "runs", len(TASKS), "tasks", ARMS)
 J = collections.defaultdict(list)
 for l in open(D + "/requests/requests.jsonl"):
@@ -48,13 +49,13 @@ for job, q in J.items():
     g = G.get((arm, iid))
     if g: M[arm, iid] = dict(x=x, first=first, last=last, sub=sub, summ=summ, toks=toks, nxt=nxt, places=places, test=test_after, lst=wrote_list, s=g["agent_s"], w=g["wall_s"], res=g["resolved"], patch=g["patch_chars"], calls=g["tool_calls"], end=g["end"])
 print(f"\n{'arm':10}{'solved':>7}{'only+':>6}{'only-':>6}{'no patch':>9}{'wall':>6}{'vs pub':>16}{'agent':>7}{'overhead':>9}{'first edit':>11}{'at cap':>7}{'calls':>7}{'tokens':>8}{'summ s':>7}")
-base = {t: G["pub024", t] for t in TASKS if ("pub024", t) in G}
+base = {t: G[CTRL, t] for t in TASKS if (CTRL, t) in G}
 for a in ARMS:
     ts = [t for t in TASKS if (a, t) in G and t in base]; v = [G[a, t] for t in ts]
     d = [G[a, t]["wall_s"] - base[t]["wall_s"] for t in ts]; xs = sorted(st.mean(random.choices(d, k=len(d))) for _ in range(3000))
     mv = [M[a, t] for t in ts if (a, t) in M]; fe = [m["first"] for m in mv if m["first"] is not None]
     pl = sum(G[a, t]["resolved"] and not base[t]["resolved"] for t in ts); mn = sum(base[t]["resolved"] and not G[a, t]["resolved"] for t in ts)
-    print(f"{a:10}{sum(r['resolved'] for r in v):>7}{pl:>6}{mn:>6}{sum(not r['patch_chars'] for r in v):>9}{st.mean(r['wall_s'] for r in v):>6.0f}{(f'{st.mean(d):+.0f} ({xs[75]:+.0f},{xs[2925]:+.0f})' if a!='pub024' else '-'):>16}{st.mean(r['agent_s'] for r in v):>7.0f}{st.mean(r['wall_s']-r['agent_s'] for r in v):>9.0f}{st.median(fe) if fe else 0:>11.0f}{sum(r['agent_s']>=478 for r in v):>7}{st.mean(r['tool_calls'] or 0 for r in v):>7.1f}{st.mean(m['toks'] for m in mv):>8.0f}{st.mean(m['summ'] for m in mv):>7.0f}")
+    print(f"{a:10}{sum(r['resolved'] for r in v):>7}{pl:>6}{mn:>6}{sum(not r['patch_chars'] for r in v):>9}{st.mean(r['wall_s'] for r in v):>6.0f}{(f'{st.mean(d):+.0f} ({xs[75]:+.0f},{xs[2925]:+.0f})' if a!=CTRL else '-'):>16}{st.mean(r['agent_s'] for r in v):>7.0f}{st.mean(r['wall_s']-r['agent_s'] for r in v):>9.0f}{st.median(fe) if fe else 0:>11.0f}{sum(r['agent_s']>=478 for r in v):>7}{st.mean(r['tool_calls'] or 0 for r in v):>7.1f}{st.mean(m['toks'] for m in mv):>8.0f}{st.mean(m['summ'] for m in mv):>7.0f}")
 print("\nfilter (set before the run): solves at least pub024 - 1, mean wall at most pub024 + 10 s")
 ps = sum(r["resolved"] for r in base.values()); pw = st.mean(r["wall_s"] for r in base.values())
 for a in ARMS[1:]:
