@@ -2,6 +2,7 @@
 
 ## >>> START HERE (session handoff, updated 2026-11-07) <<<
 **2026-11-10: the user dropped the side writeup track for good. The only goal is winning the main leaderboard; never raise the writeup again (older 'Paper' lines below are history).**
+**RULE 2026-11-10 (user, after r75): never put a budget in an agent prompt** (no tool-call counts, minutes, 'by call N' plans or clock time plans). Limits live in eval_config; a stage that must stop is stopped by a tool-output event (gate refusal / state line). r75's scout, told 'about 10 tool calls', used 44 / 17 / 9 / 44.
 **User:** beginner to agents/ADK (ML engineer background); wants step-by-step plain explanations, research-backed
 claims (verify, cite), chat before building, decides when planning ends. Rules: several changes per run are fine
 (since 10-25) but bundle them into arms;
