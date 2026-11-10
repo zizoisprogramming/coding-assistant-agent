@@ -195,27 +195,39 @@ def build_combo2():
     print("submissions/combo2: combo1 with the garbled-call rule as its own final section")
 
 
-def build_combo1en():
+# combo1en2 (r74, user 2026-11-10 "if it can be fixed with few shot, do it"): r73's combo1en refused in 11/16 runs but the next
+# call was edit_file in only 2/11 (read_file escapes; refusal -> first edit median ~150 s). This model copies worked examples
+# closely (r69: one heredoc example took heredoc scripts from 4 to 19), so the SHELL section shows the move after a refusal.
+EN_FEWSHOT = """Example. A command comes back with:
+    REFUSED: no source file is edited yet. ...
+The right next call is edit_file on the place you already found, for example filepath "pkg/module.py", old_string "        return value", new_string "        return value or default". Not read_file and not another command: the shell stays closed until a source file changes, and more reading only spends the time you need to check the fix. The same holds when the last line says EDIT NOW: your next call is edit_file.
+"""
+
+def build_combo1en(name="combo1en", fewshot=False):
     prompt = SYSTEM_MD
     for old, new in EN_REPLACE:
         assert prompt.count(old) == 1, old[:60]
         prompt = prompt.replace(old, new, 1)
     anchor = "\n# CALL PLAN\n"
     assert prompt.count(anchor) == 1
-    prompt = prompt.replace(anchor, "\n" + EN_SHELL.strip("\n") + "\n" + anchor, 1)
+    shell = EN_SHELL.strip("\n") + "\n" + (EN_FEWSHOT if fewshot else "")
+    prompt = prompt.replace(anchor, "\n" + shell.rstrip("\n") + "\n" + anchor, 1)
     assert "run_command" in prompt.split("# IF")[0] or True
     assert prompt.count("run_command") == 1 and "There is no run_command." in prompt, "only the SHELL section names run_command"
     script = (ROOT / "scripts/agent_clock/run_phase.py").read_text()
     for old, new in EN_CONSTS:
         assert script.count(old) == 1, old
         script = script.replace(old, new, 1)
-    y = write_arm(ROOT / "submissions/combo1en", prompt, ["read_file", "edit_file", "write_file", "get_status", "submit_patch", "skills/sh"],
+    y = write_arm(ROOT / "submissions" / name, prompt, ["read_file", "edit_file", "write_file", "get_status", "submit_patch", "skills/sh"],
                   {"skills/sh/SKILL.md": EN_SKILL_MD, "skills/sh/scripts/run.py": script})
     assert "run_command" not in y and "skills:\n  - skills/sh\n" in y
-    print("submissions/combo1en: combo1 + gated shell (skill sh, positional_args), refusal at the 12th command or 240 s without a source edit")
+    if fewshot:
+        assert "The right next call is edit_file" in prompt and prompt.index("Example. A command comes back") < prompt.index("# CALL PLAN")
+    print(f"submissions/{name}: combo1 + gated shell (skill sh, positional_args), refusal at the 12th command or 240 s without a source edit" + (" + few-shot: REFUSED -> edit_file" if fewshot else ""))
 
 
 if __name__ == "__main__":
     import sys
-    for arm in sys.argv[1:] or ["combo1", "combo2", "combo1en"]:
-        {"combo1": build, "combo2": build_combo2, "combo1en": build_combo1en}[arm]()
+    for arm in sys.argv[1:] or ["combo1", "combo2", "combo1en", "combo1en2"]:
+        {"combo1": build, "combo2": build_combo2, "combo1en": build_combo1en,
+         "combo1en2": lambda: build_combo1en("combo1en2", fewshot=True)}[arm]()
