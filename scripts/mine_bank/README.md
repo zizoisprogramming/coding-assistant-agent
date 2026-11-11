@@ -21,3 +21,6 @@ Added 2026-11-11 (docs/PLAN.md "MINING 2026-11-11"):
   arguments, skill arguments, after budget, edit no match, read range, write outside /workspace, tool name / Python as
   shell, shell quoting, inline python syntax, unknown tool, call written as text, same failed call resent), by arm, and
   with / without the prompt rule written against it; the current family (combo1 / evid*) separately. "MINING 2026-11-11b".
+- bad_call_losses.py [MIN_RUNS]: per arm, no-patch runs explained by a bad call (edit refused after the budget with no
+  working edit before, garbled edit never fixed, last reply a call written as text) and the solves that cost (task's
+  right-patch rate). "MINING 2026-11-11c".
