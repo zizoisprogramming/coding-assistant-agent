@@ -19,6 +19,7 @@ MIN_RUNS = int(next((a for a in sys.argv[1:] if a.isdigit()), 40))
 DEV16 = "--dev16" in sys.argv  # only the 16 dev16 tasks (agents ran different task sets; e24 = tasks picked for being solved)
 SPLIT = set(json.load(open("data/splits_public.json"))["dev16"]) if DEV16 else None
 ALWAYS = ["combo1", "evidc", "evidd", "evide"]
+FORM = {"edit_nomatch", "inline_py_syntax", "tool_as_shell", "code_as_shell", "shell_quote", "write_outside", "read_range"}  # few-shot-able (MINING 11-11e)
 TEST = re.compile(r"(^|/)(tests?|testing)/|(^|/)test_[^/]*\.py$|_test\.py$|conftest\.py$")
 
 runs = []
@@ -48,6 +49,7 @@ for D in sorted(glob.glob("data/results/2026-*")):
         q.sort(key=lambda r: r["t"])
         worked = budget_edit = garble_open = last_text = budget_on = False
         bad_n = 0; bad_s = 0.0; tail_s = 0.0
+        fix_n = 0; fix_s = 0.0; refused = 0; first_edit_refused_at = None  # few-shot-able (form) errors; refused-call count
         for r in q:
             msg = r["reply"]["message"]; cl = msg.get("tool_calls") or []; sec = r.get("seconds") or 0
             if budget_on:
@@ -65,10 +67,13 @@ for D in sorted(glob.glob("data/results/2026-*")):
                 if name not in bc.TOOLS: k = k or "unknown_tool"
                 if k == "after_budget":
                     if not budget_on: tail_s += sec
-                    budget_on = True
-                    if name in ("edit_file", "write_file") and not worked: budget_edit = True
+                    budget_on = True; refused += 1
+                    if name in ("edit_file", "write_file") and not worked:
+                        budget_edit = True
+                        if first_edit_refused_at is None: first_edit_refused_at = refused
                 elif k and not budget_on:
                     bad_n += 1; bad_s += sec / len(cl)
+                    if k in FORM: fix_n += 1; fix_s += sec / len(cl)
                 if k == "garbled_args": garble_open = True
                 fp = str(a.get("filepath") or "")
                 if name in ("edit_file", "write_file") and '"status": "ok"' in res[:30] and fp and not TEST.search(fp) and not fp.startswith(("/tmp", ".git")):
@@ -77,7 +82,9 @@ for D in sorted(glob.glob("data/results/2026-*")):
         cause = ("budget_edit" if budget_edit else "garble_end" if garble_open else "text_end" if last_text else None) if nopatch else None
         runs.append(dict(arm=o.get("arm") or job.partition("#a")[2].rsplit(".", 1)[0], task=o["instance_id"], end=o.get("end"),
                          resolved=bool(o.get("resolved")), nopatch=nopatch, cause=cause, bad_any=bad_n > 0, bad_s=bad_s,
-                         tail_s=tail_s, budget=budget_on, agent_s=o.get("agent_s") or 0))
+                         tail_s=tail_s, budget=budget_on, agent_s=o.get("agent_s") or 0, fix_n=fix_n, fix_s=fix_s,
+                         # the refused first edit would have fitted in the budget if the few-shot-able failed calls had not used the slots
+                         rescue=bool(cause == "budget_edit" and first_edit_refused_at is not None and fix_n >= first_edit_refused_at)))
 
 
 def link(x):
@@ -117,3 +124,21 @@ print(f"\nALL {len(runs)} runs: cap rate with a bad call {cw:.0%} (n={nw}) vs wi
 for lab, sel in (("hit the budget", lambda r: r["budget"]), ("did not hit the budget", lambda r: not r["budget"])):
     rr = [r for r in runs if sel(r)]
     print(f"  runs that {lab}: {len(rr)}, capped {sum(r['end'] == 'time' for r in rr) / max(1, len(rr)):.0%}, no patch {sum(r['nopatch'] for r in rr) / max(1, len(rr)):.0%}")
+
+# IF THE FEW-SHOT FIXES WORKED: the form errors (edit text from memory, broken inline python, tool name / python typed in
+# the shell, shell quoting, write_file to /tmp, reversed read range) never happen. Saved: their calls and model seconds;
+# rescued: runs lost to an edit refused at the budget whose edit would have fitted in the slots those calls used.
+# Solves gained = rescued runs x the task's right-patch rate (runs of any agent here that made a patch). Time-capped runs
+# are NOT counted as rescued: a few seconds back rarely turns a capped run with no edit into a patch (not measurable here).
+pt = collections.defaultdict(lambda: [0, 0])
+for r in runs:
+    if not r["nopatch"]:
+        pt[r["task"]][0] += r["resolved"]; pt[r["task"]][1] += 1
+rate = {t: a / b for t, (a, b) in pt.items() if b}
+print(f"\nIF THE FEW-SHOT FIXES WORKED (same order):")
+print(f"{'agent':12s} {'runs':>4s} {'LOST now':>8s} {'few-shot-able calls/run':>23s} {'s/run saved':>11s} {'% of agent time':>15s} {'runs rescued':>12s} {'LOST after':>10s} {'est. solves gained':>18s} {'per 100 runs':>12s}")
+for e, arm, n, *_ in sorted(rows, reverse=True):
+    x = A[arm]
+    fn = sum(r["fix_n"] for r in x) / n; fs = sum(r["fix_s"] for r in x) / n; ag = sum(r["agent_s"] for r in x) / n
+    resc = [r for r in x if r["rescue"]]; gain = sum(rate.get(r["task"], 0) for r in resc)
+    print(f"{arm:12s} {n:4d} {e:8.0%} {fn:23.2f} {fs:11.1f} {fs / max(1, ag):15.1%} {len(resc):12d} {e - len(resc) / n:10.0%} {gain:18.2f} {100 * gain / n:12.2f}")
