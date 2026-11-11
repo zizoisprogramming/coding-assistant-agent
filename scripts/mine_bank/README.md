@@ -28,3 +28,5 @@ Added 2026-11-11 (docs/PLAN.md "MINING 2026-11-11"):
   old_string came from, the python -c forms that break, read ranges, text calls cut at the token limit). "MINING 2026-11-11e".
 - bad_by_agent.py [MIN_RUNS] [agent ...]: per agent, each bad-call kind with runs hit, calls, s/run and its pattern there,
   plus a summary of lost s/run split into few-shot-able (call form) and not (native syntax, budget, token limit).
+- time_vs_bad.py [MIN_RUNS] [--dev16]: agents ranked by no-patch runs lost to the time cap or to bad calls, overlap of the
+  two, bad-call seconds, and the cap rate with / without a bad call (raw and within the same task). "MINING 2026-11-11f".
