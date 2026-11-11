@@ -1,0 +1,6 @@
+# evid3fs (r81): evid3 with the few-shot prompt fixes (examples of correct call forms, heredoc checks, no budget numbers) (scripts/make_fewshot_arms.py)
+name: swe_agent
+agent_class: SequentialAgent
+sub_agents:
+  - config_path: evidence.yaml
+  - config_path: fixer.yaml

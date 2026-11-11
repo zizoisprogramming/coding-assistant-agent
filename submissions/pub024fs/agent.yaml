@@ -1,0 +1,15 @@
+# pub024fs (r81): pub024 with the few-shot prompt fixes (examples of correct call forms, heredoc checks, no budget numbers) (scripts/make_fewshot_arms.py)
+name: swe_agent
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/system.md
+tools:
+  - run_command
+  - read_file
+  - edit_file
+  - write_file
+  - get_status
+  - submit_patch
+  - get_code_neighbors
+  - search_similar_code
+  - get_code_subgraph
+generate_content_config: !include configs/sampling.yaml

@@ -1,0 +1,12 @@
+# combo1fs (r81): combo1 with the few-shot prompt fixes (examples of correct call forms, heredoc checks, no budget numbers) (scripts/make_fewshot_arms.py)
+name: swe_agent  # combo1: scripts/make_combo_arm.py (pub024 minus the 3 unused graph tools)
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/system.md
+tools:
+  - run_command
+  - read_file
+  - edit_file
+  - write_file
+  - get_status
+  - submit_patch
+generate_content_config: !include configs/sampling.yaml
