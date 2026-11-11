@@ -12,3 +12,8 @@ Added 2026-11-10 (docs/PLAN.md "MINING 2026-11-10b"; these read data/results/202
 - decode_vs_inflight.py: decode tok/s by the number of requests in flight on the same server.
 - bestof_sim.py: best-of-k and race (first submit ends the task) simulated from real single-agent runs.
 - race_compaction_risk.py: how often a branch compacts before a race ends (the ADK ParallelAgent crash condition).
+
+Added 2026-11-11 (docs/PLAN.md "MINING 2026-11-11"):
+- evidence_reads.py [--runs] FOLDER...: evidence-stage runs (evid3 / evid4 / evidc and later): names chosen, whether the
+  script output and the copied reply reach the gold patch's files / functions, empty (NOTHING RELEVANT / 1-line)
+  replies, resolved; per task, the issue's names that appear in the gold patch.

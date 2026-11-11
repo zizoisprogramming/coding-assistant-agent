@@ -1,0 +1,6 @@
+# evidd (r79): evidc + the evidence script searching the whole git history (no 500-commit limit; a slow git call keeps what it printed) and cleaning names (Segment.split_cells -> split_cells) (scripts/make_evid_arms.py)
+name: swe_agent
+agent_class: SequentialAgent
+sub_agents:
+  - config_path: evidence.yaml
+  - config_path: fixer.yaml

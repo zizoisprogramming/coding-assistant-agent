@@ -1,0 +1,6 @@
+# evide (r79): evidd + source lines for names with no def / class line (parameters, options) (scripts/make_evid_arms.py)
+name: swe_agent
+agent_class: SequentialAgent
+sub_agents:
+  - config_path: evidence.yaml
+  - config_path: fixer.yaml
