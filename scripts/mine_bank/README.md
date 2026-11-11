@@ -17,3 +17,7 @@ Added 2026-11-11 (docs/PLAN.md "MINING 2026-11-11"):
 - evidence_reads.py [--runs] FOLDER...: evidence-stage runs (evid3 / evid4 / evidc and later): names chosen, whether the
   script output and the copied reply reach the gold patch's files / functions, empty (NOTHING RELEVANT / 1-line)
   replies, resolved; per task, the issue's names that appear in the gold patch.
+- bad_calls.py [OUT.json]: every malformed or misused tool call over the whole bank (31B runs), by kind (garbled
+  arguments, skill arguments, after budget, edit no match, read range, write outside /workspace, tool name / Python as
+  shell, shell quoting, inline python syntax, unknown tool, call written as text, same failed call resent), by arm, and
+  with / without the prompt rule written against it; the current family (combo1 / evid*) separately. "MINING 2026-11-11b".
