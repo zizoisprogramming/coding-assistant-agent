@@ -7,7 +7,9 @@ run-level chance); the gap between the first two arms with its 90% band; and the
 most 5% of the time if the two arms were equal (both scored as the first arm = the control).
 --face ARM adds a scenario where ARM is exactly as good as its own past runs say (the logit shift that makes the model's
 fitted solves on ARM's runs equal its observed solves, on top of the fitted effects) -- the "taken at face value" case.
---tasks: dev16, or a comma list of task ids."""
+--tasks: dev16, or a comma list of task ids.
+--exclude SUBSTR leaves out the runs of results folders whose name contains SUBSTR (to score a finished run against what
+the bank said before it); --gap G adds P(gap <= G) and P(gap >= G) in each scenario (where an observed gap sits)."""
 import argparse, importlib.util, json, os
 import numpy as np
 
@@ -16,11 +18,12 @@ rm = importlib.util.module_from_spec(spec); spec.loader.exec_module(rm)
 ap = argparse.ArgumentParser()
 ap.add_argument("--arms", required=True); ap.add_argument("--tasks", default="dev16"); ap.add_argument("--passes", type=int, default=1)
 ap.add_argument("--face"); ap.add_argument("--k", type=int, default=4000)
+ap.add_argument("--exclude"); ap.add_argument("--gap", type=int)
 a = ap.parse_args()
 m = json.load(open("data/analysis/stats_model.json"))
 sig = [m["sigma"][k] for k in ("task", "agent", "draw", "agent_x_task")]
 ARMS = a.arms.split(","); TASKS = m["dev16"] if a.tasks == "dev16" else a.tasks.split(",")
-rows = rm.load(); d = rm.Design(rows); y = np.array([r["y"] for r in rows], float)
+rows = [r for r in rm.load() if not (a.exclude and a.exclude in r["folder"])]; d = rm.Design(rows); y = np.array([r["y"] for r in rows], float)
 th, H, _, _ = rm._map(y, d, sig)
 S = rm.draws_from(th, np.linalg.inv(H), a.k)
 T, A, AT = (d.groups[g][1] for g in ("task", "agent", "axt"))
@@ -66,7 +69,8 @@ for x, v in zip(ARMS, base):
     print(f"  model:      {x:12s} {q(v)} of {n}")
 if len(ARMS) >= 2:
     g = base[1] - base[0]
-    print(f"  model gap {ARMS[1]} - {ARMS[0]}: {g.mean():+.1f} (90% {int(np.quantile(g, .05)):+d} to {int(np.quantile(g, .95)):+d})")
+    print(f"  model gap {ARMS[1]} - {ARMS[0]}: {g.mean():+.1f} (90% {int(np.quantile(g, .05)):+d} to {int(np.quantile(g, .95)):+d})"
+          + (f"; P(gap <= {a.gap:+d}) {(g <= a.gap).mean():.2f}, P(gap >= {a.gap:+d}) {(g >= a.gap).mean():.2f}" if a.gap is not None else ""))
     e0 = eta(ARMS[0]); aa = sims([e0, e0]); ga = aa[1] - aa[0]
     thr = next(c for c in range(0, n + 1) if (ga >= c).mean() <= 0.05)
     print(f"  if equal (both = {ARMS[0]}): gap 90% {int(np.quantile(ga, .05)):+d} to {int(np.quantile(ga, .95)):+d}; luck reaches +{thr} or more "
@@ -80,4 +84,5 @@ if a.face:
     if len(ARMS) >= 2 and a.face == ARMS[1]:
         g = fv[1] - fv[0]
         print(f"    gap {ARMS[1]} - {ARMS[0]}: {g.mean():+.1f} (90% {int(np.quantile(g, .05)):+d} to {int(np.quantile(g, .95)):+d}); "
-              f"P(gap >= +{thr}) = {(g >= thr).mean():.2f}  (= the run's power to show it, if it is that good)")
+              f"P(gap >= +{thr}) = {(g >= thr).mean():.2f}  (= the run's power to show it, if it is that good)"
+              + (f"; P(gap <= {a.gap:+d}) {(g <= a.gap).mean():.2f}" if a.gap is not None else ""))
