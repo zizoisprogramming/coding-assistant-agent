@@ -1,0 +1,5 @@
+name: race
+agent_class: ParallelAgent
+sub_agents:
+  - config_path: engineer_a.yaml
+  - config_path: engineer_b.yaml

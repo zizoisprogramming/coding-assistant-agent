@@ -128,6 +128,26 @@ def test_remind_adds_the_prefix_to_the_last_line_and_stays_digit_free():
     assert not re.search(r"\d", last), last
     assert "every command" not in run(setup(WORDS=True), "echo a")
 
+
+def test_refuse_once_then_commands_run_with_edit_now():
+    env = setup(WORDS=True, LIGHT=True, WARN_SHELL=2, REFUSE_SHELL=3, REFUSE_ONCE=True)
+    for _ in range(2):
+        run(env, "echo a")
+    assert "REFUSED: no source file is edited yet" in run(env, "echo a")
+    out = run(env, "echo again")
+    assert "REFUSED" not in out and "again" in out and "EDIT NOW" in out, out
+    assert "REFUSED" not in run(env, "echo third")
+
+
+def test_scout_words_and_refusal_ask_for_notes_and_edits_never_unlock():
+    env = setup(WORDS=True, LIGHT=True, SCOUT=True, WARN_SHELL=2, REFUSE_SHELL=3)
+    assert "LOOK: scouting" in run(env, "echo a")
+    assert "NOTES NOW" in run(env, "echo b")
+    out = run(env, "echo c")
+    assert out.startswith("REFUSED: scouting is over") and "EDIT NOW" not in out, out
+    assert "REFUSED: scouting is over" in run(env, "echo d")
+    assert not re.search(r"\\d", out)
+
 def test_numbered_arm_shows_seconds():
     env = setup()
     assert re.search(r"\[clock\] \d+ s of 480 used", run(env, "echo a"))

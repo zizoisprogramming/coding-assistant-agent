@@ -1,0 +1,6 @@
+# evgate1 (r78): allplus with the gate's late refusal firing once; budget-free prompt (scripts/make_gate_arms.py)
+name: swe_agent
+agent_class: SequentialAgent
+sub_agents:
+  - config_path: setup.yaml
+  - config_path: main.yaml

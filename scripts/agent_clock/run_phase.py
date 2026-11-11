@@ -14,6 +14,8 @@ Runs one shell command in /workspace and enforces the rules below; the switches 
   looked at again after a command when it can edit. The command may also come on stdin.
 - READS: short reading commands, where NAME [PATH], outline FILE, lines FILE START END, under the same rules.
 - REMIND (r76 rc arms): the last line also says to keep every command in python .git/agent/run.py.
+- REFUSE_ONCE (r78 evgate1): the late refusal fires once per task.
+- SCOUT (r78 race3): the scout's gate; LOOK / NOTES NOW words, refusals ask for the notes.
 
     run_skill_script skill_name=work file_path=scripts/run.py positional_args=["git grep -n foo"]
 """
@@ -41,6 +43,8 @@ CHECKLIST = False
 PLACES = False
 LIGHT = False
 READS = False
+REFUSE_ONCE = False  # r78 evgate1: the late refusal fires once per task, later commands run (the r76 refusal loops cost 96-119 s a run)
+SCOUT = False  # r78 race3: the scout's gate: it never edits; from WARN_* the line says NOTES NOW, from REFUSE_* commands are refused until the scout replies with its notes
 REMIND = False  # r76 rc arms: the last line also says to keep every command in python .git/agent/run.py (a tool-output line steers ~4x more than a prompt rule, r58)
 READ_LINES = 200  # most lines one "lines" command shows
 WHERE_LINES = 30  # most matches one "where" command shows
@@ -234,8 +238,12 @@ def status(files, state, used, shell):
     since = used - state.get("edit_at", used)
     if not files:
         late = used >= WARN_AT or shell >= WARN_SHELL
-        word = ("EDIT NOW: stop reading and make your best edit with edit_file" if late
-                else "LOOK: no source edit yet")
+        if SCOUT:
+            word = ("NOTES NOW: stop looking and reply with your notes, no tool call" if late
+                    else "LOOK: scouting; reply with your notes once you know where and why")
+        else:
+            word = ("EDIT NOW: stop reading and make your best edit with edit_file" if late
+                    else "LOOK: no source edit yet")
     elif since >= STOP_AFTER or state.get("tested"):
         word = "FINISH: git status --short && git diff, then submit_patch. If an output showed your change is wrong, correct it first"
     else:
@@ -256,12 +264,18 @@ def main():
     since = used - state["edit_at"] if files else None
     stopped = bool(files) and since >= STOP_AFTER and state.get("ran_since_edit", 0) >= 1
     late = not files and (used >= REFUSE_AT or shell >= REFUSE_SHELL)
+    if late and REFUSE_ONCE and state.get("refused_late", 0) >= 1:
+        late = False  # refused once already: the status line keeps saying EDIT NOW
     if not cmd:
         body = "NO COMMAND: pass it as positional_args, a list holding a single string: the whole shell command."
     elif CHECKLIST and checklist(ws) is None:
         body = (f"REFUSED: first write your issue checklist with write_file {CHECKLIST_FILE}: a few short lines with every "
                 "exact name, string, message, type and value from the issue that the hidden tests can check (copied "
                 "character for character), and the expected behaviour. Commands run once it exists.")
+    elif late and SCOUT:
+        state["refused_late"] = state.get("refused_late", 0) + 1
+        body = ("REFUSED: scouting is over. Reply now with your notes (WHERE, CAUSE, CHANGE, ALSO, CHECK, TEST) "
+                "and make no tool call: the engineers start as soon as you reply.")
     elif late and not EDIT_CMD.search(cmd):
         state["refused_late"] = state.get("refused_late", 0) + 1
         body = ("REFUSED: no source file is edited yet. An unedited tree scores zero; a best guess can still be corrected. "

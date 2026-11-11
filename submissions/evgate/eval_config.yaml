@@ -1,0 +1,5 @@
+evaluation:
+  timeout_seconds: 240
+  max_tool_calls: 32  # setup 1 + engineer; nn32rcn2 fit the LB at 32 / 8 min
+  max_time_minutes: 8
+  max_turns: 80

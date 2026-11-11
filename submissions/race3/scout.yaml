@@ -1,0 +1,9 @@
+name: scout
+model: gemma-4-31b-it-qat-w4a16-ct
+description: Reads the code through its gated shell and writes exact notes for the two engineers. Never edits or submits.
+instruction: !include prompts/scout.md
+tools:  # no read_file (reads go through the gate), no edit_file / write_file / submit_patch (a scout submit would end the task empty)
+  - run_command
+  - get_status
+output_key: notes
+generate_content_config: !include configs/sampling.yaml
