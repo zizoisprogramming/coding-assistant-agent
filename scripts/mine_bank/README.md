@@ -24,3 +24,7 @@ Added 2026-11-11 (docs/PLAN.md "MINING 2026-11-11"):
 - bad_call_losses.py [MIN_RUNS]: per arm, no-patch runs explained by a bad call (edit refused after the budget with no
   working edit before, garbled edit never fixed, last reply a call written as text) and the solves that cost (task's
   right-patch rate). "MINING 2026-11-11c".
+- bad_patterns.py: the shape of each bad-call kind (which argument a garble swallows and how, where an unmatched
+  old_string came from, the python -c forms that break, read ranges, text calls cut at the token limit). "MINING 2026-11-11e".
+- bad_by_agent.py [MIN_RUNS] [agent ...]: per agent, each bad-call kind with runs hit, calls, s/run and its pattern there,
+  plus a summary of lost s/run split into few-shot-able (call form) and not (native syntax, budget, token limit).

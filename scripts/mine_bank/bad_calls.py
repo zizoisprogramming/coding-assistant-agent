@@ -60,7 +60,7 @@ def kind_of(name, args_raw, res, sysm):
         return "unknown_tool"
     if name == "edit_file" and "old_string not found" in low:
         return "edit_nomatch"
-    if name == "read_file" and ("ValueError" in low or "cannot be greater" in low):
+    if name == "read_file" and '"status": "error"' in low[:60] and ("ValueError" in low or "cannot be greater" in low):
         return "read_range"
     if name == "write_file" and ("Path traversal" in low or "outside" in low and "error" in low):
         return "write_outside"
