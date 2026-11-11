@@ -28,7 +28,10 @@ MIN_AGENT_RUNS = 16
 PAIRS = [("evidc", "combo1"), ("evidd", "evidc"), ("evide", "evidc"), ("combo1", "pub024"), ("evidc", "pub024"), ("evid3", "pub024"),
          ("sk_a2", "pub024"), ("sk_a2_32", "pub024"), ("nn32", "pub024"), ("nn36p", "pub024"), ("kf2", "pub024"), ("combo1en", "combo1"),
          ("combo1en2", "combo1"), ("combo2", "combo1"), ("evid4", "pub024"), ("hunch", "pub024"), ("race3", "combo1"), ("race2", "combo1"),
-         ("nn32rcf", "combo1"), ("allplus", "combo1"), ("evgate", "combo1"), ("t7rc", "combo1")]
+         ("nn32rcf", "combo1"), ("allplus", "combo1"), ("evgate", "combo1"), ("t7rc", "combo1"),
+         ("pub024fs", "pub024"), ("combo1fs", "combo1"), ("evid3fs", "evid3"), ("evidcfs", "evidc")]
+# a new arm that is a changed copy of a known agent is scored in the luck check as that agent (the null: the change does nothing)
+NULL_AS = {"pub024fs": "pub024", "combo1fs": "combo1", "evid3fs": "evid3", "evidcfs": "evidc", "evidd": "evidc", "evide": "evidc"}
 
 
 def load():
@@ -310,22 +313,29 @@ def main():
         T2, A2, AT2 = d2.groups["task"][1], d2.groups["agent"][1], d2.groups["axt"][1]
         here = [r for r in rows if r["folder"] == f]
         drw = RNG.normal(0, sg2[2], (len(S2), 1))  # one fresh draw effect shared by all arms of this run
+        total = np.zeros(len(S2))
         for arm in sorted({r["arm"] for r in here}):
             rr = [r for r in here if r["arm"] == arm]
+            as_ = arm if arm in A2 else NULL_AS.get(arm) if NULL_AS.get(arm) in A2 else None  # scored as
             eta = np.zeros((len(S2), len(rr)))
             for j, r in enumerate(rr):
                 e = S2[:, 0].copy()
                 e += S2[:, T2[r["task"]]] if r["task"] in T2 else RNG.normal(0, sg2[0], len(S2))
-                e += S2[:, A2[arm]] if arm in A2 else RNG.normal(0, sg2[1], len(S2))
-                c = AT2.get((arm, r["task"]))
+                e += S2[:, A2[as_]] if as_ else RNG.normal(0, sg2[1], len(S2))
+                c = AT2.get((as_, r["task"]))
                 e += S2[:, c] if c is not None else RNG.normal(0, sg2[3], len(S2))
                 eta[:, j] = e
             sims = (RNG.random(eta.shape) < logistic(eta + drw)).sum(axis=1)
+            total += sims
             obs = sum(r["y"] for r in rr)
             pct = float((sims < obs).mean() + 0.5 * (sims == obs).mean())
             luck.append(dict(draw=f, arm=arm, runs=len(rr), observed=obs, expected=float(sims.mean()),
                              lo=int(np.quantile(sims, .05)), hi=int(np.quantile(sims, .95)), percentile=pct,
-                             new_agent=arm not in A2))
+                             new_agent=arm not in A2, scored_as=as_ if as_ != arm else None))
+        obs = sum(r["y"] for r in here)
+        luck.append(dict(draw=f, arm="ALL ARMS", runs=len(here), observed=obs, expected=float(total.mean()),
+                         lo=int(np.quantile(total, .05)), hi=int(np.quantile(total, .95)),
+                         percentile=float((total < obs).mean() + 0.5 * (total == obs).mean()), new_agent=False, scored_as=None))
         print(f"luck check {f}: " + ", ".join(f"{x['arm']} {x['observed']} vs {x['expected']:.1f} [{x['lo']}-{x['hi']}] p{100 * x['percentile']:.0f}" for x in luck if x["draw"] == f))
     # A/A noise band and power on dev16-like task sets: two arms in the same runs, one run per task per pass
     tasks_eff = np.array([theta[T[t]] for t in dev])

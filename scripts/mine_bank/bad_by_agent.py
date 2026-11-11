@@ -1,6 +1,6 @@
 """Bad tool calls PER AGENT (MINING 2026-11-11e): for each agent, each kind of bad call with the share of its runs hit,
 calls, model seconds per run, and the kind's dominant pattern in that agent. Usage:
-    python3 -I scripts/mine_bank/bad_by_agent.py [MIN_RUNS] [agent ...]   (repo root; default: >= 40 runs + the current line)
+    python3 -I scripts/mine_bank/bad_by_agent.py [MIN_RUNS] [--only=FOLDER_SUBSTR,...] [agent ...]   (repo root; default: >= 40 runs + the current line)
 Patterns: garbled = a backtick where the string should close ('`,old_string:'), resent identically next; edit no-match =
 old_string written from memory (not copied from an earlier output); inline python = python -c with escaped quotes /
 f-string / several statements; read range = end = start - 1; text call = cut at the output-token limit; after budget = the
@@ -9,7 +9,8 @@ import collections, glob, importlib.util, json, os, re, sys
 
 spec = importlib.util.spec_from_file_location("bc", os.path.join(os.path.dirname(os.path.abspath(__file__)), "bad_calls.py"))
 bc = importlib.util.module_from_spec(spec); spec.loader.exec_module(bc)
-ARGS = [a for a in sys.argv[1:] if not a.isdigit()]
+ONLY = [p for a in sys.argv[1:] if a.startswith("--only=") for p in a[7:].split(",")]  # folder substrings (a run's own folders)
+ARGS = [a for a in sys.argv[1:] if not a.isdigit() and not a.startswith("--")]
 MIN_RUNS = int(next((a for a in sys.argv[1:] if a.isdigit()), 40))
 ALWAYS = ["combo1", "evidc", "evidd", "evide"]
 TEST = re.compile(r"(^|/)(tests?|testing)/|(^|/)test_[^/]*\.py$|_test\.py$|conftest\.py$")
@@ -32,6 +33,8 @@ runs_of = collections.Counter(); hit = collections.defaultdict(set); calls = col
 pat = collections.Counter(); bt = collections.Counter()
 for D in sorted(glob.glob("data/results/2026-*")):
     if any(k in D for k in ("e4b", "probe", "replay", "12b")):
+        continue
+    if ONLY and not any(p in D for p in ONLY):
         continue
     rq = D + "/requests/requests.jsonl"
     if not os.path.exists(rq):

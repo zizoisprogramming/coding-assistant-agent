@@ -1,5 +1,5 @@
 """Agents ranked by runs lost to TIME (the run hit its time cap) or to BAD CALLS, and how the two are linked (MINING
-2026-11-11f). Usage: python3 -I scripts/mine_bank/time_vs_bad.py [MIN_RUNS] [--dev16]   (repo root)
+2026-11-11f). Usage: python3 -I scripts/mine_bank/time_vs_bad.py [MIN_RUNS] [--dev16] [--only=FOLDER_SUBSTR,...]   (repo root)
 
 Per run (31B, folders with request logs + gen_per_task.jsonl):
   capped        end == "time" (the arm's session cap: 6-8 min)
@@ -16,6 +16,7 @@ import collections, glob, importlib.util, json, os, re, sys
 spec = importlib.util.spec_from_file_location("bc", os.path.join(os.path.dirname(os.path.abspath(__file__)), "bad_calls.py"))
 bc = importlib.util.module_from_spec(spec); spec.loader.exec_module(bc)
 MIN_RUNS = int(next((a for a in sys.argv[1:] if a.isdigit()), 40))
+ONLY = [p for a in sys.argv[1:] if a.startswith("--only=") for p in a[7:].split(",")]  # folder substrings (a run's own folders)
 DEV16 = "--dev16" in sys.argv  # only the 16 dev16 tasks (agents ran different task sets; e24 = tasks picked for being solved)
 SPLIT = set(json.load(open("data/splits_public.json"))["dev16"]) if DEV16 else None
 ALWAYS = ["combo1", "evidc", "evidd", "evide"]
@@ -25,6 +26,8 @@ TEST = re.compile(r"(^|/)(tests?|testing)/|(^|/)test_[^/]*\.py$|_test\.py$|conft
 runs = []
 for D in sorted(glob.glob("data/results/2026-*")):
     if any(k in D for k in ("e4b", "probe", "replay", "12b")):
+        continue
+    if ONLY and not any(p in D for p in ONLY):
         continue
     rq, gp = D + "/requests/requests.jsonl", D + "/results/gen_per_task.jsonl"
     if not (os.path.exists(rq) and os.path.exists(gp)):

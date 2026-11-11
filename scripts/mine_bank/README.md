@@ -26,7 +26,11 @@ Added 2026-11-11 (docs/PLAN.md "MINING 2026-11-11"):
   right-patch rate). "MINING 2026-11-11c".
 - bad_patterns.py: the shape of each bad-call kind (which argument a garble swallows and how, where an unmatched
   old_string came from, the python -c forms that break, read ranges, text calls cut at the token limit). "MINING 2026-11-11e".
-- bad_by_agent.py [MIN_RUNS] [agent ...]: per agent, each bad-call kind with runs hit, calls, s/run and its pattern there,
+- bad_by_agent.py [MIN_RUNS] [--only=FOLDER_SUBSTR,...] [agent ...]: per agent, each bad-call kind with runs hit, calls, s/run and its pattern there,
   plus a summary of lost s/run split into few-shot-able (call form) and not (native syntax, budget, token limit).
-- time_vs_bad.py [MIN_RUNS] [--dev16]: agents ranked by no-patch runs lost to the time cap or to bad calls, overlap of the
-  two, bad-call seconds, and the cap rate with / without a bad call (raw and within the same task). "MINING 2026-11-11f".
+- time_vs_bad.py [MIN_RUNS] [--dev16] [--only=FOLDER_SUBSTR,...]: agents ranked by no-patch runs lost to the time cap or to
+  bad calls, overlap of the two, bad-call seconds, and the cap rate with / without a bad call (raw and within the same task).
+  "MINING 2026-11-11f". --only limits both readers to folders whose name contains one of the substrings (one run's folders).
+- pair_bar.py FOLDER... [--pairs=new:control,...]: a changed arm vs its same-run control (default NAMEfs vs NAME): solved,
+  no patch, capped, agent s, form-error runs / calls, garbled edits, after-budget runs / calls / tail s, and adoption of the
+  few-shot forms (heredoc python, python -c, sed -n, edits copied from printed output); same-task sign test. "RESULT r81".
