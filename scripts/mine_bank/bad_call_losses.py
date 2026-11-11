@@ -1,4 +1,4 @@
-"""Which agents lose the most to bad tool calls (MINING 2026-11-11c). Per run (31B, folders with request logs + outcomes):
+"""Which agents lose the most to bad tool calls, in solves and in time (MINING 2026-11-11c / d). Per run (31B, folders with request logs + outcomes):
 the run ended with NO patch and a bad call explains it:
   budget_edit   an edit_file / write_file refused with 'Tool call budget exhausted' and no working source edit before it
   garble_end    a garbled edit ('mandatory input parameters are not present') and no working source edit after it
@@ -38,10 +38,14 @@ for D in sorted(glob.glob("data/results/2026-*")):
         if not o: continue
         q.sort(key=lambda r: r["t"])
         worked = False; budget_edit = False; garble_open = False; last_text_call = False
+        bad_s = collections.Counter(); first_refused_t = None
+        run_end = max(r["t"] + (r.get("seconds") or 0) for r in q); model_s = sum(r.get("seconds") or 0 for r in q)
         for r in q:
             msg = r["reply"]["message"]; calls = msg.get("tool_calls") or []
+            sec = r.get("seconds") or 0
             if not calls:
                 last_text_call = bool(bc.TEXT_CALL.search(str(msg.get("content") or "")))
+                if last_text_call and first_refused_t is None: bad_s["text_call"] += sec
                 continue
             last_text_call = False
             for c in calls:
@@ -49,6 +53,8 @@ for D in sorted(glob.glob("data/results/2026-*")):
                 try: a = json.loads(c["function"].get("arguments") or "{}")
                 except Exception: a = {}
                 k = bc.kind_of(name, c["function"].get("arguments") or "", res, "")
+                if k == "after_budget" and first_refused_t is None: first_refused_t = r["t"]
+                if k and k != "after_budget" and first_refused_t is None: bad_s[k] += sec / len(calls)
                 is_edit = name in ("edit_file", "write_file")
                 if is_edit and k == "after_budget" and not worked: budget_edit = True
                 if k == "garbled_args": garble_open = True
@@ -60,7 +66,9 @@ for D in sorted(glob.glob("data/results/2026-*")):
         if nopatch:
             cause = "budget_edit" if budget_edit else "garble_end" if garble_open else "text_end" if last_text_call else None
         runs.append(dict(arm=o.get("arm") or job.partition("#a")[2].rsplit(".", 1)[0], task=o["instance_id"], resolved=bool(o.get("resolved")),
-                         nopatch=nopatch, cause=cause, folder=D.rsplit("/", 1)[1]))
+                         nopatch=nopatch, cause=cause, folder=D.rsplit("/", 1)[1], bad_s=bad_s, model_s=model_s,
+                         agent_s=o.get("agent_s") or (run_end - q[0]["t"]),
+                         tail_s=(run_end - first_refused_t) if first_refused_t is not None else 0.0))
 
 # task: how often a patch is right
 pt = collections.defaultdict(lambda: [0, 0])
@@ -85,3 +93,20 @@ allc = collections.Counter(r["cause"] for r in runs if r["cause"])
 print(f"\nALL: {dict(allc)} of {sum(r['nopatch'] for r in runs)} no-patch runs; est. solves lost {sum(rate.get(r['task'], 0) for r in runs if r['cause']):.1f} of {sum(r['resolved'] for r in runs)} solved")
 print("tasks where lost runs concentrate (budget_edit + garble_end + text_end):",
       collections.Counter(r["task"] for r in runs if r["cause"]).most_common(10))
+
+print("\nTIME per run: model seconds spent producing bad calls before the budget ran out (garbled, edit no-match, read range,"
+      " inline-python syntax, shell errors, text calls) + the after-budget tail (from the request whose call was first refused"
+      " to the run's end), mean over ALL runs of the arm; % of mean agent time; tail mean over the runs that hit the budget")
+trows = []
+for arm, x in A.items():
+    if len(x) < MIN_RUNS: continue
+    n = len(x); agent = sum(r["agent_s"] for r in x) / n
+    bad = sum(sum(r["bad_s"].values()) for r in x) / n; tail = sum(r["tail_s"] for r in x) / n
+    hit = [r["tail_s"] for r in x if r["tail_s"] > 0]
+    kinds = collections.Counter()
+    for r in x: kinds.update(r["bad_s"])
+    top = ", ".join(f"{k} {v / n:.1f}" for k, v in kinds.most_common(3))
+    trows.append((bad + tail, arm, n, agent, bad, tail, hit, top))
+for tot, arm, n, agent, bad, tail, hit, top in sorted(trows, reverse=True):
+    print(f"{arm:20s} runs {n:4d} agent {agent:5.0f} s | bad calls {bad:5.1f} s + after-budget tail {tail:5.1f} s = {tot:5.1f} s/run ({tot / max(1, agent):5.1%})"
+          f" | budget hit in {len(hit):3d} runs ({len(hit) / n:5.1%}), tail there {sum(hit) / max(1, len(hit)):4.0f} s | bad-call kinds s/run: {top}")
