@@ -392,8 +392,25 @@ def main():
             ca, cb = tA[a], tA[b]
             dlt = tth[ca] - tth[cb]; sd = math.sqrt(tcov[ca, ca] + tcov[cb, cb] - 2 * tcov[ca, cb])
             tpairs.append(dict(a=a, b=b, diff_s=float(dlt), lo=float(dlt - 1.96 * sd), hi=float(dlt + 1.96 * sd)))
+    # sensitivity: the agent-by-task spread is barely identified; refit the effects with it set large (0.30) and redo the pairs
+    alt = np.array(sig, float).copy(); alt[3] = 0.30
+    y = np.array([r["y"] for r in rows], float)
+    th3, H3, _, _ = _map(y, d, alt)
+    S3 = draws_from(th3, np.linalg.inv(H3), 4000)
+
+    def rate3(arm):
+        eta = S3[:, [0]] + S3[:, [T[t] for t in dev]] + S3[:, [A[arm]]]
+        at = np.stack([S3[:, AT[(arm, t)]] if (arm, t) in AT else RNG.normal(0, alt[3], len(S3)) for t in dev], axis=1)
+        return logistic(eta + at).mean(axis=1)
+    pairs_axt030 = []
+    for p in pairs:
+        df = rate3(p["a"]) - rate3(p["b"])
+        pairs_axt030.append(dict(a=p["a"], b=p["b"], diff=float(np.median(df)), lo=float(np.quantile(df, .025)), hi=float(np.quantile(df, .975)),
+                                 p_better=float((df > 0).mean())))
+        print(f"sensitivity axt 0.30: {p['a']} vs {p['b']} {100 * pairs_axt030[-1]['diff']:+.1f} [{100 * pairs_axt030[-1]['lo']:+.1f}, {100 * pairs_axt030[-1]['hi']:+.1f}]"
+              f" (fit: {100 * p['diff']:+.1f})")
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
-    json.dump(dict(n_runs=len(rows), n_tasks=len(T), n_agents=len(A), n_draws=len(D), n_cells=len(AT), sigma=dict(zip(names, map(float, sig))),
+    json.dump(dict(pairs_axt030=pairs_axt030, n_runs=len(rows), n_tasks=len(T), n_agents=len(A), n_draws=len(D), n_cells=len(AT), sigma=dict(zip(names, map(float, sig))),
                    shares=shares, base_dev16=p0, agents=agents, tasks=tasks, draws=draws, pairs=pairs, luck=luck, noise=noise, power=power,
                    time_sigma=dict(zip(names, map(float, tsig))), time_resid=terr, time_shares=tshares, times=times, time_pairs=tpairs,
                    dev16=dev), open(OUT, "w"), indent=1)
