@@ -1,0 +1,10 @@
+name: drafter
+model: gemma-4-31b-it-qat-w4a16-ct
+description: Makes one quick best-guess edit where the evidence points, before the fixer starts.
+instruction: !include prompts/drafter.md
+include_contents: none  # fresh: the issue and the evidence are in its system prompt
+tools:
+  - run_command
+  - edit_file
+output_key: draft
+generate_content_config: !include configs/drafter_sampling.yaml

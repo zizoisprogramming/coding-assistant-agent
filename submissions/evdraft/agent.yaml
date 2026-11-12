@@ -1,0 +1,7 @@
+# evdraft (r88): evidc + a drafter stage (thinking off, one quick best-guess edit before the fixer, output_key draft) (scripts/make_r88_arms.py)
+name: swe_agent
+agent_class: SequentialAgent
+sub_agents:
+  - config_path: evidence.yaml
+  - config_path: drafter.yaml
+  - config_path: fixer.yaml

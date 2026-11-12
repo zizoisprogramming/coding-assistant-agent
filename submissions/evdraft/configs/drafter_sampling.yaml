@@ -1,0 +1,7 @@
+# r88 drafter: thinking off (thinking_budget 0 switches it off in adk_submission 0.2.13, as the evidence stage), room for one edit.
+temperature: 0.2
+top_p: 0.95
+max_output_tokens: 2048
+thinking_config:
+  thinking_budget: 0
+  include_thoughts: false
