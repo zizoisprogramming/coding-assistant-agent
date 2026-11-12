@@ -89,6 +89,20 @@ def test_import_time_calls_and_bodies_left_out():
     assert "10-12 handler (1)" in block and "18-19 get (1)" in block and "1-2 clean (1)" in block, block  # a decorated def starts at its decorator; clean: once, from handler, not at import
 
 
+def test_files_the_script_imports_come_first():
+    d = repo()
+    open(os.path.join(d, "pkg", "setup_heavy.py"), "w").write("def boot():\n    return [1, 2]\n\n\ndef more():\n    return boot()\n")
+    src = "import pkg.setup_heavy as s\ns.more()\nfrom pkg.util import clean\nprint(clean(' x '))\n"
+    code, out, _ = run(d, ["-"], stdin=src)
+    block = out.split("== CODE PATH")[1]
+    assert "files: pkg/setup_heavy.py (2), pkg/util.py (1)" in block, block
+    # all three imported: listed in the order the script imports them
+    src2 = "from pkg.util import clean\nimport pkg.setup_heavy as s\nfrom pkg.core import render\ns.more()\nprint(render(' ab '))\n"
+    code, out, _ = run(d, ["-"], stdin=src2)
+    block = out.split("== CODE PATH")[1]
+    assert "files: pkg/util.py (1), pkg/setup_heavy.py (2), pkg/core.py (2)" in block, block  # the script's import order
+
+
 def test_usage_and_missing_file():
     d = repo()
     assert run(d, [])[0] == 2

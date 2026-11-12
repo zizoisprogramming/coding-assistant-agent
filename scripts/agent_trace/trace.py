@@ -8,7 +8,8 @@
 
 The script runs as usual (its own output and errors are printed first); then a CODE PATH block lists the repository
 functions it called (tests, the standard library, installed packages, module and class bodies, comprehensions and
-everything that runs while modules are imported are left out), grouped by file in first-call order,
+everything that runs while modules are imported are left out): a 'files:' line with every file and its function count,
+then per file (the modules the check script imports first, the rest in first-call order) its functions in call order,
 each as 'first-last name (calls)', and, if it raised, the deepest repository line on the way. The idea comes from
 SWE-Doctor (runtime evidence of where the failure goes, arXiv 2607.00990) and spectrum-based fault localization:
 same-task data show solved runs edit the real-fix lines 89% vs failed 49%, and failed runs often never read them.
@@ -103,12 +104,39 @@ def prof(frame, event, arg):
     calls[key] += 1
 
 
+SOURCE = [""]  # the check script's text: the repository modules it imports are listed first
+
+
+def script_files():
+    """repository files of the modules the check script imports or names (pkg.mod -> pkg/mod.py or pkg/mod/__init__.py)."""
+    mods = []
+    for a, b in re.findall(r"^\s*(?:from\s+([\w.]+)\s+import|import\s+([\w.]+))", SOURCE[0], re.M):
+        if (a or b) not in mods:
+            mods.append(a or b)  # source order
+    out = []
+    for m in mods:
+        parts = m.split(".")
+        for k in range(len(parts), 0, -1):
+            base = os.path.join(*parts[:k])
+            for cand in (base + ".py", os.path.join(base, "__init__.py")):
+                if os.path.isfile(os.path.join(ROOT, cand)) and cand not in out:
+                    out.append(cand)
+            if any(o.startswith(base) for o in out):
+                break
+    return out
+
+
 def report(exc):
-    out = ["", "== CODE PATH: functions of this repository the script ran (file: first-last name, calls), first call first"]
+    out = ["", "== CODE PATH: functions of this repository the script ran (file: first-last name, calls)"]
     files = []
     for rel, _, _ in order:
         if rel not in files:
             files.append(rel)
+    first = [f for f in script_files() if f in files]  # the modules the script imports first, then first-call order
+    files = first + [f for f in files if f not in first]
+    if files:
+        counts = {f: sum(1 for k in order if k[0] == f) for f in files}
+        out.append("files: " + ", ".join(f"{f} ({counts[f]})" for f in files[:10]) + (f", ... {len(files) - 10} more" if len(files) > 10 else ""))
     if not files:
         out.append("  (none: the script never called code from this repository)")
     for rel in files[:MAX_FILES]:
@@ -138,9 +166,11 @@ def main():
     target = args[0]
     if target == "-":
         source, name = sys.stdin.read(), "<stdin>"
+        SOURCE[0] = source
     else:
         try:
             source, name = open(target, errors="replace").read(), target
+            SOURCE[0] = source
         except OSError as e:
             print(f"cannot read {target}: {e}")
             return 2

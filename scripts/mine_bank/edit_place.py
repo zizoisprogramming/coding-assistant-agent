@@ -1,5 +1,6 @@
 """Right file, but the right PLACE in it? (2026-11-12, user: "it gets the file then the problem is where").
-Run: python3 -I scripts/mine_bank/edit_place.py SNAPSHOT_DIR [SNAPSHOT_DIR ...]   (extracted data/snapshots/*.tgz)
+Run: python3 -I scripts/mine_bank/edit_place.py SNAPSHOT_DIR [SNAPSHOT_DIR ...] [--only=FOLDER_SUBSTR]   (extracted data/snapshots/*.tgz;
+--only limits to results folders whose name contains the substring and adds a per-arm line)
 
 For every logged 31B run with a patch (solved or failed) on a task whose base is found in a local snapshot
 (fix_line_age.find_base), each edit_file call on a real-fix file is placed in the file as it was at the base (its
@@ -89,13 +90,17 @@ def read_ranges(name, args):
     return out
 
 
+ONLY_DIRS = [a[7:] for a in sys.argv[1:] if a.startswith("--only=")]
+
+
 def main(dirs):
+    dirs = [d for d in dirs if not d.startswith("--")]
     snap = fla.snapshots(dirs)
     base_of, text_of, fmap_of = {}, {}, {}
     rows = []
     for f in sorted(glob.glob("data/results/*/requests/requests.jsonl")):
         d = f.split("/")[2]
-        if "e4b" in d or "12b" in d:
+        if "e4b" in d or "12b" in d or (ONLY_DIRS and not any(o in d for o in ONLY_DIRS)):
             continue
         per = glob.glob(f"data/results/{d}/**/gen_per_task.jsonl", recursive=True)
         if not per:
@@ -168,7 +173,7 @@ def main(dirs):
             if best:
                 gpos = min(min(v) for v in ch.values())
                 flen = max(len(text_of[(iid, gf)]) for gf in ch)
-                rows.append(dict(iid=iid, y=bool(g.get("resolved")), cls=best[1], dist=best[2], read=read_before, read_ever=read_ever,
+                rows.append(dict(iid=iid, arm=str(g.get("arm")), y=bool(g.get("resolved")), cls=best[1], dist=best[2], read=read_before, read_ever=read_ever,
                                  deep=gpos > 150, flen=flen))
     print(f"runs with a placed edit in a real-fix file: {len(rows)} (solved {sum(r['y'] for r in rows)}, failed {sum(not r['y'] for r in rows)}) on {len({r['iid'] for r in rows})} tasks")
     order = ["on the lines", "near (<= 15 lines)", "same function, farther", "elsewhere in the file"]
@@ -184,6 +189,11 @@ def main(dirs):
             f = [r for r in g if not r["y"]]
             print(f"  {lab:42s} runs {len(g):4d}, solved {100 * sum(r['y'] for r in g) / len(g):3.0f}% | failed runs off the lines {100 * sum(r['cls'] in order[2:] for r in f) / max(1, len(f)):3.0f}%, "
                   f"failed runs that never read them before editing {100 * sum(not r['read'] for r in f) / max(1, len(f)):3.0f}%")
+    if ONLY_DIRS:
+        for arm in sorted({r["arm"] for r in rows}):
+            g = [r for r in rows if r["arm"] == arm]
+            c = collections.Counter(r["cls"] for r in g)
+            print(f"  {arm:8s} runs with a placed edit {len(g)}: " + ", ".join(f"{k} {c[k]}" for k in order if c[k]) + f" | read the real-fix lines before editing {sum(r['read'] for r in g)}")
     by = collections.defaultdict(lambda: ([], []))
     for r in rows:
         by[r["iid"]][r["y"]].append(r)

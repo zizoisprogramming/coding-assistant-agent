@@ -1,0 +1,6 @@
+# evtrace2 (r85): evidefs + the code-path tool (imports listed first) + a fixer prompt whose every Python run goes through it + the how-to line in the evidence (scripts/make_r85_arms.py)
+name: swe_agent
+agent_class: SequentialAgent
+sub_agents:
+  - config_path: evidence.yaml
+  - config_path: fixer.yaml
