@@ -228,7 +228,7 @@ def analyse(iid, turns, result):
         model_s=sum(secs), kinds=dict(k), pre=dict(pre), kind_s={a: round(b) for a, b in kind_s.items()}, tok_pre=tok_pre, refusals=dict(rt), fixed_at=fixed_at,
         first_refusal=after_refusal[0] if after_refusal else None, tc_harness=result.get("tool_calls"), budget_calls=nbudget, first_attempt=first_attempt, first_attempt_call=first_attempt_call, call_times=call_times, last_edit_budget=None, time_at_28=t28, edited_by28=edited_by28, last_edit_call=None, first_edit=first_edit, first_edit_call=first_edit_call, last_edit=last_edit_t,
         first_submit=first_submit, end_turn=turns[-1]["t_end"] if turns else None, n_edits=len(edit_times), files_edited=len(set(edited)), first_read_gold=first_read_gold, read_gold=first_read_gold is not None,
-        n_gold=len(gold_src), edited_gold=len(edited_gold), first_edit_gold=bool(edited) and edited[0] in gold_src,
+        n_gold=len(gold_src), edited_gold=len(edited_gold), edited_files=sorted(set(edited)), gold_files=sorted(gold_src), first_edit_gold=bool(edited) and edited[0] in gold_src,
         all_gold=bool(gold_src) and len(edited_gold) == len(gold_src), reread=sum(v - 1 for v in read_paths.values() if v > 1),
         repeat_cmd=sum(v - 1 for v in cmds_seen.values() if v > 1), last_test=last_test, test_after_edit=test_after_edit,
         edit_gaps=[round(b - a) for a, b in zip(edit_times, edit_times[1:])], end=result.get("end"),
