@@ -1,0 +1,6 @@
+# evidh (r83): evidefs + the evidence script's 'changed recently' section (newest commit in the last 300 that wrote each name's code) (scripts/make_evidh.py)
+name: swe_agent
+agent_class: SequentialAgent
+sub_agents:
+  - config_path: evidence.yaml
+  - config_path: fixer.yaml
