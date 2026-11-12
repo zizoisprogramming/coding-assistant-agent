@@ -29,9 +29,12 @@ PAIRS = [("evidc", "combo1"), ("evidd", "evidc"), ("evide", "evidc"), ("combo1",
          ("sk_a2", "pub024"), ("sk_a2_32", "pub024"), ("nn32", "pub024"), ("nn36p", "pub024"), ("kf2", "pub024"), ("combo1en", "combo1"),
          ("combo1en2", "combo1"), ("combo2", "combo1"), ("evid4", "pub024"), ("hunch", "pub024"), ("race3", "combo1"), ("race2", "combo1"),
          ("nn32rcf", "combo1"), ("allplus", "combo1"), ("evgate", "combo1"), ("t7rc", "combo1"),
-         ("pub024fs", "pub024"), ("combo1fs", "combo1"), ("evid3fs", "evid3"), ("evidcfs", "evidc"), ("sq1c2a8rc", "evidc")]
+         ("pub024fs", "pub024"), ("combo1fs", "combo1"), ("evid3fs", "evid3"), ("evidcfs", "evidc"), ("sq1c2a8rc", "evidc"),
+         ("evidefs", "evide"), ("evmap", "evidefs"), ("evtrace", "evidefs"), ("evall", "evidefs"), ("evtrace2", "evidefs"), ("evgraph", "evidefs"),
+         ("evtrace2", "evtrace"), ("evgraph", "evtrace2")]
 # a new arm that is a changed copy of a known agent is scored in the luck check as that agent (the null: the change does nothing)
-NULL_AS = {"pub024fs": "pub024", "combo1fs": "combo1", "evid3fs": "evid3", "evidcfs": "evidc", "evidd": "evidc", "evide": "evidc"}
+NULL_AS = {"pub024fs": "pub024", "combo1fs": "combo1", "evid3fs": "evid3", "evidcfs": "evidc", "evidd": "evidc", "evide": "evidc",
+           "evidefs": "evide", "evmap": "evide", "evtrace": "evide", "evall": "evide", "evtrace2": "evide", "evgraph": "evide"}  # r84 / r85: copies of evidefs (= evide + the fs prompt)
 
 
 def load():
