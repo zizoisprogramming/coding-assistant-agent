@@ -1,0 +1,7 @@
+name: proposers
+agent_class: ParallelAgent
+description: "Three engineers propose a fix each, without tools."
+sub_agents:
+  - config_path: prop_a.yaml
+  - config_path: prop_b.yaml
+  - config_path: prop_c.yaml

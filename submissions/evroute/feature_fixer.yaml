@@ -1,0 +1,14 @@
+name: feature_fixer
+model: gemma-4-31b-it-qat-w4a16-ct
+description: "Adds features: something the code does not do yet."
+instruction: !include prompts/feature_fixer.md
+tools:
+  - run_command
+  - read_file
+  - edit_file
+  - write_file
+  - get_status
+  - submit_patch
+disallow_transfer_to_parent: true
+disallow_transfer_to_peers: true
+generate_content_config: !include configs/sampling.yaml

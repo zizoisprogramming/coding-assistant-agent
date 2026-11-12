@@ -1,0 +1,6 @@
+# evroute (r92): evidence -> router (one transfer_to_agent) -> bug_fixer / feature_fixer / docs_fixer (scripts/make_r92_arms.py)
+name: swe_agent
+agent_class: SequentialAgent
+sub_agents:
+  - config_path: evidence.yaml
+  - config_path: router.yaml

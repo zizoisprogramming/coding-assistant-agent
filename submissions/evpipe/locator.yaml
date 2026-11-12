@@ -1,0 +1,11 @@
+name: locator
+model: gemma-4-31b-it-qat-w4a16-ct
+description: "Finds the exact code to change and copies it for the proposers."
+instruction: !include prompts/locator.md
+include_contents: none
+tools:
+  - get_status
+skills:
+  - skills/look
+output_key: location
+generate_content_config: !include configs/sampling.yaml

@@ -1,0 +1,11 @@
+name: check
+model: gemma-4-31b-it-qat-w4a16-ct
+description: "Reports the round's diff and the related tests."
+instruction: !include prompts/check.md
+include_contents: none
+tools:
+  - get_status
+skills:
+  - skills/check
+output_key: report
+generate_content_config: !include configs/evidence_sampling.yaml

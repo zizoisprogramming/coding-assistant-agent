@@ -1,0 +1,7 @@
+name: rounds
+agent_class: LoopAgent
+description: "Two rounds: an attempt in a fresh context, then a report of the diff and the related tests."
+max_iterations: 2
+sub_agents:
+  - config_path: attempt.yaml
+  - config_path: check.yaml

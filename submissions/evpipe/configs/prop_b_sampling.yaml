@@ -1,0 +1,7 @@
+# r92 evpipe proposer b
+temperature: 0.7
+top_p: 0.95
+max_output_tokens: 8192
+thinking_config:
+  thinking_budget: 4096
+  include_thoughts: true

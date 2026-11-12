@@ -1,0 +1,11 @@
+name: attempt
+model: gemma-4-31b-it-qat-w4a16-ct
+description: "Makes or improves the fix in one round, from a fresh context and the last report."
+instruction: !include prompts/attempt.md
+include_contents: none
+tools:
+  - edit_file
+  - get_status
+skills:
+  - skills/act
+generate_content_config: !include configs/sampling.yaml

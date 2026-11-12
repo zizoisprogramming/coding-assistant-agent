@@ -1,0 +1,10 @@
+name: router
+model: gemma-4-31b-it-qat-w4a16-ct
+description: "Hands the issue to the right specialist."
+instruction: !include prompts/router.md
+include_contents: none
+sub_agents:
+  - config_path: bug_fixer.yaml
+  - config_path: feature_fixer.yaml
+  - config_path: docs_fixer.yaml
+generate_content_config: !include configs/evidence_sampling.yaml

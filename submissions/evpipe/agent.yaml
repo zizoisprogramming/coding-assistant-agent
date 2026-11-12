@@ -1,0 +1,8 @@
+# evpipe (r92): evidence -> locator (look skill, refused after 6 calls) -> three tool-less proposers in parallel -> applier (scripts/make_r92_arms.py)
+name: swe_agent
+agent_class: SequentialAgent
+sub_agents:
+  - config_path: evidence.yaml
+  - config_path: locator.yaml
+  - config_path: proposers.yaml
+  - config_path: applier.yaml

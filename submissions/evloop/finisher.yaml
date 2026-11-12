@@ -1,0 +1,9 @@
+name: finisher
+model: gemma-4-31b-it-qat-w4a16-ct
+description: "Submits the patch."
+instruction: !include prompts/finisher.md
+include_contents: none
+tools:
+  - submit_patch
+  - get_status
+generate_content_config: !include configs/evidence_sampling.yaml

@@ -1,0 +1,7 @@
+name: prop_a
+model: gemma-4-31b-it-qat-w4a16-ct
+description: "Proposes a fix (a) as SEARCH/REPLACE blocks, without tools."
+instruction: !include prompts/proposer.md
+include_contents: none
+output_key: prop_a
+generate_content_config: !include configs/prop_a_sampling.yaml
