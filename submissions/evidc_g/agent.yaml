@@ -1,0 +1,6 @@
+# evidc_g (r89): evidc with Google's recommended Gemma 4 sampling for the fixer (T 1.0, top_p 0.95, top_k 64) (scripts/make_r89_arms.py)
+name: swe_agent
+agent_class: SequentialAgent
+sub_agents:
+  - config_path: evidence.yaml
+  - config_path: fixer.yaml
