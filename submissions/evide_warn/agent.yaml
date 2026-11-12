@@ -1,0 +1,6 @@
+# evide_warn (r87): evide + a few-shot WHEN THE HARNESS WARNS section in the fixer prompt (edit on the first budget warning) (scripts/make_r87_arms.py)
+name: swe_agent
+agent_class: SequentialAgent
+sub_agents:
+  - config_path: evidence.yaml
+  - config_path: fixer.yaml

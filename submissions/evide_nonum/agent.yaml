@@ -1,0 +1,6 @@
+# evide_nonum (r87): evide with only the budget numbers taken out of the fixer prompt (call plan -> order of work) (scripts/make_r87_arms.py)
+name: swe_agent
+agent_class: SequentialAgent
+sub_agents:
+  - config_path: evidence.yaml
+  - config_path: fixer.yaml
