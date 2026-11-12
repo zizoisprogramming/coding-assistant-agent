@@ -1,0 +1,8 @@
+# r90 evteam fixers: evidc's fixer sampling with max output 6144 (was 8192): inside the AgentTool the session never
+# compacts, and a request whose prompt + max output passes max_model_len 32,768 kills the whole task.
+temperature: 0.2
+top_p: 0.95
+max_output_tokens: 6144
+thinking_config:
+  thinking_budget: 4096
+  include_thoughts: true

@@ -1,0 +1,6 @@
+name: team
+agent_class: ParallelAgent
+description: Two engineers fix the issue at the same time, each on their own; a test vote keeps the better patch.
+sub_agents:
+  - config_path: fix_a.yaml
+  - config_path: fix_b.yaml

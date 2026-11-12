@@ -1,0 +1,6 @@
+# evval (r90): evtrace2 + the code-path tool's runtime evidence (lines that ran, first-call args -> returned, locals where it raised) + a fixer prompt written around it (scripts/make_r90_arms.py)
+name: swe_agent
+agent_class: SequentialAgent
+sub_agents:
+  - config_path: evidence.yaml
+  - config_path: fixer.yaml

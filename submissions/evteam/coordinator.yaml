@@ -1,0 +1,12 @@
+name: coordinator
+model: gemma-4-31b-it-qat-w4a16-ct
+description: Runs the two-fixer team once, makes sure the voted patch is in /workspace, and submits it.
+instruction: !include prompts/coordinator.md
+tools:
+  - get_status
+  - submit_patch
+  - agent_tool:
+      config_path: team.yaml
+skills:
+  - skills/team
+generate_content_config: !include configs/coordinator_sampling.yaml

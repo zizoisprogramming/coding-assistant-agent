@@ -1,0 +1,12 @@
+name: fix_b
+model: gemma-4-31b-it-qat-w4a16-ct
+description: "Fixer B: fixes the issue in its own copy (.git/agent/wt_b), then hands its patch to the vote."
+instruction: !include prompts/fix_b.md
+tools:
+  - run_command
+  - read_file
+  - edit_file
+  - write_file
+  - get_status
+  - submit_patch  # declared although the prompt says the coordinator submits: an undeclared call raises in ADK and kills the task
+generate_content_config: !include configs/fixer_sampling.yaml

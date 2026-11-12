@@ -1,0 +1,6 @@
+# evteam (r90): evidc's evidence stage + a coordinator whose one tool is a two-fixer team (AgentTool around a ParallelAgent: no shared-session compaction crash); the fixers' done calls run a test vote (scripts/make_r90_arms.py)
+name: swe_agent
+agent_class: SequentialAgent
+sub_agents:
+  - config_path: evidence.yaml
+  - config_path: coordinator.yaml

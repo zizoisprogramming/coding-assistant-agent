@@ -1,0 +1,7 @@
+# r90 evteam coordinator: thinking off (thinking_budget 0, as evidc's evidence stage); three fixed calls.
+temperature: 0.2
+top_p: 0.95
+max_output_tokens: 1024
+thinking_config:
+  thinking_budget: 0
+  include_thoughts: false
