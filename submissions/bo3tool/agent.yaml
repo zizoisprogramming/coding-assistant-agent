@@ -1,0 +1,12 @@
+# bo3tool (race investigation 2026-11-12, local sim only): a coordinator whose one tool is the team, an AgentTool around
+# ParallelAgent [fix_a, fix_b, fix_c] (bo3's fixers): the team runs in the AgentTool's own session, which has no
+# compaction (google/adk/tools/agent_tool.py: child Runner + InMemorySessionService, no App). Not a submission.
+name: swe_agent
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/coordinator.md
+tools:
+  - get_status
+  - submit_patch
+  - agent_tool:
+      config_path: team.yaml
+generate_content_config: !include configs/sampling.yaml

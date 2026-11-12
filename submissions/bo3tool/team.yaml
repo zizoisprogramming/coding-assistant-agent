@@ -1,0 +1,7 @@
+name: team
+agent_class: ParallelAgent
+description: Three engineers fix the issue at the same time, separately; Fixer A judges and submits the chosen patch.
+sub_agents:
+  - config_path: fix_a.yaml
+  - config_path: fix_b.yaml
+  - config_path: fix_c.yaml

@@ -1,0 +1,16 @@
+name: fix_c
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/fix_c.md
+tools:
+  - run_command
+  - read_file
+  - edit_file
+  - write_file
+  - get_status
+  - submit_patch  # declared on all three: the harness task message names it; an undeclared call drops the patch
+  - get_code_neighbors
+  - search_similar_code
+  - get_code_subgraph
+skills:
+  - skills/team
+generate_content_config: !include configs/sampling.yaml
