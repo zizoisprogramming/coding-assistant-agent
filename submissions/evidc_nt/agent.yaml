@@ -1,0 +1,6 @@
+# evidc_nt (r93): evidc with the fixer's past thoughts stripped from the history (include_thoughts: false, thinking stays on) (scripts/make_r93_arms.py)
+name: swe_agent
+agent_class: SequentialAgent
+sub_agents:
+  - config_path: evidence.yaml
+  - config_path: fixer.yaml

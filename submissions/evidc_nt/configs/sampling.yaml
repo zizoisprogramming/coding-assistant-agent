@@ -1,0 +1,7 @@
+# r93 evidc_nt: thinking stays ON (thinking_budget > 0); include_thoughts false keeps past thoughts out of the history (adk_submission 0.2.13)
+temperature: 0.2
+top_p: 0.95
+max_output_tokens: 8192
+thinking_config:
+  thinking_budget: 4096
+  include_thoughts: false

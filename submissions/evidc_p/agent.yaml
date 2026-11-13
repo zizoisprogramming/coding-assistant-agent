@@ -1,0 +1,6 @@
+# evidc_p (r93): evidc + PAST CHANGES LIKE THIS ONE (past commits whose titles share the names, with the files and functions they changed) first in the evidence (scripts/make_r93_arms.py)
+name: swe_agent
+agent_class: SequentialAgent
+sub_agents:
+  - config_path: evidence.yaml
+  - config_path: fixer.yaml
