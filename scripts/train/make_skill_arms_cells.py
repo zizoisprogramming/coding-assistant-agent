@@ -168,7 +168,7 @@ for arm, files in ARM_FILES.items():
     _cmds = _cp.read_text().split() if _cp.exists() else ['(no skill)']
     print(arm, '| tools', [l.split('#')[0].strip()[2:] for l in (SUB_ROOT / arm / 'agent.yaml').read_text().splitlines() if l.strip().startswith('- ')][:8],
           '| skill commands', _cmds, '| budgets', ' '.join(l.strip() for l in _ev.splitlines() if ':' in l and 'evaluation' not in l))
-    assert any(('max_time_minutes: ' + m) in _ev for m in '876'), 'arms run with the 8-minute limit (as mix\\'s dev16 runs), 7 or 6 (sq1c2t7, sq1c2t6)'
+    assert any(('max_time_minutes: ' + m) in _ev for m in '9876'), 'arms run with the 8-minute limit (as mix\\'s dev16 runs), 7 or 6 (sq1c2t7, sq1c2t6), or 9 (r97 evtb9)'
 '''
 
 CELL5 = r'''# 5. SKILL ARMS SUMMARY (paste this output to Claude): per pass, per arm vs mix's 64 dev16 runs, per task.
