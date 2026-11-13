@@ -1,0 +1,6 @@
+# evbrief (r95): evidc with the fixer prompt written fresh: think briefly before routine calls, carefully when choosing the edit and after a failing test; no budget numbers (scripts/make_r95_arms.py)
+name: swe_agent
+agent_class: SequentialAgent
+sub_agents:
+  - config_path: evidence.yaml
+  - config_path: fixer.yaml

@@ -1,0 +1,6 @@
+# evex_f (r95): evidc + one fixed solved example (Gemma's own run on Instagram/MonkeyType) after the evidence in the evidence script's result (scripts/make_r95_arms.py)
+name: swe_agent
+agent_class: SequentialAgent
+sub_agents:
+  - config_path: evidence.yaml
+  - config_path: fixer.yaml
