@@ -1,0 +1,6 @@
+# evtb9 (r97): evtb + 9 minutes and 33 tool calls (evidc 8 / 29): the time thinking 2048 saves, spent on a longer cap (scripts/make_r97_arms.py)
+name: swe_agent
+agent_class: SequentialAgent
+sub_agents:
+  - config_path: evidence.yaml
+  - config_path: fixer.yaml

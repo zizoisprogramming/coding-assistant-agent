@@ -1,0 +1,7 @@
+# r97 evtb: thinking budget 2048 (evidc 4096): replies > 2,000 tokens are 3% of replies but 30% of model time
+temperature: 0.2
+top_p: 0.95
+max_output_tokens: 8192
+thinking_config:
+  thinking_budget: 2048
+  include_thoughts: true

@@ -1,0 +1,6 @@
+# r97 evtb9: 9 minutes and 33 calls (evidc 8 / 29); thinking 2048 is meant to pay for the extra minute
+evaluation:
+  timeout_seconds: 240
+  max_tool_calls: 33
+  max_time_minutes: 9
+  max_turns: 80
