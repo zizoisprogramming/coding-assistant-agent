@@ -35,13 +35,13 @@ PAIRS = [("evidc", "combo1"), ("evidd", "evidc"), ("evide", "evidc"), ("combo1",
          ("evide_nonum", "evide"), ("evide_warn", "evide"), ("evdraft", "evidc"), ("evidc_g", "evidc"),
          ("evval", "evidc"), ("evval", "evtrace2"), ("evteam", "evidc"),
          ("evpipe", "evidc"), ("evloop", "evidc"), ("evroute", "evidc"),
-         ("evidc_nt", "evidc"), ("evidc_p", "evidc")]
+         ("evidc_nt", "evidc"), ("evidc_p", "evidc"), ("evex_f", "evidc"), ("evex_m", "evidc"), ("evbrief", "evidc")]
 # a new arm that is a changed copy of a known agent is scored in the luck check as that agent (the null: the change does nothing)
 NULL_AS = {"pub024fs": "pub024", "combo1fs": "combo1", "evid3fs": "evid3", "evidcfs": "evidc", "evidd": "evidc", "evide": "evidc",
            "evidefs": "evide", "evmap": "evide", "evtrace": "evide", "evall": "evide", "evtrace2": "evide", "evgraph": "evide", "evide_nonum": "evide", "evide_warn": "evide",
            "evdraft": "evidc", "evidc_g": "evidc", "evval": "evtrace2", "evteam": "evidc",
            "evpipe": "evidc", "evloop": "evidc", "evroute": "evidc",
-           "evidc_nt": "evidc", "evidc_p": "evidc"}  # r84 / r85: copies of evidefs (= evide + the fs prompt)
+           "evidc_nt": "evidc", "evidc_p": "evidc", "evex_f": "evidc", "evex_m": "evidc", "evbrief": "evidc"}  # r84 / r85: copies of evidefs (= evide + the fs prompt)
 
 
 def load():
