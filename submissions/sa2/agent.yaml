@@ -1,9 +1,7 @@
-# sa2: one agent + an independent second attempt (scripts/make_skill_arms.py sa2): the lead fixes in /workspace;
-# judge.py next decides whether there is time for second_fixer (agent_tool, fresh session, .git/agent/wt_b); the
-# judge keeps the better patch; the lead submits.
+# sa2 (2026-11-16): sa1 with Example 2 (the edit) shown as plain text blocks instead of an escaped Python-style call (scripts/make_sa2.py)
 name: swe_agent
 model: gemma-4-31b-it-qat-w4a16-ct
-instruction: !include prompts/lead.md
+instruction: !include prompts/system.md
 tools:
   - run_command
   - read_file
@@ -11,11 +9,4 @@ tools:
   - write_file
   - get_status
   - submit_patch
-  - get_code_neighbors
-  - search_similar_code
-  - get_code_subgraph
-  - agent_tool:
-      config_path: second.yaml
-skills:
-  - skills/team
 generate_content_config: !include configs/sampling.yaml
