@@ -71,7 +71,7 @@ def tool_result(msgs, cid):
 
 rows = []
 for d in sorted(glob.glob("data/results/2026-11-1*_skill_*")):
-    if not any(k in d for k in ("rtest", "sa1rt", "sa2rt")):
+    if not any(k in d for k in ("rtest", "sa1rt", "sa2rt", "sa3mf")):
         continue
     gp = os.path.join(d, "results/gen_per_task.jsonl")
     if not os.path.exists(gp):
