@@ -1,0 +1,12 @@
+# sb3 fixer: sb1's agent without submit_patch, fresh prompt (scripts/agent_sb3/fixer.md)
+name: fixer
+model: gemma-4-31b-it-qat-w4a16-ct
+description: Finds the code, fixes the issue and checks the fix, then hands over.
+instruction: !include prompts/fixer.md
+tools:
+  - run_command
+  - read_file
+  - edit_file
+  - write_file
+  - get_status
+generate_content_config: !include configs/sampling.yaml

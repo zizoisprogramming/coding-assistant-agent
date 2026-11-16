@@ -1,0 +1,13 @@
+# sb3 check: history check keyed on the fixer's diff, then submit (scripts/agent_sb3/check.md)
+name: check
+model: gemma-4-31b-it-qat-w4a16-ct
+description: Compares the fix with the repository's history, completes it and submits it.
+instruction: !include prompts/check.md
+tools:
+  - run_command
+  - read_file
+  - edit_file
+  - write_file
+  - get_status
+  - submit_patch
+generate_content_config: !include configs/sampling.yaml

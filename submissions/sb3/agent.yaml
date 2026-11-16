@@ -1,0 +1,7 @@
+# sb3 (2026-11-16): fixer (no submit) then a check stage that compares the fix with the repository's history and submits (scripts/make_sb3.py)
+name: swe_agent
+agent_class: SequentialAgent
+description: Fixes the issue, then checks the fix against the repository's history and submits it.
+sub_agents:
+  - config_path: fixer.yaml
+  - config_path: check.yaml
