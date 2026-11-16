@@ -7,10 +7,14 @@ before the run (docs/PLAN.md RUN BUILT r104):
   time:      mean agent time <= sa2's + 20 s.
 Also: why runs end with no patch (edited then reverted? never edited? time / budget end?), signature changes beyond the
 real fix, the same heredoc re-run after the edit, per-task paired solves.
-Run: python3 -I scripts/mine_bank/r104_sb1.py   (repo root; reads logs only, no repository code runs)"""
-import ast, collections, glob, json, os, re
+Run: python3 -I scripts/mine_bank/r104_sb1.py [FOLDER_GLOB ARM_A ARM_B]   (repo root; reads logs only, no repository code runs)
+r105 / r107 (sb1 vs sb2): python3 -I scripts/mine_bank/r104_sb1.py 'data/results/2026-11-16_skill_sb2*_p*' sb1 sb2
+Extra for a history stage (sb2): its command is the first tool call (hist_first), its output names a real-fix file
+(hist_gold), the fixer runs git show (fix_show), the patch edits a file the history output listed beyond the files the
+name matched (used_cochange)."""
+import ast, collections, glob, json, os, re, sys
 
-DIRS = sorted(glob.glob("data/results/2026-11-16_skill_sb1rt_p*"))
+DIRS = sorted(glob.glob(sys.argv[1] if len(sys.argv) > 1 else "data/results/2026-11-16_skill_sb1rt_p*"))
 TEST = re.compile(r"(^|/)(tests?|testing)/|(^|/)test_[^/]*\.py$|_test\.py$|conftest\.py$")
 GOLD = {json.loads(l)["instance_id"]: json.loads(l) for l in open("data/swe_rebench/candidates.jsonl")}
 
@@ -96,6 +100,10 @@ for d in DIRS:
         pfile = os.path.join(d, "results/gen/patches", f"{iid}__a{g['attempt']}.diff")
         mine = open(pfile, errors="replace").read() if os.path.exists(pfile) else ""
         gold = GOLD[iid]["patch"]
+        hist_i = [i for i, (n, a, cid) in enumerate(seq) if n == "run_command" and "history_shown" in cmd(a)]
+        hout = toolout.get(seq[hist_i[0]][2], "") if hist_i else ""
+        hfiles = set(re.findall(r"^\s*\d+ (\S+)$", hout, re.M))
+        starts = set(re.findall(r"^== (\S+): files changed", hout, re.M))
         garbled = sum("mandatory input parameters are not present" in toolout.get(cid, "") for n, a, cid in seq if n in ("edit_file", "write_file"))
         rows.append(dict(
             pass_=d[-2:], arm=g["arm"], iid=iid, solved=g["resolved"] in (True, "True"), patch=bool(mine.strip()),
@@ -112,14 +120,18 @@ for d in DIRS:
             revert=any(n == "run_command" and re.search(r"git (checkout|restore|stash|reset)", cmd(a)) for i, (n, a, _) in enumerate(seq) if i > fe),
             multi=len(src_files(gold)) >= 2, all_files=bool(src_files(gold)) and src_files(gold) <= src_files(mine),
             extra_defs=def_changes(mine) > def_changes(gold),
+            hist_first=bool(hist_i) and hist_i[0] == 0, hist_runs=len(hist_i),
+            hist_gold=any(f in hout for f in src_files(gold)),
+            fix_show=any(n == "run_command" and "git show" in cmd(a) for i, (n, a, _) in enumerate(seq) if i not in hist_i),
+            used_cochange=bool((src_files(mine) & hfiles) - starts),
         ))
 
-arms = ["sa2", "sb1"]
+arms = sys.argv[2:4] if len(sys.argv) > 3 else ["sa2", "sb1"]
 by = {a: [r for r in rows if r["arm"] == a] for a in arms}
 pct = lambda xs, k: f"{sum(r[k] for r in xs):3d}/{len(xs):2d} ({100 * sum(r[k] for r in xs) / max(1, len(xs)):3.0f}%)"
 print("runs", {a: len(by[a]) for a in arms}, "| passes", sorted({r["pass_"] for r in rows}))
 for k in ["solved", "patch", "edited", "git_hist", "full_diff", "show_stat", "test_grep", "read_test", "pytest_after",
-          "read_then_run", "heredoc_after", "rerun_same", "revert", "extra_defs"]:
+          "read_then_run", "heredoc_after", "rerun_same", "revert", "extra_defs", "hist_first", "hist_gold", "fix_show", "used_cochange"]:
     print(f"  {k:14}", " | ".join(f"{a} {pct(by[a], k)}" for a in arms))
 for a in arms:
     xs = by[a]
@@ -130,17 +142,17 @@ for a in arms:
     np_ = [r for r in xs if not r["patch"]]
     print(f"     no patch {len(np_)}: " + "; ".join(f"{r['iid'].split('__')[1]} p{r['pass_'][-1]} edited={r['edited']} revert={r['revert']} end={r['end']} calls={r['calls']}" for r in np_))
 
-print("\nper task: solves sa2 vs sb1 (out of the runs each arm has)")
+print(f"\nper task: solves {arms[0]} vs {arms[1]} (out of the runs each arm has)")
 tasks = sorted({r["iid"] for r in rows})
 wins = losses = 0
 for t in tasks:
     s = {a: [r["solved"] for r in by[a] if r["iid"] == t] for a in arms}
-    da, db = sum(s["sa2"]) / max(1, len(s["sa2"])), sum(s["sb1"]) / max(1, len(s["sb1"]))
+    da, db = sum(s[arms[0]]) / max(1, len(s[arms[0]])), sum(s[arms[1]]) / max(1, len(s[arms[1]]))
     wins += db > da
     losses += db < da
     mark = "+" if db > da else ("-" if db < da else " ")
-    print(f"  {mark} {t[:52]:52} sa2 {sum(s['sa2'])}/{len(s['sa2'])}  sb1 {sum(s['sb1'])}/{len(s['sb1'])}")
-print(f"tasks where sb1 solved more: {wins}, fewer: {losses}")
+    print(f"  {mark} {t[:52]:52} " + "  ".join(f"{a} {sum(s[a])}/{len(s[a])}" for a in arms))
+print(f"tasks where {arms[1]} solved more: {wins}, fewer: {losses}")
 
 # solved by history / test mechanism within sb1
 for k in ["git_hist", "read_then_run", "rerun_same", "pytest_after"]:
