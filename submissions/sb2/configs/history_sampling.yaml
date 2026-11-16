@@ -1,0 +1,7 @@
+# history stage (sb2): one fixed command, little reasoning needed (as le6 / r57 setup stages: thinking 128)
+temperature: 0.2
+top_p: 0.95
+max_output_tokens: 1024
+thinking_config:
+  include_thoughts: true
+  thinking_budget: 128

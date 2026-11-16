@@ -1,0 +1,7 @@
+# sb2 (2026-11-16): a history stage that always runs first (one fixed git command, then blocked), then sb1's fixer with a fresh prompt (scripts/make_sb2.py)
+name: swe_agent
+agent_class: SequentialAgent
+description: Shows the repository history around the issue, then fixes the issue.
+sub_agents:
+  - config_path: history.yaml
+  - config_path: fixer.yaml

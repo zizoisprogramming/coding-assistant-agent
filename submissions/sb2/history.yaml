@@ -1,0 +1,8 @@
+name: history
+model: gemma-4-31b-it-qat-w4a16-ct
+description: Runs one git command that shows how the repository usually changes around the issue. Makes a single call.
+instruction: !include prompts/history.md
+include_contents: none
+tools:
+  - run_command
+generate_content_config: !include configs/history_sampling.yaml

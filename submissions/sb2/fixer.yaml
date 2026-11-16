@@ -1,0 +1,13 @@
+# sb2 fixer = sb1's agent with a fresh prompt (scripts/agent_sb2/system.md)
+name: fixer
+description: Fixes the issue with the smallest source change and submits it.
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/system.md
+tools:
+  - run_command
+  - read_file
+  - edit_file
+  - write_file
+  - get_status
+  - submit_patch
+generate_content_config: !include configs/sampling.yaml
