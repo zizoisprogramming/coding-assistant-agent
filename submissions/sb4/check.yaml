@@ -1,0 +1,13 @@
+# sb4 check: history lists + uses of the edited names, then check, tests, submit (scripts/agent_sb4/check.md)
+name: check
+model: gemma-4-31b-it-qat-w4a16-ct
+description: Compares the edit with the repository's history, completes it, checks it and submits it.
+instruction: !include prompts/check.md
+tools:
+  - run_command
+  - read_file
+  - edit_file
+  - write_file
+  - get_status
+  - submit_patch
+generate_content_config: !include configs/sampling.yaml

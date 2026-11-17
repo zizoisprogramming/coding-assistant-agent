@@ -1,0 +1,7 @@
+# sb4 (2026-11-17): fixer hands over right after its edit, then a check stage with the history lists and the uses of the edited names, which completes, checks and submits (scripts/make_sb4.py)
+name: swe_agent
+agent_class: SequentialAgent
+description: Fixes the issue, then checks the fix against the repository's history and submits it.
+sub_agents:
+  - config_path: fixer.yaml
+  - config_path: check.yaml
