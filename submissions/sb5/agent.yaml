@@ -1,0 +1,7 @@
+# sb5 (2026-11-17): sb4 with the check command printing NEXT lines (calls of the edited code in co-changed files, or the check-and-submit step) (scripts/make_sb5.py)
+name: swe_agent
+agent_class: SequentialAgent
+description: Fixes the issue, then checks the fix against the repository's history and submits it.
+sub_agents:
+  - config_path: fixer.yaml
+  - config_path: check.yaml
