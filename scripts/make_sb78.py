@@ -50,6 +50,28 @@ def check(p, state=()):
     assert "search_similar_code" not in p and "get_code_" not in p and "--full-diff" not in p
 
 
+def examples(p):
+    """every '(example N)' / '(examples N and M)' reference has its 'Example N -'; every old_string comes from the
+    read_file output printed just before it."""
+    refs = set()
+    for m in re.finditer(r"\(examples? ([0-9 and,]+)\)", p):
+        refs |= set(re.findall(r"\d+", m.group(1)))
+    for n in refs:
+        assert f"Example {n} -" in p, f"missing Example {n}"
+    for m in re.finditer(r"old_string:\n```\n(.*?)```", p, re.S):
+        before = p[:m.start()]
+        read = re.findall(r"printed:\n```\n(.*?)```", before, re.S)
+        assert read and m.group(1) in read[-1], "old_string copied from the read_file output just before it"
+
+
+def replies(p):
+    """history stage: each example shows the stdout and a reply that is exactly that stdout"""
+    pairs = re.findall(r"(?:stdout was|printed one line):\n```\n(.*?)```\nYour reply, with no tool call(?:, is that stdout exactly)?:\n(.*?)(?:\n\nExample|\Z)", p, re.S)
+    assert len(pairs) == 2, len(pairs)
+    for out, rep in pairs:
+        assert out.strip() == rep.strip(), "reply = stdout"
+
+
 def yaml_llm(name, desc, prompt, tools, sampling, extra=""):
     t = "\n".join(f"  - {x}" for x in tools)
     return (f"name: {name}\nmodel: {MODEL}\ndescription: {desc}\ninstruction: !include prompts/{prompt}\n{extra}"
@@ -83,12 +105,16 @@ def main():
     p8e, p8h, p8d = (B / "explore.md").read_text(), (B / "history.md").read_text(), (B / "editor.md").read_text()
     check(p7h); check(p7s, ["{line_history?}"])
     check(p8e); check(p8h, ["{target?}"]); check(p8d, ["{target?}", "{edit_history?}"])
+    for p in (p7h, p7s, p8e, p8h, p8d):
+        examples(p)
     for p in (p7s, p8d):
         assert "Tool call budget exhausted" in p and "old_string not found" in p and "mandatory input parameters are not present" in p
-        old = re.search(r"old_string:\n```\n(.*?)```", p, re.S).group(1)
-        read = re.search(r"printed:\n```\n(    def parse.*?)```", p, re.S).group(1)
-        assert old in read, "old_string copied from the read_file output"
-    assert "tool call(s) remaining" in p8e and "FILE:" in p8e and "LINES:" in p8e and "CHANGE:" in p8e and "CHECK:" in p8e
+        ex = p[p.index("# EXAMPLES"):]
+        assert " - a past fix of the same kind." in ex and " - the newest commit is the change the issue complains about." in ex, "both history cases shown"
+    for p in (p7h, p8h):
+        replies(p)
+    ex8 = p8e[p8e.index("# EXAMPLES"):]
+    assert "tool call(s) remaining" in ex8 and ex8.count("FILE: ") >= 2, "hand-over shown, also on the warning"
     assert "head -c 3000 .git/agent/line_history" in p7h and "head -c 3000 .git/agent/edit_history" in p8h
 
     write(SUB / "sb7", {
