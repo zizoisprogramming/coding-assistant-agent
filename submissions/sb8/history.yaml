@@ -1,0 +1,9 @@
+name: history
+model: gemma-4-31b-it-qat-w4a16-ct
+description: Runs one git command that prints the line history of the chosen lines, and returns its output. Makes a single call.
+instruction: !include prompts/history.md
+include_contents: none
+output_key: edit_history
+tools:
+  - run_command
+generate_content_config: !include configs/history_sampling.yaml

@@ -1,0 +1,8 @@
+# sb8 (2026-11-18): explore (no edit tools) -> one-call line history of the chosen lines -> editor with both pinned (scripts/make_sb78.py)
+name: swe_agent
+agent_class: SequentialAgent
+description: Finds the lines to change, shows how they changed before, then edits, checks and submits.
+sub_agents:
+  - config_path: explore.yaml
+  - config_path: history.yaml
+  - config_path: editor.yaml
