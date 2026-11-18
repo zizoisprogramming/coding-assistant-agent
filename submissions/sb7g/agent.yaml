@@ -1,0 +1,7 @@
+# sb7g (2026-11-18): sb7f with the stage fixed (no fences, failed-command example, HISTORY FETCHED stop line, no cache), 32 calls (scripts/make_sb7g.py)
+name: swe_agent
+agent_class: SequentialAgent
+description: Shows how the code named in the issue changed before, then fixes the issue.
+sub_agents:
+  - config_path: history.yaml
+  - config_path: fixer.yaml
