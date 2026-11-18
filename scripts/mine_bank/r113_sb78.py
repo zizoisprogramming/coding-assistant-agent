@@ -18,6 +18,7 @@ for f in ("data/swe_rebench/candidates.jsonl", "data/tasks.jsonl"):
         j = json.loads(l)
         GOLD[j["instance_id"]] = j["patch"]
 STAGE = [("sb7", "history", "You run one command before the engineer starts"), ("sb7", "fixer", "# HOW THIS CODE CHANGED BEFORE"),
+         ("sb7f", "history", "You run two commands before the engineer starts"), ("sb7f", "fixer", "# HOW THE FUNCTIONS OF THIS ISSUE CHANGED BEFORE"),
          ("sb7s", "history", "You run one command before the engineer starts"), ("sb7s", "fixer", "# HOW THIS CODE CHANGED BEFORE"),
          ("sb8", "explore", "You are the first of two software engineers"), ("sb8", "history", "You run one command between two engineers"),
          ("sb8", "editor", "You are the second of two software engineers")]
@@ -89,7 +90,7 @@ for d in DIRS:
         x = dict(arm=arm, iid=iid, solved=g["resolved"] in (True, "True"), end=g["end"], agent=g["agent_s"], nop=not g["patch_chars"],
                  fe=fe + 1 if fe is not None else None, fe_t=float(R[fe]["t"]) - t0 if fe is not None else None, stages=dict(cnt))
         info = ""
-        if arm in ("sb7", "sb7s", "sb8"):
+        if arm in ("sb7", "sb7s", "sb7f", "sb8"):
             hi = [i for i, s in enumerate(stg) if s == "history"]
             nxt = "editor" if arm == "sb8" else "fixer"
             ni = next((i for i, s in enumerate(stg) if s == nxt), None)
@@ -97,7 +98,7 @@ for d in DIRS:
             if ni is not None:
                 sysm = R[ni]["request"]["messages"][0]["content"]
                 key = "Each commit's title says why, its diff says how:"
-                pinned = sysm.split(key, 1)[1].split("\n\nUse it when", 1)[0] if key in sysm else ""
+                pinned = re.split(r"\n\n(?:Use it when|# SOLVE IT WITH)", sysm.split(key, 1)[1], 1)[0] if key in sysm else ""
             out = ""
             for i in hi:
                 for o in tool_outputs(R[i + 1]) if i + 1 < len(R) else []:
@@ -105,7 +106,7 @@ for d in DIRS:
             files = set()
             x.update(hist=bool(hi), hist_s=secs["history"], pinned_chars=len(pinned.strip()), pinned_commits=pinned.count("commit "),
                      copied=bool(pinned.strip()) and pinned.strip()[:200] in out.replace("\\n", "\n"))
-            if arm in ("sb7", "sb7s"):
+            if arm in ("sb7", "sb7s", "sb7f"):
                 x["hist_requests"] = len(hi)
                 hdr = [(m.group(1), int(m.group(2))) for m in re.finditer(r"^== (\S+) lines? (\d+)", pinned, re.M)]
                 x.update(pin_file=any(f in gl for f, _ in hdr), pin_near=any(f in gl and any(abs(s + 2 - y) <= 5 for y in gl[f]) for f, s in hdr))
@@ -134,10 +135,10 @@ for arm, xs in A.items():
     fes = [x["fe"] for x in xs if x["fe"]]
     line = (f"  {arm}: solved {sum(x['solved'] for x in xs)}/{len(xs)} | time ends {sum(x['end'] == 'time' for x in xs)} | no patch {sum(x['nop'] for x in xs)}"
             f" | mean agent {st.mean(x['agent'] for x in xs):.0f}s | first edit call median {st.median(fes) if fes else '-'} ({len(fes)} runs)")
-    if arm in ("sb7", "sb7s", "sb8"):
+    if arm in ("sb7", "sb7s", "sb7f", "sb8"):
         line += f" | history ran {sum(x['hist'] for x in xs)} | pinned non-empty {sum(x['pinned_chars'] > 0 for x in xs)} | copied exactly {sum(x['copied'] for x in xs)} | history stage mean {st.mean(x['hist_s'] for x in xs if x['hist']) if any(x['hist'] for x in xs) else 0:.0f}s"
-    if arm in ("sb7", "sb7s"):
-        line += f" | history stage stopped after its one call (<= 2 requests) {sum(x['hist_requests'] <= 2 for x in xs)}"
+    if arm in ("sb7", "sb7s", "sb7f"):
+        line += f" | history stage ended in time (<= 2 requests; sb7f: <= 3) {sum(x['hist_requests'] <= (3 if arm == 'sb7f' else 2) for x in xs)}"
     if arm == "sb8":
         line += (f" | handed over {sum(x['handed'] for x in xs)} (real-fix file {sum(x['target_file'] for x in xs)}, on lines {sum(x['target_on'] for x in xs)})"
                  f" | editor reached {sum(x['editor'] for x in xs)}, edited {sum(x['editor_edit'] for x in xs)} | explore calls median {st.median(x['explore_calls'] for x in xs)}")
