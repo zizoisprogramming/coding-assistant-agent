@@ -1,0 +1,7 @@
+# sb7s (2026-11-18): sb7 with a history stage that stops (stop line in its command output, shorter command; scripts/make_sb7s.py)
+name: swe_agent
+agent_class: SequentialAgent
+description: Shows how the code named in the issue changed before, then fixes the issue.
+sub_agents:
+  - config_path: history.yaml
+  - config_path: fixer.yaml

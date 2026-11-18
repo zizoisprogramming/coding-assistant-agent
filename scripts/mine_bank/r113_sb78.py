@@ -9,7 +9,8 @@ real-fix ones. sb8: explorer handed over (FILE / LINES / CHANGE / CHECK reply), 
 real-fix lines, editor reached, editor's calls before its first edit."""
 import collections, glob, json, re, statistics as st
 
-DIRS = sorted(glob.glob("data/results/2026-11-18_skill_sb78h4_p*"))
+import sys
+DIRS = sorted(glob.glob(sys.argv[1] if len(sys.argv) > 1 else "data/results/2026-11-18_skill_sb78h4_p*"))  # r114: 'data/results/2026-11-1*_skill_sb7sh4_p*'
 TEST = re.compile(r"(^|/)(tests?|testing)/|(^|/)test_[^/]*\.py$|_test\.py$|conftest\.py$")
 GOLD = {}
 for f in ("data/swe_rebench/candidates.jsonl", "data/tasks.jsonl"):
@@ -17,6 +18,7 @@ for f in ("data/swe_rebench/candidates.jsonl", "data/tasks.jsonl"):
         j = json.loads(l)
         GOLD[j["instance_id"]] = j["patch"]
 STAGE = [("sb7", "history", "You run one command before the engineer starts"), ("sb7", "fixer", "# HOW THIS CODE CHANGED BEFORE"),
+         ("sb7s", "history", "You run one command before the engineer starts"), ("sb7s", "fixer", "# HOW THIS CODE CHANGED BEFORE"),
          ("sb8", "explore", "You are the first of two software engineers"), ("sb8", "history", "You run one command between two engineers"),
          ("sb8", "editor", "You are the second of two software engineers")]
 
@@ -87,9 +89,9 @@ for d in DIRS:
         x = dict(arm=arm, iid=iid, solved=g["resolved"] in (True, "True"), end=g["end"], agent=g["agent_s"], nop=not g["patch_chars"],
                  fe=fe + 1 if fe is not None else None, fe_t=float(R[fe]["t"]) - t0 if fe is not None else None, stages=dict(cnt))
         info = ""
-        if arm in ("sb7", "sb8"):
+        if arm in ("sb7", "sb7s", "sb8"):
             hi = [i for i, s in enumerate(stg) if s == "history"]
-            nxt = "fixer" if arm == "sb7" else "editor"
+            nxt = "editor" if arm == "sb8" else "fixer"
             ni = next((i for i, s in enumerate(stg) if s == nxt), None)
             pinned = ""
             if ni is not None:
@@ -100,13 +102,14 @@ for d in DIRS:
             for i in hi:
                 for o in tool_outputs(R[i + 1]) if i + 1 < len(R) else []:
                     out = o
-            files = set(re.findall(r"== (\S+) lines", pinned)) if arm == "sb7" else set()
+            files = set()
             x.update(hist=bool(hi), hist_s=secs["history"], pinned_chars=len(pinned.strip()), pinned_commits=pinned.count("commit "),
                      copied=bool(pinned.strip()) and pinned.strip()[:200] in out.replace("\\n", "\n"))
-            if arm == "sb7":
-                hdr = [(m.group(1), int(m.group(2))) for m in re.finditer(r"^== (\S+) lines (\d+) to", pinned, re.M)]
+            if arm in ("sb7", "sb7s"):
+                x["hist_requests"] = len(hi)
+                hdr = [(m.group(1), int(m.group(2))) for m in re.finditer(r"^== (\S+) lines? (\d+)", pinned, re.M)]
                 x.update(pin_file=any(f in gl for f, _ in hdr), pin_near=any(f in gl and any(abs(s + 2 - y) <= 5 for y in gl[f]) for f, s in hdr))
-                info = f"| hist {x['hist_s']:3.0f}s pinned {x['pinned_chars']:4} chars {x['pinned_commits']} commits copied {x['copied']} real-fix file {x['pin_file']} near {x['pin_near']}"
+                info = f"| hist {x['hist_requests']} requests {x['hist_s']:3.0f}s pinned {x['pinned_chars']:4} chars {x['pinned_commits']} commits copied {x['copied']} real-fix file {x['pin_file']} near {x['pin_near']}"
             else:
                 ex = [i for i, s in enumerate(stg) if s == "explore"]
                 tgt = ""
@@ -131,8 +134,10 @@ for arm, xs in A.items():
     fes = [x["fe"] for x in xs if x["fe"]]
     line = (f"  {arm}: solved {sum(x['solved'] for x in xs)}/{len(xs)} | time ends {sum(x['end'] == 'time' for x in xs)} | no patch {sum(x['nop'] for x in xs)}"
             f" | mean agent {st.mean(x['agent'] for x in xs):.0f}s | first edit call median {st.median(fes) if fes else '-'} ({len(fes)} runs)")
-    if arm in ("sb7", "sb8"):
+    if arm in ("sb7", "sb7s", "sb8"):
         line += f" | history ran {sum(x['hist'] for x in xs)} | pinned non-empty {sum(x['pinned_chars'] > 0 for x in xs)} | copied exactly {sum(x['copied'] for x in xs)} | history stage mean {st.mean(x['hist_s'] for x in xs if x['hist']) if any(x['hist'] for x in xs) else 0:.0f}s"
+    if arm in ("sb7", "sb7s"):
+        line += f" | history stage stopped after its one call (<= 2 requests) {sum(x['hist_requests'] <= 2 for x in xs)}"
     if arm == "sb8":
         line += (f" | handed over {sum(x['handed'] for x in xs)} (real-fix file {sum(x['target_file'] for x in xs)}, on lines {sum(x['target_on'] for x in xs)})"
                  f" | editor reached {sum(x['editor'] for x in xs)}, edited {sum(x['editor_edit'] for x in xs)} | explore calls median {st.median(x['explore_calls'] for x in xs)}")
