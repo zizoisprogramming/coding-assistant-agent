@@ -1,0 +1,12 @@
+# sb6 (2026-11-18): sb1's agent, prompt written fresh: every edit = read_file -> git log -L on the same lines -> edit_file (scripts/make_sb6.py)
+name: swe_agent
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/system.md
+tools:
+  - run_command
+  - read_file
+  - edit_file
+  - write_file
+  - get_status
+  - submit_patch
+generate_content_config: !include configs/sampling.yaml
