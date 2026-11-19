@@ -1,0 +1,10 @@
+# sbF (2026-11-19): sb1h whose every edit also prints how the enclosing function changed before (git log -L, 3 commits), header line says what to do (scripts/make_sbF.py)
+name: swe_agent
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/system.md
+tools:
+  - run_command
+  - read_file
+  - get_status
+  - submit_patch
+generate_content_config: !include configs/sampling.yaml
