@@ -1,0 +1,7 @@
+# one-call history stage (sb7 / sb8): a fixed command, then the output copied back; little reasoning needed (sb2: thinking 128)
+temperature: 0.2
+top_p: 0.95
+max_output_tokens: 2048
+thinking_config:
+  include_thoughts: true
+  thinking_budget: 128

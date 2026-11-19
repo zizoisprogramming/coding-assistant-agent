@@ -1,0 +1,10 @@
+# sb1h (2026-11-19): sb1 with every edit made by a run_command heredoc, edit_file / write_file removed (scripts/make_sb1h.py)
+name: swe_agent
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/system.md
+tools:
+  - run_command
+  - read_file
+  - get_status
+  - submit_patch
+generate_content_config: !include configs/sampling.yaml

@@ -1,0 +1,9 @@
+name: history
+model: gemma-4-31b-it-qat-w4a16-ct
+description: Fetches, with one command, the history of the functions that use the issue's names and returns it.
+instruction: !include prompts/history.md
+include_contents: none
+output_key: func_history
+tools:
+  - run_command
+generate_content_config: !include configs/history_sampling.yaml
