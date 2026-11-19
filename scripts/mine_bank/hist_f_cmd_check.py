@@ -1,6 +1,6 @@
 """The exact sbF edit step (scripts/make_sbF.py, asserted equal to the prompt's blocks) on the sparse checkouts.
 CPU; bash / git / sed / awk / python3 on our own fixed step only; nothing from the repositories is executed.
-Run: python3 -I scripts/mine_bank/hist_f_cmd_check.py CLONE_DIR   (repo root)
+Run: python3 -I scripts/mine_bank/hist_f_cmd_check.py CLONE_DIR [sbF|sbF2]   (repo root)
 A: (1) the real fixes of 15 tasks hunk by hunk = the real patch, exit 0, history or no-history line after each EDITED;
    (2) old text not in the file: exit 0, neither history nor no-history line; (3) a second edit of lines just added: exit 0,
    the no-history line; (4) a new untracked file edited: exit 0, the no-history line.
@@ -13,6 +13,9 @@ ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location("make_sbF", ROOT / "scripts/make_sbF.py")
 B = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(B)
+VARIANT = sys.argv[2] if len(sys.argv) > 2 else 'sbF'
+STEP = B.STEPS[VARIANT]
+print('variant', VARIANT)
 CLONES = Path(sys.argv[1])
 WT = CLONES.parent / "wt"
 AG = CLONES.parent / "agent_f"
@@ -47,7 +50,7 @@ def reset(w):
 
 
 def a_cmd(path, old, new):
-    return "mkdir -p .git/agent\ncat > .git/agent/old <<'OLD_TEXT'\n" + old + "OLD_TEXT\ncat > .git/agent/new <<'NEW_TEXT'\n" + new + "NEW_TEXT\n" + B.F_STEP.replace("PATH", path)
+    return "mkdir -p .git/agent\ncat > .git/agent/old <<'OLD_TEXT'\n" + old + "OLD_TEXT\ncat > .git/agent/new <<'NEW_TEXT'\n" + new + "NEW_TEXT\n" + STEP.replace("PATH", path)
 
 
 bad = collections.Counter()
@@ -107,7 +110,8 @@ print(f"A: hunks {c['hunks']} exit 0 {c['rc0']} | history {c['hist']} no-history
 # (5) the model's own r118 / r119 edits: the step's commits = the offline window check's F3 commits (data/analysis/hist_window_cache.json)
 import re as _re
 D = json.loads((ROOT / "data/analysis/hist_window_cache.json").read_text())
-n5 = same5 = 0
+n5 = same5 = nochg = 0
+H5 = []
 for key, row in D["cache"].items():
     if row.get("found") != 1 or not row.get("F"):
         continue
@@ -121,11 +125,20 @@ for key, row in D["cache"].items():
     ref = _re.findall(r"^commit ([0-9a-f]{7,}) ", row["F3"], _re.M)
     n5 += 1
     same5 += [x[:7] for x in mine] == [x[:7] for x in ref]
+    hp = out.split(B.F_HEAD, 1)[1] if B.F_HEAD in out else ""
+    H5.append(len(hp))
+    for part in _re.split(r"(?m)^(?=commit [0-9a-f]{7,} )", hp):
+        if part.startswith("commit") and VARIANT == "sbF2":
+            body = part.splitlines()[1:]
+            nochg += not any(l[:1] in "+-" for l in body)
+            bad["F7"] += any(l and l[:1] not in "+-" for l in body)
     if rc or [x[:7] for x in mine] != [x[:7] for x in ref]:
         bad["F5"] += 1
         print("  F5 differs", iid, path, rc, mine, ref, err[:120])
     reset(w)
 print(f"model edits inside a function: {n5} | same commits as the window check {same5}")
+print(f"history chars (header excluded): median {sorted(H5)[len(H5) // 2] if H5 else 0} p90 {sorted(H5)[int(len(H5) * .9)] if H5 else 0} max {max(H5 or [0])}"
+      f" | commits with no visible changed line {nochg}")
 # (6) a throwaway repo (scratchpad): a tracked non-Python file and a tracked .py file ast cannot parse -> the step still edits
 #     and prints the history of the replaced lines; a module-level line -> the replaced lines too; a nested function -> the inner one
 import shutil, tempfile

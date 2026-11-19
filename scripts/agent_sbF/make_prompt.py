@@ -1,17 +1,23 @@
-"""Writes scripts/agent_sbF/system.md: the prose is written here, fresh; every edit command is the heredocs + make_sbF.F_STEP
-byte for byte (so the examples cannot drift from the real step). Run: python3 -I scripts/agent_sbF/make_prompt.py"""
+"""Writes scripts/agent_NAME/system.md for NAME = sbF or sbF2: the prose is written here, fresh; every edit command is the
+heredocs + make_sbF.STEPS[NAME] byte for byte (so the examples cannot drift from the real step); for sbF2 every example history
+is passed through sbF2's own line filter (titles and +/- lines only), so it shows exactly what sbF2 prints.
+Run: python3 -I scripts/agent_sbF/make_prompt.py NAME"""
 import importlib.util
+import re
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location("make_sbF", ROOT / "scripts/make_sbF.py")
 F = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(F)
+NAME = sys.argv[1]
+STEP = F.STEPS[NAME]
 
 
 def edit(path, old, new):
     return ("tool: run_command\ncommand:\n```\nmkdir -p .git/agent\ncat > .git/agent/old <<'OLD_TEXT'\n" + old + "OLD_TEXT\n"
-            "cat > .git/agent/new <<'NEW_TEXT'\n" + new + "NEW_TEXT\n" + F.F_STEP.replace("PATH", path) + "```")
+            "cat > .git/agent/new <<'NEW_TEXT'\n" + new + "NEW_TEXT\n" + STEP.replace("PATH", path) + "```")
 
 
 def diff(path, idx, hunk):
@@ -215,6 +221,12 @@ Example 8 - a tool result says "Tool call budget exhausted":
 tool: submit_patch
 Then reply: Fixed parse() to raise ParseError for text without '=' in strict mode.
 """
-out = ROOT / "scripts/agent_sbF/system.md"
+if NAME == "sbF2":
+    def _filt(m):
+        h, rest = m.group(1), m.group(2)
+        return h + "\n" + "".join(l + "\n" for l in rest.splitlines() if re.match(r"(commit |[-+])", l) and not re.match(r"(---|[+][+][+])", l))
+    P = re.sub("(" + re.escape(F.F_HEAD) + ")\n(.*?)(?=```)", _filt, P, flags=re.S)
+out = ROOT / f"scripts/agent_{NAME}/system.md"
+out.parent.mkdir(exist_ok=True)
 out.write_text(P)
 print("wrote", out.relative_to(ROOT), "| words", len(P.split()), "| sb1h", len((ROOT / "submissions/sb1h/prompts/system.md").read_text().split()))
