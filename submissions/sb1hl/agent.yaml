@@ -1,0 +1,10 @@
+# sb1hl (2026-11-20): sb1h-lite: sb1h with the prompt parts used in 0-1 of 94 runs dropped and the fence-error event added (scripts/make_sb1hl.py)
+name: swe_agent
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/system.md
+tools:
+  - run_command
+  - read_file
+  - get_status
+  - submit_patch
+generate_content_config: !include configs/sampling.yaml
