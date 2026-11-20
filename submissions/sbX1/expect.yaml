@@ -1,0 +1,9 @@
+name: expect
+model: gemma-4-31b-it-qat-w4a16-ct
+description: Writes .git/agent/expect.py, a check of the behaviour the issue wants that fails on the current code, and returns a short note.
+instruction: !include prompts/expect.md
+output_key: expectation
+tools:
+  - run_command
+  - read_file
+generate_content_config: !include configs/sampling.yaml

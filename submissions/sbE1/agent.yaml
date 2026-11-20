@@ -1,0 +1,10 @@
+# sbE1 (2026-11-20): sb1hl + the expectation command (expect.py + check.sh events) and its re-run after every edit (scripts/make_expect_arms.py)
+name: swe_agent
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/system.md
+tools:
+  - run_command
+  - read_file
+  - get_status
+  - submit_patch
+generate_content_config: !include configs/sampling.yaml

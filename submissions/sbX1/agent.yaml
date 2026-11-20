@@ -1,0 +1,7 @@
+# sbX1 (2026-11-20): expectation agent (no edits) -> solver = sb1hl + the WANTED BEHAVIOUR note pinned + the re-run after every edit (scripts/make_expect_arms.py)
+name: swe_agent
+agent_class: SequentialAgent
+description: Writes a failing check of the behaviour the issue wants, then fixes the issue.
+sub_agents:
+  - config_path: expect.yaml
+  - config_path: solver.yaml

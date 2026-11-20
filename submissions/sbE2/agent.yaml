@@ -1,0 +1,10 @@
+# sbE2 (2026-11-20): sbE1 + a late 'nothing is edited yet' line in check.sh (scripts/make_expect_arms.py)
+name: swe_agent
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/system.md
+tools:
+  - run_command
+  - read_file
+  - get_status
+  - submit_patch
+generate_content_config: !include configs/sampling.yaml
