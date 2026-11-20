@@ -52,6 +52,13 @@ Update this file whenever a line opens or closes.
     on the rest. One-liners with an issue link hide the behaviour in the link. Fix size rules everything: 1 file and
     <= 20 lines 57% (no-exact-text), multi-file 1-14%. (TASK ANATOMY in PLAN.)
 
+11. **The texts are change titles, not grading criteria.** Every asserted value appears in only 5% of texts; 46% give no
+    entry point, no example and no behaviour. On winnable tasks an example input (87% vs 43%) and the behaviour in words
+    (69% vs 41%) go with much higher solve rates.
+12. **On winnable tasks the model fails mostly by not committing, not by wrong logic:** 65% of failed runs never changed
+    the source (17% right place with wrong logic). They usually have a theory (86%), but form it later and keep re-checking
+    it until time runs out.
+
 ## 3. What worked (kept)
 
 | change | evidence |
