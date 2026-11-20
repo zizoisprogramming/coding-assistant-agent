@@ -1,0 +1,8 @@
+name: writer
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/writer.md
+include_contents: none
+tools:
+  - write_file
+output_key: expectation
+generate_content_config: !include configs/sampling.yaml

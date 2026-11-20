@@ -1,0 +1,10 @@
+# r76 cheap evidence stage: thinking off; a mechanical job (pick names, call the script once, copy lines).
+# In the installed harness (adk_submission 0.2.13, resolvers/generation.py) any thinking_budget > 0 turns thinking ON and a
+# missing budget is filled with 4096, so include_thoughts: false alone does not switch it off; thinking_budget: 0 does
+# (schema ge=0, limits 0-32768; the request then carries enable_thinking false and no thinking_token_budget).
+temperature: 0.2
+top_p: 0.95
+max_output_tokens: 1024
+thinking_config:
+  thinking_budget: 0
+  include_thoughts: false

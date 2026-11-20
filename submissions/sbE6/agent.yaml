@@ -1,0 +1,7 @@
+# sbE6 (2026-11-20): search (one call, thinking off) -> writer (write_file only: .git/agent/expect.py) -> solver (first call = the check; fence-free) (scripts/make_expect_e6.py)
+name: swe_agent
+agent_class: SequentialAgent
+sub_agents:
+  - config_path: search.yaml
+  - config_path: writer.yaml
+  - config_path: solver.yaml
