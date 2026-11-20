@@ -1,17 +1,211 @@
 {
-  "_note": "My judgement (2026-11-19) from each commit's subject, its hunk in the window and the real fix. useful = an earlier fix of the same kind of problem in this code, or the change that introduced the bug; weak = only shows how the buggy code was written / a related feature. Only commits shown by some window (data/analysis/hist_window_dump.log) were labelled.",
-  "Netflix-Skunkworks__policyuniverse-147": {"useful": [], "weak": [], "why": "fix renames input->raw and lowers a log level; shown: Black reformat, class creation"},
-  "RDFLib__pySHACL-285": {"useful": [], "weak": ["77425ea", "3f2e039"], "why": "fix handles sh:or/xone/and lists in _found_child_bnodes; shown commits wrote/moved that block, none handles lists"},
-  "cta-observatory__pyirf-193": {"useful": ["f4076e0"], "weak": ["4d5b931", "16d516b"], "why": "fix: NaN result keeps theta's unit; f4076e0 'empty input returns all NaNs' = same case"},
-  "fastapi_11194": {"useful": ["88d4f2c", "aa21814"], "weak": ["7bad7c0", "4633b1b"], "why": "fix: each form field's own field_info; 88d4f2c 'Fix form field regression' same kind, aa21814 introduced first_field_info"},
-  "fastapi_15589": {"useful": ["d86c474", "015b4fa", "de5bec6"], "weak": ["55035f4"], "why": "fix: mark the validation alias as processed; earlier alias / extra-param fixes in request_params_to_args"},
-  "geopandas__geopandas-3240": {"useful": ["4143488"], "weak": [], "why": "4143488 'PERF: improve frame_join' = the regression (lost the within re-sort)"},
-  "hgrecco__pint-pandas-264": {"useful": ["6cddc10", "974cb2f"], "weak": [], "why": "fix: return a bool result; 6cddc10 added the bool return, 974cb2f (#263) the ndim path just before the issue"},
-  "klen__peewee_migrate-203": {"useful": ["abefa44"], "weak": ["0ea8dd1", "c8fe745"], "why": "abefa44 'Fixed bug foreign key cannot change rel model' = earlier rel_model fix on the same line"},
-  "lucianopaz__compress_pickle-28": {"useful": [], "weak": ["1d9c24b", "a5a66c7"], "why": "fix adds the missing '.' to the extension; registry / refactor commits may have dropped it (not sure)"},
-  "rich_3506": {"useful": ["aa09292"], "weak": ["b07fa41", "cff2f22", "e63682e"], "why": "aa09292 'fix issue splitting segments' = earlier fix of _split_cells"},
-  "rich_3521": {"useful": ["a8c3b87", "aa09292"], "weak": ["3a6c86e", "b07fa41", "cff2f22", "5c00ba8"], "why": "a8c3b87 'fix split cells' 2024 = the previous double-width fix of _split_cells"},
-  "rich_3676": {"useful": [], "weak": ["a6b3379"], "why": "new feature (exception notes); a6b3379 added is_cause the same way (pattern only)"},
-  "terryyin__lizard-144": {"useful": ["1e5ff19"], "weak": ["c8e2be7"], "why": "fix adds & and && after the declarator; 1e5ff19 'Fix handling of C++11 trailing return type' same kind in the same states"},
-  "terryyin__lizard-370": {"useful": [], "weak": ["c8e2be7"], "why": "fix: void means no parameters; shown: restructure, parameter_count"}
+ "_note": "My judgement (2026-11-19) from each commit's subject, its hunk in the window and the real fix. useful = an earlier fix of the same kind of problem in this code, or the change that introduced the bug; weak = only shows how the buggy code was written / a related feature. Only commits shown by some window (data/analysis/hist_window_dump.log) were labelled. *_titles: 'DATE TITLE' of each commit (title cut at 110 chars, from data/analysis/hist_window_dump.log), used to match commits on Kaggle, whose task repos carry different hashes.",
+ "Netflix-Skunkworks__policyuniverse-147": {
+  "useful": [],
+  "weak": [],
+  "why": "fix renames input->raw and lowers a log level; shown: Black reformat, class creation",
+  "useful_titles": [],
+  "weak_titles": []
+ },
+ "RDFLib__pySHACL-285": {
+  "useful": [],
+  "weak": [
+   "77425ea",
+   "3f2e039"
+  ],
+  "why": "fix handles sh:or/xone/and lists in _found_child_bnodes; shown commits wrote/moved that block, none handles lists",
+  "useful_titles": [],
+  "weak_titles": [
+   "2024-09-26 Add ability to target by manually specified NodeShape or PropertyShape from the ShapesGraph.",
+   "2024-09-28 Fixing typing issues introduced or uncovered in Shape class and ShapesGraph after implementing the better shap"
+  ]
+ },
+ "cta-observatory__pyirf-193": {
+  "useful": [
+   "f4076e0"
+  ],
+  "weak": [
+   "4d5b931",
+   "16d516b"
+  ],
+  "why": "fix: NaN result keeps theta's unit; f4076e0 'empty input returns all NaNs' = same case",
+  "useful_titles": [
+   "2021-05-11 if a benchmark function gets an empty input it returns all NaNs"
+  ],
+  "weak_titles": [
+   "2020-09-23 Add psf and angular resolution",
+   "2021-04-09 Fix benchmark functions for events outside given bins"
+  ]
+ },
+ "fastapi_11194": {
+  "useful": [
+   "88d4f2c",
+   "aa21814"
+  ],
+  "weak": [
+   "7bad7c0",
+   "4633b1b"
+  ],
+  "why": "fix: each form field's own field_info; 88d4f2c 'Fix form field regression' same kind, aa21814 introduced first_field_info",
+  "useful_titles": [
+   "2024-09-13 🐛 Fix form field regression (#12194)",
+   "2024-09-05 ♻️ Refactor deciding if `embed` body fields, do not overwrite fields, compute once per router, refactor intern"
+  ],
+  "weak_titles": [
+   "2024-09-05 ✨ Add support for Pydantic models in `Form` parameters (#12129)",
+   "2024-09-06 ✨ Add support for forbidding extra form fields with Pydantic models (#12134)"
+  ]
+ },
+ "fastapi_15589": {
+  "useful": [
+   "d86c474",
+   "015b4fa",
+   "de5bec6"
+  ],
+  "weak": [
+   "55035f4"
+  ],
+  "why": "fix: mark the validation alias as processed; earlier alias / extra-param fixes in request_params_to_args",
+  "useful_titles": [
+   "2025-12-12 🐛 Fix parameter aliases (#14371)",
+   "2025-12-02 🐛 Fix Query\\Header\\Cookie parameter model alias (#14360)",
+   "2025-12-02 🐛 Fix parsing extra non-body parameter list (#14356)"
+  ],
+  "weak_titles": [
+   "2024-09-17 ✨ Add support for Pydantic models for parameters using `Query`, `Cookie`, `Header` (#12199)"
+  ]
+ },
+ "geopandas__geopandas-3240": {
+  "useful": [
+   "4143488"
+  ],
+  "weak": [],
+  "why": "4143488 'PERF: improve frame_join' = the regression (lost the within re-sort)",
+  "useful_titles": [
+   "2024-03-28 PERF: improve frame_join part of spatial join (#2353)"
+  ],
+  "weak_titles": []
+ },
+ "hgrecco__pint-pandas-264": {
+  "useful": [
+   "6cddc10",
+   "974cb2f"
+  ],
+  "weak": [],
+  "why": "fix: return a bool result; 6cddc10 added the bool return, 974cb2f (#263) the ndim path just before the issue",
+  "useful_titles": [
+   "2024-06-09 Implement Array ufunc  (#160)",
+   "2024-12-28 array_function (#263)"
+  ],
+  "weak_titles": []
+ },
+ "klen__peewee_migrate-203": {
+  "useful": [
+   "abefa44"
+  ],
+  "weak": [
+   "0ea8dd1",
+   "c8fe745"
+  ],
+  "why": "abefa44 'Fixed bug foreign key cannot change rel model' = earlier rel_model fix on the same line",
+  "useful_titles": [
+   "2017-03-21 Fixed bug foreign key cannot change rel model"
+  ],
+  "weak_titles": [
+   "2018-05-04 Peewee 3.3.3 tests are passed.",
+   "2017-03-06 Support for auto add_index and drop_index. Support auto create CompositeKey and order_by in table. Support for"
+  ]
+ },
+ "lucianopaz__compress_pickle-28": {
+  "useful": [],
+  "weak": [
+   "1d9c24b",
+   "a5a66c7"
+  ],
+  "why": "fix adds the missing '.' to the extension; registry / refactor commits may have dropped it (not sure)",
+  "useful_titles": [],
+  "weak_titles": [
+   "2021-03-01 Add compresser registry",
+   "2021-03-04 Huge round of bugfixes and general refactors"
+  ]
+ },
+ "rich_3506": {
+  "useful": [
+   "aa09292"
+  ],
+  "weak": [
+   "b07fa41",
+   "cff2f22",
+   "e63682e"
+  ],
+  "why": "aa09292 'fix issue splitting segments' = earlier fix of _split_cells",
+  "useful_titles": [
+   "2023-01-06 fix issue splitting segments"
+  ],
+  "weak_titles": [
+   "2021-07-04 fix split cells",
+   "2021-07-04 segment split and tests",
+   "2021-08-03 cache split cells"
+  ]
+ },
+ "rich_3521": {
+  "useful": [
+   "a8c3b87",
+   "aa09292"
+  ],
+  "weak": [
+   "3a6c86e",
+   "b07fa41",
+   "cff2f22",
+   "5c00ba8"
+  ],
+  "why": "a8c3b87 'fix split cells' 2024 = the previous double-width fix of _split_cells",
+  "useful_titles": [
+   "2024-09-28 fix split cells",
+   "2023-01-06 fix issue splitting segments"
+  ],
+  "weak_titles": [
+   "2024-09-28 simplify",
+   "2021-07-04 fix split cells",
+   "2021-07-04 segment split and tests",
+   "2021-07-04 added split_cells"
+  ]
+ },
+ "rich_3676": {
+  "useful": [],
+  "weak": [
+   "a6b3379"
+  ],
+  "why": "new feature (exception notes); a6b3379 added is_cause the same way (pattern only)",
+  "useful_titles": [],
+  "weak_titles": [
+   "2020-11-29 Use the proper error message with caused exceptions"
+  ]
+ },
+ "terryyin__lizard-144": {
+  "useful": [
+   "1e5ff19"
+  ],
+  "weak": [
+   "c8e2be7"
+  ],
+  "why": "fix adds & and && after the declarator; 1e5ff19 'Fix handling of C++11 trailing return type' same kind in the same states",
+  "useful_titles": [
+   "2016-08-14 Fix handling of C++11 trailing return type"
+  ],
+  "weak_titles": [
+   "2016-02-02 restructure"
+  ]
+ },
+ "terryyin__lizard-370": {
+  "useful": [],
+  "weak": [
+   "c8e2be7"
+  ],
+  "why": "fix: void means no parameters; shown: restructure, parameter_count",
+  "useful_titles": [],
+  "weak_titles": [
+   "2016-02-02 restructure"
+  ]
+ }
 }
