@@ -1,5 +1,4 @@
 name: solver
-description: Fixes the issue with the smallest source change, guided by the expectation check, and submits it.
 model: gemma-4-31b-it-qat-w4a16-ct
 instruction: !include prompts/system.md
 tools:

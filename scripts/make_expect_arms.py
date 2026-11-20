@@ -137,10 +137,11 @@ def build_x1():
     (out / "agent.yaml").write_text("# sbX1 (2026-11-20): expectation agent (no edits) -> solver = sb1hl + the WANTED BEHAVIOUR note pinned + the re-run after every edit (scripts/make_expect_arms.py)\n"
                                     "name: swe_agent\nagent_class: SequentialAgent\ndescription: Writes a failing check of the behaviour the issue wants, then fixes the issue.\n"
                                     "sub_agents:\n  - config_path: expect.yaml\n  - config_path: solver.yaml\n")
-    (out / "expect.yaml").write_text("name: expect\nmodel: gemma-4-31b-it-qat-w4a16-ct\ndescription: Writes .git/agent/expect.py, a check of the behaviour the issue wants that fails on the current code, and returns a short note.\n"
+    # no description lines: ADK appends 'The description about you is ...' to an agent's system prompt when one is set (user 2026-11-20: remove lines that do not matter for the agents); the name line is ADK's own and cannot be switched off
+    (out / "expect.yaml").write_text("name: expect\nmodel: gemma-4-31b-it-qat-w4a16-ct\n"
                                      "instruction: !include prompts/expect.md\noutput_key: expectation\ntools:\n  - run_command\n  - read_file\ngenerate_content_config: !include configs/sampling.yaml\n")
     sb = (SUB / "sb1hl/agent.yaml").read_text().split("\n", 1)[1]
-    sb = sb.replace("name: swe_agent", "name: solver\ndescription: Fixes the issue with the smallest source change, guided by the expectation check, and submits it.")
+    sb = sb.replace("name: swe_agent", "name: solver")
     (out / "solver.yaml").write_text(sb)
     assert "instruction: !include prompts/system.md" in sb and "tools:" in sb
     print("wrote", out.relative_to(ROOT), "| expect chars", len(se), "| solver chars", len(ss))
