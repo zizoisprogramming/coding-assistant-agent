@@ -89,15 +89,20 @@ Update this file whenever a line opens or closes.
 | History printed after the edit (sbA, sbF, sbF2) | read, sometimes named, never changed an edit |
 | History-first gate (sbG, 6-min window) | never fired: first edits come too late |
 | Auto test after the edit, before/after (sb1hlt, idea A) | all green, +83 s, more time-outs (r125) |
+| Sampling T 1.0 / top_k 64 (sb1hlg) | r126: no fewer maxed-thinking runs (2 vs 1 of 4; with r89 4/16 vs 6/16) |
+| Expectation agent -> solver as built (sbX1) | r127: first agent 293-424 s of the shared 480 s, 0/4 solved, text-form tool calls |
 | 12B / E4B models | weaker |
 
 ## 5. Not closed forever (conditions under which it is worth another try)
 
+- **CURRENT LINE - the expectation (sbE1 / sbE2, r127):** the agent writes asserts of the wanted behaviour first; a fixed
+  checker prints 'the problem is shown' / 'passes before any edit' / 'still fails' / 'passes with your edit'. When adopted it
+  works fast (E2 rich_3278: first edit at 66-89 s, solved 2/2); open problems: adoption (skipped in 5/12 runs), the wrong
+  target (simple case instead of the issue's construct), long commands sent as text. Next proposed: E3 (PLAN checkpoint).
+
 - **History before the decision** - only with a delivery the model cannot skip AND early edits. The gate on the faster
   sb1hl (first edits earlier) with a later window is the one untested form. Useful history exists on ~40% of tasks
   (window check), but the model has not acted on it once, so the bar is high.
-- **Sampling T 1.0 / top_k 64** - r89 tie on solves; r126 (4 v 4) showed no fewer maxed-thinking runs (2 vs 1; pooled with
-  r89 4/16 vs 6/16). Not worth more runs unless something else changes the loops.
 - **Information** - the biggest measured effect (6 -> 30 of 76). Any way to add the missing facts automatically (from the
   repo, the tests, the docs) is still the most promising family; the cheap evidence stage (evidc) fit the LB but did not
   add enough.
