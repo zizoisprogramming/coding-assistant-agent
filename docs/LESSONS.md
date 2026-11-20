@@ -107,6 +107,9 @@ Update this file whenever a line opens or closes.
   r129: 3/8, 2/8, 3/8. Long commands copied from fenced examples come out as unparseable text calls ending with the ``` fence
   (6/24 runs sunk; a resend rule does not help: the model repeats the same text). A SequentialAgent root + repeated text replies
   crashes ADK's end-of-run compaction (no model on the root). The expectation line so far 15/44 = sb1h family 9/26 on these tasks.
+  r130: fence-free worked examples (each command ends with a '# end of command' comment line) -> 0 text calls in 16 runs, 0/5
+  expectation attempts as text (was 50%). Adoption stayed ~half and never-edit runs stayed; 18/52 over r127-r130 = the base. PAUSED.
+  sb1 (edit_file) = sb1hl in same-run pairs (0.54 vs 0.50, 26 cells); the main failure everywhere: exploring until the calls run out.
 
 - **History before the decision** - only with a delivery the model cannot skip AND early edits. The gate on the faster
   sb1hl (first edits earlier) with a later window is the one untested form. Useful history exists on ~40% of tasks
