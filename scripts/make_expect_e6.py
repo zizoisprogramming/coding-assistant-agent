@@ -49,7 +49,12 @@ def expect_cmd6(body):
 
 for c in (CHECK_CMD, EDIT6, expect_cmd6("x = 1\n")):
     assert '"' not in c and "`" not in c and "\\" not in c and "{" not in c and "}" not in c
-X = types.SimpleNamespace(EV3=EV6, EDIT_STEP=EDIT6, RERUN=XA.RERUN, expect_cmd=expect_cmd6, HALVED=HALVED, CHECK_CMD=CHECK_CMD)
+def rewrite_cmd(body):  # r131 short version: check.sh was installed by the first call, so a rewrite only replaces expect.py and runs the check
+    return "mkdir -p .git/agent\ncat > .git/agent/expect.py <<'EXPECT'\n" + body + "EXPECT\nbash .git/agent/check.sh\n"
+
+
+NOFILE = "bash: .git/agent/check.sh: No such file or directory\n"
+X = types.SimpleNamespace(EV3=EV6, EDIT_STEP=EDIT6, RERUN=XA.RERUN, expect_cmd=expect_cmd6, rewrite_cmd=rewrite_cmd, HALVED=HALVED, CHECK_CMD=CHECK_CMD, NOFILE=NOFILE)
 sys.path.insert(0, str(ROOT / "scripts/agent_expect"))
 import make_prompts as P  # noqa: E402
 import make_prompts_e6 as P6  # noqa: E402
@@ -76,7 +81,8 @@ def check_solver(s):
     ex1 = s[s.index("Example 1 -"):s.index("Example 2 -")]
     assert CMD.findall(ex1) == [CHECK_CMD], "example 1 = the check command byte for byte"
     exps = [b for b in cmds if "<<'EXPECT'" in b]
-    assert exps and all(b == expect_cmd6(re.search(r"<<'EXPECT'\n(.*?)EXPECT\n", b, re.S).group(1)) for b in exps)
+    assert exps and all(b == rewrite_cmd(re.search(r"<<'EXPECT'\n(.*?)EXPECT\n", b, re.S).group(1)) for b in exps), "the rewrite command byte for byte"
+    assert NOFILE in s and len(s) < 13500, len(s)  # r131 short version: 16,091 -> 13,407
     edits = [b for b in cmds if "OLD_TEXT" in b]
     assert edits
     for b in edits:
