@@ -100,6 +100,9 @@ Update this file whenever a line opens or closes.
   works fast (E2 rich_3278: first edit at 66-89 s, solved 2/2); open problems: adoption (skipped in 5/12 runs), the wrong
   target (simple case instead of the issue's construct), long commands sent as text. sbE3 built for r128 (one-time hold-back
   of the first edit without an expectation, 'not the one in the issue' event + example, shorter check; PLAN RUN BUILT r128).
+  r128: 4/8 (~4.6 expected). The one-time hold-back is obeyed (expectation on the next call 3/3); the examples' 'expectation
+  second' order is not (first expectation 152-323 s). Tool results reach the model JSON-escaped, so old text with backslashes is
+  copied doubled (40 of the bank's 58 'found 0'): fix it in the edit step, not the prompt.
 
 - **History before the decision** - only with a delivery the model cannot skip AND early edits. The gate on the faster
   sb1hl (first edits earlier) with a later window is the one untested form. Useful history exists on ~40% of tasks
