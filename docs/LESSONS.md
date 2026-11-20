@@ -47,6 +47,11 @@ Update this file whenever a line opens or closes.
 8. **Wrong fixes keep the old tests green.** In r125 every one of 19 edits left the existing test file green, including
    all of peewee's wrong fixes; what the model lacks is the new behaviour, not regressions.
 
+10. **The tasks are pull-request descriptions, and 20% of them cannot be won from what the agent sees.** 26 of the 129
+    public tasks need exact text (an error message, an output string) that only the hidden test knows: 3% solved vs 41%
+    on the rest. One-liners with an issue link hide the behaviour in the link. Fix size rules everything: 1 file and
+    <= 20 lines 57% (no-exact-text), multi-file 1-14%. (TASK ANATOMY in PLAN.)
+
 ## 3. What worked (kept)
 
 | change | evidence |
