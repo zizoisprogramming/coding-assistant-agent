@@ -104,6 +104,9 @@ Update this file whenever a line opens or closes.
   second' order is not (first expectation 152-323 s). Tool results reach the model JSON-escaped, so old text with backslashes is
   copied doubled (40 of the bank's 58 'found 0'): fix it in the edit step, not the prompt.
   r129 built: sbE3b (+ backslash fallback) vs sbE4A (+ one-call search stage) vs sbE4B (+ text-call / failing-test examples).
+  r129: 3/8, 2/8, 3/8. Long commands copied from fenced examples come out as unparseable text calls ending with the ``` fence
+  (6/24 runs sunk; a resend rule does not help: the model repeats the same text). A SequentialAgent root + repeated text replies
+  crashes ADK's end-of-run compaction (no model on the root). The expectation line so far 15/44 = sb1h family 9/26 on these tasks.
 
 - **History before the decision** - only with a delivery the model cannot skip AND early edits. The gate on the faster
   sb1hl (first edits earlier) with a later window is the one untested form. Useful history exists on ~40% of tasks
