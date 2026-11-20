@@ -37,8 +37,13 @@ Update this file whenever a line opens or closes.
 6. **Context gets cut at 14,336 tokens** (harness compaction, not ours to change). A longer prompt means more compactions,
    slower runs and lost context (sbA 3,225 words: 3.1 compactions per run vs 1.5).
 7. **Information is the biggest lever measured:** the same agent with the issue's missing information added went from
-   6/76 to 30/76 solved (r45 info test). Most failures are not about finding the file (80% edit the right file) but about
-   wrong logic and missing facts.
+   6/76 to 30/76 solved (r45 info test, 2 passes; the same 13 tasks solved in both). It was an ORACLE test: 19 one-line
+   issues got their linked GitHub report (1/19 -> 10/19 in pass 1), 19 others got the hidden test's lines (1/19 -> 5/19);
+   neither source exists on the scorer. It shows the wall, not a tool: the model fails because it does not know WHAT
+   behaviour is wanted. Most failures are not about finding the file (80% edit the right file) but about wrong logic.
+9. **Why history failed where information worked:** information said what the result must be (directly usable); history
+   says how the code changed before (a hint that needs inference, useful on ~40% of tasks). And the model acts on blocks,
+   not on text it reads: a replayed rule in tool output was weak, "blocks work because they block" (r46).
 8. **Wrong fixes keep the old tests green.** In r125 every one of 19 edits left the existing test file green, including
    all of peewee's wrong fixes; what the model lacks is the new behaviour, not regressions.
 
