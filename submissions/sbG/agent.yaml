@@ -1,0 +1,10 @@
+# sbG (2026-11-20): sb1h whose first edit into a function, early in the run, is held: the step prints the function's last commits (title + changed lines) and asks for the edit again or the short apply command (scripts/make_sbG.py)
+name: swe_agent
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/system.md
+tools:
+  - run_command
+  - read_file
+  - get_status
+  - submit_patch
+generate_content_config: !include configs/sampling.yaml
