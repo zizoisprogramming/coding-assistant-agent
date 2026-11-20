@@ -113,6 +113,9 @@ Update this file whenever a line opens or closes.
   r131: CLOSED. A guaranteed expectation from a writer that cannot read code is the wrong case (passes before any edit 4/4);
   19/56 over r127-r131. Text calls come from the model's OWN long code inside run_command (first call worst); our fixed commands
   never fail; a fence or an end-marker line can both be copied as a false ending. sb1hl 6/8 on fastapi_15589 + 11194 (r130-r131).
+  r133 (user reopened it once more): sbE7 = sb1hl's exploring + expectation by write_file after reading: 3/8 vs sb1hl 4/8;
+  'write_file only for expect.py' ignored (12 scratch-script writes); the check after write_file often skipped; both arms spend all 28
+  calls. CLOSED (22/64). The real sb1hl weakness is the call cap + the harness 'Finalize your edits' note (WHY sb1hl RUNS OUT, r134).
 
 - **History before the decision** - only with a delivery the model cannot skip AND early edits. The gate on the faster
   sb1hl (first edits earlier) with a later window is the one untested form. Useful history exists on ~40% of tasks
