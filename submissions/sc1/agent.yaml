@@ -1,0 +1,12 @@
+# sc1 (2026-11-21): sb1hl + sk_a2's reading tool (one install call, MEMORY, NO EDIT YET / STOP READING) + evidc's search in the install call + backslash / line-number edit fallbacks (scripts/make_sc1.py)
+name: swe_agent
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/system.md
+tools:
+  - run_command
+  - read_file
+  - get_status
+  - submit_patch
+skills:
+  - skills/agent
+generate_content_config: !include configs/sampling.yaml
