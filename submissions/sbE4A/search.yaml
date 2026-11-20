@@ -1,0 +1,10 @@
+name: search
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/search.md
+include_contents: none
+tools:
+  - get_status
+skills:
+  - skills/evidence
+output_key: evidence
+generate_content_config: !include configs/search_sampling.yaml
