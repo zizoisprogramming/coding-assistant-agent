@@ -98,7 +98,8 @@ Update this file whenever a line opens or closes.
 - **CURRENT LINE - the expectation (sbE1 / sbE2, r127):** the agent writes asserts of the wanted behaviour first; a fixed
   checker prints 'the problem is shown' / 'passes before any edit' / 'still fails' / 'passes with your edit'. When adopted it
   works fast (E2 rich_3278: first edit at 66-89 s, solved 2/2); open problems: adoption (skipped in 5/12 runs), the wrong
-  target (simple case instead of the issue's construct), long commands sent as text. Next proposed: E3 (PLAN checkpoint).
+  target (simple case instead of the issue's construct), long commands sent as text. sbE3 built for r128 (one-time hold-back
+  of the first edit without an expectation, 'not the one in the issue' event + example, shorter check; PLAN RUN BUILT r128).
 
 - **History before the decision** - only with a delivery the model cannot skip AND early edits. The gate on the faster
   sb1hl (first edits earlier) with a later window is the one untested form. Useful history exists on ~40% of tasks

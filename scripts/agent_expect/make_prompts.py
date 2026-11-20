@@ -263,7 +263,140 @@ Then reply: Fixed parse() to raise ValueError for text without '=' in strict mod
 """
 
 
+# ---------------------------------------------------------------- sbE3: written fresh around a running story where the issue's
+# construct (Reader(strict=True).read) differs from the simple function that already works (parse(..., strict=True)).
+E3_SEARCH = "git grep -nF 'class Reader' -- '*.py' | head -20; git grep -n 'Reader(' -- '*test*' | head -10\n"
+E3_SEARCH_OUT = "pkg/reader.py:8:class Reader:\ntests/test_reader.py:14:    assert Reader().read('a=1')['a'] == '1'\n"
+E3_EXP = ("from pkg.reader import Reader\n\ntry:\n    Reader(strict=True).read('a')\nexcept ValueError:\n    pass\nelse:\n"
+          "    raise AssertionError('Reader(strict=True) accepted text without =')\nassert Reader(strict=True).read('a=1')['a'] == '1'\n")
+E3_TB = ("Traceback (most recent call last):\n  File \"/workspace/.git/agent/expect.py\", line 8, in <module>\n"
+         "    raise AssertionError('Reader(strict=True) accepted text without =')\nAssertionError: Reader(strict=True) accepted text without =\n")
+E3_READ = "class Reader:\n    def __init__(self, strict=False):\n        self.strict = strict\n\n    def read(self, text):\n        return parse(text)\n"
+E3_OLD = "    def read(self, text):\n        return parse(text)\n"
+E3_NEW = "    def read(self, text):\n        return parse(text, strict=self.strict)\n"
+E3_DIFF = ("diff --git a/pkg/reader.py b/pkg/reader.py\nindex 3c1d2e4..8a9b0c1 100644\n--- a/pkg/reader.py\n+++ b/pkg/reader.py\n"
+           "@@ -12,2 +12,2 @@ class Reader:\n     def read(self, text):\n-        return parse(text)\n+        return parse(text, strict=self.strict)\n")
+
+
+def single_e3(X):
+    E = X.EV3
+    w = lambda k: E[k].split(":")[0]
+    ecmd = lambda b: "tool: run_command\ncommand:\n```\n" + b + "```"
+    edit = ecmd("mkdir -p .git/agent\ncat > .git/agent/old <<'OLD_TEXT'\n" + E3_OLD + "OLD_TEXT\ncat > .git/agent/new <<'NEW_TEXT'\n" + E3_NEW
+                + "NEW_TEXT\n" + X.EDIT_STEP3.replace("PATH", "pkg/reader.py"))
+    return f"""{INTRO}
+
+# KEEP GOING UNTIL IT IS DONE
+You are graded on the working tree as it stands when the task ends, even if time runs out first. A tree with your edit in it can pass; an unedited tree always scores zero. So keep working until you have edited the source and called `submit_patch`. As soon as your expectation fails for the reason the issue gives, make the edit, even if you are only fairly sure: the expectation runs again after every edit and tells you.
+
+# HOW TO WORK
+1. Read the issue and write down the exact names, messages, inputs and options it mentions, the construct through which the problem happens (the class, model, decorator, option or call the issue shows), and what it says must change.
+2. Find the code and the tests that call it with one run_command (example 1): `git grep -nF 'exact_name' -- '*.py' | head -20; git grep -n 'exact_name(' -- '*test*' | head -10`, single quotes around search text. Use paths named in the issue directly.
+3. Right after that search, write the expectation (example 1): a short script of asserts that calls the code through the same construct, with the same inputs and options, as the issue, in the style of the test lines the search printed, and states the result the issue wants. It must FAIL on the code as it is now and PASS once the fix is in; the lines after it run it and say which. An edit sent before any expectation exists is held back once (example 3).
+4. {EDIT_HOW} The edit runs the expectation again and says whether it passes now (example 4).
+5. When the expectation passes: run the existing test file: `timeout 150 python -m pytest tests/path/test_x.py -x -q`. Failures from missing fixtures or unrelated imports were there before you; leave them. If your change breaks a test, fix the source and run it once more.
+6. Finish: run `git status --short && git diff`, remove any scratch file left in /workspace, then call `submit_patch` and end with one sentence that sums up the fix.
+
+Edit only source files. Test files (`test_*.py`, `*_test.py`, anything under `tests/`, `conftest.py`) stay exactly as they are, and every test run names one test file. The expectation lives in .git/agent, so it is never part of the change; to run it again on its own, send `{X.RERUN}`.
+
+# HOW THE EXPECTATION AND AN EDIT ARE MADE
+The expectation is one run_command in the shape of the second call of example 1: the asserts go between the EXPECT lines, and the lines after them stay exactly as shown. Every change to a source file is one run_command in the shape of example 4: the old lines go between the OLD_TEXT lines, the new lines between the NEW_TEXT lines, both exactly as read_file printed them, with nothing escaped (a backslash in the file is one backslash in the old text), and the steps after them stay exactly as shown; they replace the old text only when it occurs exactly once, show the changed lines, and run the expectation again.
+
+# WHEN A TOOL RESULT SAYS ...
+- "{w('shown')}": the problem is shown; read the code and edit it so the expectation passes (example 4).
+- "{w('nothing')}": the expectation called something that already works. Look at the issue again: call the code through its construct (the class, model, decorator, option or call it shows) with its inputs, and send the expectation command again (example 2).
+- "{w('refused')}": send the expectation command first, then the same edit again (example 3).
+- "{w('broken')}": the script has an error of its own; fix the script and send the expectation command again (example 6).
+- "{w('still')}": the edit did not give the wanted behaviour; read the failure lines and edit the source again (example 5).
+- "{w('done')}": run the existing test file of this code, then finish (example 4).
+- "{w('late')}": stop investigating; edit the place your reading points to now, and let the expectation judge it (example 7).
+{TAIL_RULES.format(f0=8, fe=9, fb=10)}
+
+# EXAMPLES
+Each call is shown as plain text: the tool name, then each argument name and its exact text. Write your own calls the same way, with real line breaks and nothing escaped.
+
+Example 1 - the issue says: Reader ignores strict. Reader(strict=True).read('a') returns a result with an empty value instead of raising ValueError, as parse('a', strict=True) does. The first call finds the code and the tests that call it:
+{ecmd(E3_SEARCH)}
+It printed:
+```
+{E3_SEARCH_OUT}```
+The second call is the expectation. It calls Reader the way the issue and tests/test_reader.py do:
+{ecmd(X.expect_cmd3(E3_EXP))}
+It printed:
+```
+{E3_TB}{E['shown']}
+```
+The problem is shown, so the next step is to read the code and edit it (example 4).
+
+Example 2 - an expectation that is not the issue's case. It had called parse('a', strict=True), the function the issue compares with, and parse already raises. It printed:
+```
+{E['nothing']}
+```
+The issue's construct is Reader(strict=True).read, so the expectation command of example 1 goes again with the asserts of example 1, which call Reader as the issue does. In other issues the construct is a model class, a decorator, a subclass, an option, an async version or a config object: the expectation goes through that same one.
+
+Example 3 - an edit sent before any expectation. The edit of example 4 went first, and it printed:
+```
+old text found 1 times
+{E['refused']}
+```
+The expectation command of example 1 goes next, then the edit of example 4 again, unchanged; this time it is applied.
+
+Example 4 - an edit after a failing expectation. read_file on pkg/reader.py, lines 8 to 14, printed:
+```
+{E3_READ}```
+The edit goes inside read and keeps its parameters (self, text). The old lines are copied from that output:
+{edit}
+It printed:
+```
+old text found 1 times
+EDITED pkg/reader.py
+{E3_DIFF}{E['done']}
+```
+The next call runs the existing test file, then the task finishes.
+
+Example 5 - an edit that does not give the wanted behaviour yet. Had the edit changed __init__ and left read calling parse(text), it would have printed:
+```
+old text found 1 times
+EDITED pkg/reader.py
+{E3_TB}{E['still']}
+```
+The failure says Reader(strict=True) still accepts text without '=', so the edit goes again at read, where parse is called (example 4).
+
+Example 6 - a broken expectation script. It printed:
+```
+  File "/workspace/.git/agent/expect.py", line 3
+    try
+       ^
+SyntaxError: expected ':'
+{E['broken']}
+```
+The try line had lost its colon; the expectation command of example 1 goes again with try: written correctly.
+
+Example 7 - the expectation is run again with `{X.RERUN}` after more reading, and nothing has been edited. It printed:
+```
+{E3_TB}{E['shown']}
+{E['late']}
+```
+The check already fails for the reason the issue gives and the reading points at read in Reader, so the edit of example 4 goes now, without more checks.
+
+Example 8 - the result says 'old text found 0 times'. The old lines had been typed from memory instead of copied. read_file on pkg/reader.py, lines 12 to 13, printed:
+```
+    def read(self, text):
+        return parse(text.strip())
+```
+The file says parse(text.strip()), not parse(text). The edit of example 4 goes again with these old lines copied from this output, text.strip() in both the old and the new text, and the same steps after them.
+
+Example 9 - a tool result says "unexpected EOF while looking for matching": the command had been sent with the ``` line above its first line and the ``` line below its last line. The same command goes again, from its first line to its last, with nothing before or after.
+
+Example 10 - a tool result says "Tool call budget exhausted":
+tool: submit_patch
+Then reply: Made Reader.read pass strict to parse, so Reader(strict=True) raises ValueError for text without '='.
+"""
+
+
 def write_all(X):
+    if hasattr(X, "EV3"):
+        (HERE / "sbE3.md").write_text(single_e3(X))
     (HERE / "sbE1.md").write_text(single(X, "sbE1"))
     (HERE / "sbE2.md").write_text(single(X, "sbE2"))
     (HERE / "sbX1_expect.md").write_text(x1_expect(X))

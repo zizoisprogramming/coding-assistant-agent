@@ -147,6 +147,104 @@ def build_x1():
     print("wrote", out.relative_to(ROOT), "| expect chars", len(se), "| solver chars", len(ss))
 
 
+
+# ---------------------------------------------------------------- sbE3 (user 2026-11-20: 'yes build E3 alone on 4 tasks to run')
+# sbE3 = sbE2 + the r127 fixes: (1) the expectation is the SECOND call in the worked examples, and the edit step refuses the FIRST
+# edit once when no .git/agent/expect.py exists (F1 adoption, 5/12 runs skipped the command); (2) 'passes before any edit' says the
+# case is not the issue's and names what to copy (construct, inputs, options), with a worked example where the simple function
+# already works but the issue's construct does not (F2 wrong target); (3) a shorter check.sh (one case statement, shorter events)
+# against long calls sent as text (F4). The late line of sbE2 stays.
+EV3 = dict(
+    shown="== EXPECTATION FAILS: the problem is shown. Edit the source now.",
+    still="== EXPECTATION STILL FAILS with your edit: read the failure and edit again.",
+    nothing="== EXPECTATION PASSES before any edit: your case is not the one in the issue. Use its construct, options and inputs.",
+    done="== EXPECTATION PASSES with your edit: run the existing test file, then finish.",
+    broken="== EXPECTATION SCRIPT BROKEN: fix the script.",
+    late="== NOTHING EDITED YET and the run is far along: edit the likeliest cause now.",
+    refused="== EDIT HELD BACK: write the expectation first (example 1), then send this same edit again.",
+)
+CHECK3 = ("python3 .git/agent/expect.py > .git/agent/expect.out 2>&1 && r=PASSES || r=FAILS\n"
+          "grep -q -E '^(SyntaxError|IndentationError)' .git/agent/expect.out && r=BROKEN\n"
+          "tail -n 12 .git/agent/expect.out\n"
+          "git diff --quiet && e=0 || e=1\n"
+          "case $r$e in\n"
+          f"FAILS0) echo '{EV3['shown']}';;\n"
+          f"FAILS1) echo '{EV3['still']}';;\n"
+          f"PASSES0) echo '{EV3['nothing']}';;\n"
+          f"PASSES1) echo '{EV3['done']}';;\n"
+          f"*) echo '{EV3['broken']}';;\n"
+          "esac\n"
+          "t=$(git log -1 --format=%ct _swegemma_baseline 2>/dev/null || echo 0)\n"
+          f"test $e = 0 && test $t -gt 0 && test $(( $(date +%s) - t )) -gt {LATE_S} && echo '{EV3['late']}'\n"
+          "true\n")
+PY_STEP3 = """python3 - PATH <<'EOF'
+import os, pathlib, sys
+p = pathlib.Path(sys.argv[1])
+s, old, new = p.read_text(), open('.git/agent/old').read(), open('.git/agent/new').read()
+print('old text found', s.count(old), 'times')
+if s.count(old) == 1 and not os.path.exists('.git/agent/expect.py') and not os.path.exists('.git/agent/asked'):
+    open('.git/agent/asked', 'w').close()
+    print('""" + EV3["refused"] + """')
+elif s.count(old) == 1:
+    p.write_text(s.replace(old, new))
+    print('EDITED', p)
+EOF
+git diff -U1 -- PATH | head -40
+"""
+EDIT_STEP3 = PY_STEP3 + "test ! -f .git/agent/check.sh || bash .git/agent/check.sh\n"
+assert all("'" not in v for v in EV3.values()), 'event texts sit inside single quotes'
+for c in (CHECK3, EDIT_STEP3):
+    assert '"' not in c and "`" not in c and "\\" not in c and "${" not in c and "{" not in c and "}" not in c, c
+
+
+def expect_cmd3(body):
+    return ("mkdir -p .git/agent\ncat > .git/agent/expect.py <<'EXPECT'\n" + body + "EXPECT\ncat > .git/agent/check.sh <<'EOF'\n" + CHECK3
+            + "EOF\nbash .git/agent/check.sh\n")
+
+
+def check_e3(s):
+    M.check(s)
+    M.examples(s)
+    assert "edit_file" not in s and "write_file" not in s and "old_string" not in s
+    blocks = re.findall(r"command:\n```\n(.*?)```", s, re.S)
+    for b in blocks:
+        assert '"' not in b and "`" not in b and "\\" not in b, b[:80]
+    exp = [b for b in blocks if "EXPECT\n" in b]
+    assert len(exp) >= 1
+    for b in exp:
+        m = re.fullmatch(r"mkdir -p \.git/agent\ncat > \.git/agent/expect\.py <<'EXPECT'\n(.*?)EXPECT\ncat > \.git/agent/check\.sh <<'EOF'\n(.*?)EOF\nbash \.git/agent/check\.sh\n", b, re.S)
+        assert m and m.group(2) == CHECK3, "the expectation command byte for byte"
+    edits = [b for b in blocks if "OLD_TEXT" in b]
+    assert len(edits) >= 1
+    for b in edits:
+        m = re.fullmatch(r"mkdir -p \.git/agent\ncat > \.git/agent/old <<'OLD_TEXT'\n(.*?)OLD_TEXT\ncat > \.git/agent/new <<'NEW_TEXT'\n(.*?)NEW_TEXT\n(python3 - (\S+) <<'EOF'\n.*)", b, re.S)
+        assert m and m.group(3) == EDIT_STEP3.replace("PATH", m.group(4)), "the edit step byte for byte"
+        reads = re.findall(r"printed:\n```\n(.*?)```", s[:s.index(b)], re.S)
+        assert reads and m.group(1) in reads[-1], "old text copied from the read output just before it"
+    # the expectation is the second call of example 1: one search command, then the expectation command
+    ex1 = s[s.index("Example 1 -"):s.index("Example 2 -")]
+    b1 = re.findall(r"command:\n```\n(.*?)```", ex1, re.S)
+    assert len(b1) == 2 and "EXPECT\n" not in b1[0] and "EXPECT\n" in b1[1], "example 1: search, then the expectation"
+    outs = "\n".join(re.findall(r"printed:\n```\n(.*?)```", s, re.S))
+    for k, v in EV3.items():
+        assert v in outs, ("an example output for", k)
+        assert '"' + v.split(":")[0] + '"' in s, ("a WHEN line for", k)
+    assert all(l.startswith("test $e = 0 && test $t -gt 0") for l in s.splitlines() if str(LATE_S) in l), "the late number only inside check.sh's own line"
+
+
+def build_e3():
+    s = (ROOT / "scripts/agent_expect/sbE3.md").read_text()
+    check_e3(s)
+    out = SUB / "sbE3"
+    if out.exists():
+        shutil.rmtree(out)
+    shutil.copytree(SUB / "sb1hl", out)
+    (out / "prompts/system.md").write_text(s)
+    first, rest = (SUB / "sb1hl/agent.yaml").read_text().split("\n", 1)
+    (out / "agent.yaml").write_text("# sbE3 (2026-11-20): sbE2 + expectation as the 2nd call, one-time refusal of the first edit without expect.py, "
+                                    "'not the issue's case' event + example, shorter check.sh (scripts/make_expect_arms.py)\n" + rest)
+    print("wrote", out.relative_to(ROOT), "| chars", len(s), "| words", len(s.split()))
+
 if __name__ == "__main__":
     import sys
     sys.path.insert(0, str(ROOT / "scripts/agent_expect"))
@@ -155,3 +253,4 @@ if __name__ == "__main__":
     build_single("sbE1")
     build_single("sbE2")
     build_x1()
+    build_e3()

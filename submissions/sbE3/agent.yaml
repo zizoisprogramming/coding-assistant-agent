@@ -1,0 +1,10 @@
+# sbE3 (2026-11-20): sbE2 + expectation as the 2nd call, one-time refusal of the first edit without expect.py, 'not the issue's case' event + example, shorter check.sh (scripts/make_expect_arms.py)
+name: swe_agent
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/system.md
+tools:
+  - run_command
+  - read_file
+  - get_status
+  - submit_patch
+generate_content_config: !include configs/sampling.yaml
