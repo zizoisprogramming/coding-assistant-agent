@@ -96,8 +96,8 @@ Update this file whenever a line opens or closes.
 - **History before the decision** - only with a delivery the model cannot skip AND early edits. The gate on the faster
   sb1hl (first edits earlier) with a later window is the one untested form. Useful history exists on ~40% of tasks
   (window check), but the model has not acted on it once, so the bar is high.
-- **Sampling T 1.0 / top_k 64** - closed in r89 on solves only (tie); r89's data also showed fewer maxed-thinking runs
-  (2/12 vs 5/12). Being retested now on the mechanism (r126, sb1hlg).
+- **Sampling T 1.0 / top_k 64** - r89 tie on solves; r126 (4 v 4) showed no fewer maxed-thinking runs (2 vs 1; pooled with
+  r89 4/16 vs 6/16). Not worth more runs unless something else changes the loops.
 - **Information** - the biggest measured effect (6 -> 30 of 76). Any way to add the missing facts automatically (from the
   repo, the tests, the docs) is still the most promising family; the cheap evidence stage (evidc) fit the LB but did not
   add enough.
