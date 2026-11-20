@@ -4,7 +4,9 @@ Goal: build an autonomous SWE agent on `gemma-4-31b-it-qat-w4a16-ct` (Google ADK
 skills + optional LoRA) for https://www.kaggle.com/competitions/gemma-4-developer-agent. The only goal is winning the
 main leaderboard (the side writeup track was dropped for good by the user on 2026-11-10; do not raise it).
 
-**Read `docs/PLAN.md` first** — its "START HERE" section has current status, all decisions, and the next agenda.
+**Read `docs/LESSONS.md` first** (what the model obeys, what worked, what is closed and why, what is still open), then
+`docs/PLAN.md` — its "START HERE" section has older status and decisions; the newest RESULT / RUN BUILT entries are near
+the top of its list.
 Everything below it is verified research (rules, harness internals, forum findings, papers).
 
 ## Working with this user
