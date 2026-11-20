@@ -1,0 +1,11 @@
+# sbE7 (2026-11-20): sb1hl's exploring + the expectation by write_file after reading + the fixed check; hold-back, backslash fallback (scripts/make_expect_e7.py)
+name: swe_agent
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/system.md
+tools:
+  - run_command
+  - read_file
+  - write_file
+  - get_status
+  - submit_patch
+generate_content_config: !include configs/sampling.yaml
