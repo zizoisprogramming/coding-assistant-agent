@@ -1,0 +1,10 @@
+# sb1hlc (2026-11-20): sb1hl + 36 tool calls + the 'Finalize your edits' note as an event (scripts/make_sb1hlc.py)
+name: swe_agent
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/system.md
+tools:
+  - run_command
+  - read_file
+  - get_status
+  - submit_patch
+generate_content_config: !include configs/sampling.yaml
