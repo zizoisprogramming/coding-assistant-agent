@@ -47,3 +47,48 @@ for d in sorted(glob.glob(str(ROOT / "data/results/2026-11-*_skill_r1[12][0-9]_p
                         f0_bs += 1; runs_bs.add((d, job)); task[job.split("#")[0]] += 1
 print(f"runs {len(runs_all)} | heredoc edits {edits} | found 0 {f0} | found 0 with a doubled backslash in the old text {f0_bs} in {len(runs_bs)} runs")
 print("tasks:", dict(task))
+
+# replay (2026-11-20): would scripts/edit_fallback.halve have applied them? The halved old text must sit in the file text the model read
+# earlier in the run (read_file results, JSON-decoded = the real file text).
+B = chr(92)
+hit = tot = 0
+for d in sorted(glob.glob(str(ROOT / "data/results/2026-11-*_skill_r1[12][0-9]_p*"))):
+    f = Path(d) / "requests/requests.jsonl"
+    if not f.exists():
+        continue
+    by = collections.defaultdict(list)
+    for l in open(f, errors="replace"):
+        try:
+            r = json.loads(l)
+        except Exception:
+            continue
+        if len(r["request"]["messages"]) > 1:
+            by[r["job"]].append(r)
+    for job, rs in by.items():
+        rs.sort(key=lambda r: float(r["t"]))
+        for i, r in enumerate(rs[:-1]):
+            try:
+                m = ast.literal_eval(str(r["reply"])).get("message") or {}
+            except Exception:
+                continue
+            for c in m.get("tool_calls") or []:
+                try:
+                    cmd = json.loads(c["function"]["arguments"]).get("command", "")
+                except Exception:
+                    continue
+                o = OLD.search(cmd)
+                out = str(rs[i + 1]["request"]["messages"][-1].get("content"))
+                if not o or "old text found 0 times" not in out or B + B not in o.group(1):
+                    continue
+                tot += 1
+                half = o.group(1).replace(B + B, B)
+                seen = []
+                for mm in r["request"]["messages"]:
+                    if mm.get("role") == "tool":
+                        try:
+                            v = json.loads(mm["content"]) if isinstance(mm["content"], str) else mm["content"]
+                            seen.append(str(v.get("content") or v.get("stdout") or v))
+                        except Exception:
+                            seen.append(str(mm.get("content")))
+                hit += any(half.rstrip("\n") in s for s in seen)
+print(f"replay: {hit} of {tot} doubled-backslash 'found 0' edits have their halved old text, exactly, in a file text read earlier in the run")
