@@ -16,6 +16,8 @@ Update this file whenever a line opens or closes.
 - **Leaderboard (58 public tasks, score = solved / 58, floored):** our best fits are sk_a2 0.18, mix 0.17, sk_a2_32 0.17;
   then sb1hl 0.15, combo1 0.15, evidc 0.15 / 0.12, le6_t6 0.15, sa2 0.12, nn32rcn2 0.12, sq1c2a6 0.12 / 0.10, evidefs 0.10. The public
   pub024 scored 0.18 (local control only; we never submit public configs). Top of the board ~0.29.
+- **No local subset predicts our LB order (2026-11-22, lb_subsets.py):** LB noise (SD 2.7 tasks) is bigger than the whole
+  spread of our LB scores (SD 1.7). Choose on large same-run local samples.
 - **Our LB order is luck (2026-11-22, sk_a2 deep dive):** if our ten single-agent LB scores came from one agent
   (8.5/58), the best of 12 submissions reaching 11/58 (sk_a2) has p 0.95. sk_a2 = pub024 = sb1hl = sk_a2_32 on local
   solves (task-matched); sk_a2's real edge is process (no patch 15% vs 28%, ~55 s faster, no very long replies).
