@@ -20,6 +20,10 @@ Update this file whenever a line opens or closes.
   AGAIN + RUN, both worked examples in that shape: 9/16 vs 21/48 (44%) for sk_a2 / sk_a2_60 on the same 8 tasks (P(>= 9 | 44%) = 0.22,
   so not proven); same mean time (358 s); compactions 1.56. Every edit that stayed in the tree solved (9/9); all 7 failures had no patch
   (3 edits refused at the 28-call limit, all in the wrong place). The 'RUN once' part is not obeyed: 12 of 14 edited runs ran code 2+ times first.
+- **The model does not stop reading on STOP READING, even with a worked example of that moment (r145, sk_a2_60x2):** 11% of warning
+  moments were followed by an edit (control 6%); it still read ~6 more times. Edits came earlier overall (call 20.5 vs 25.9) and fewer
+  were refused at the call limit (1 vs 5), with no harm, but solves matched the pooled control (3/8 vs 6/16). Same-task control swings
+  5/8 -> 1/8 between rounds: 8-run comparisons cannot show solve gains.
 - **Gates before the edit become loops (r141-r142, sk_a2v):** "your repro does not show the bug: fix it or edit now" was read as
   "fix it" 10 times in a row; on hard-to-reproduce bugs the agent rewrote the repro until time ran out. 6/16 vs 9/16.
   Wrong edits are not a finding problem (the real-fix lines were on screen in ~95% of wrong edits).
