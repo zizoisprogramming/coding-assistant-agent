@@ -16,6 +16,9 @@ Update this file whenever a line opens or closes.
 - **Leaderboard (58 public tasks, score = solved / 58, floored):** our best fits are sk_a2 0.18, mix 0.17, sk_a2_32 0.17;
   then sb1hl 0.15, combo1 0.15, evidc 0.15 / 0.12, le6_t6 0.15, sa2 0.12, nn32rcn2 0.12, sq1c2a6 0.12 / 0.10, evidefs 0.10. The public
   pub024 scored 0.18 (local control only; we never submit public configs). Top of the board ~0.29.
+- **Our LB order is luck (2026-11-22, sk_a2 deep dive):** if our ten single-agent LB scores came from one agent
+  (8.5/58), the best of 12 submissions reaching 11/58 (sk_a2) has p 0.95. sk_a2 = pub024 = sb1hl = sk_a2_32 on local
+  solves (task-matched); sk_a2's real edge is process (no patch 15% vs 28%, ~55 s faster, no very long replies).
 - **LB noise is large:** the same file scored 9/58 and 7/58; one score has SD ~0.045. A local edge smaller than ~+3 solves
   per 58 cannot be seen on the LB.
 - **LB time limit (12 h for all tasks) is real:** every 7-8 min "skill shell" agent, evid3, le5 and 12B timed out. Agents
