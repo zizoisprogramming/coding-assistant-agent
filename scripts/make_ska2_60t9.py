@@ -22,3 +22,13 @@ e = sub(sub(e, "max_time_minutes: 8", "max_time_minutes: 9"), "max_tool_calls: 2
 y = (s / "agent.yaml").read_text()
 (o / "agent.yaml").write_text("# sk_a2_60t9 (2026-11-23): sk_a2_60 + 9 min / 32 calls, prompt unchanged (scripts/make_ska2_60t9.py). " + y.lstrip("# "))
 print("wrote", o.relative_to(ROOT))
+
+
+# sk_a2_60c32 (user 2026-11-23: 'also add sk_a2_60 with 32 calls as an option') = sk_a2_60 + max_tool_calls 32 only (8 minutes kept)
+s2, o2 = ROOT / "submissions/sk_a2_60", ROOT / "submissions/sk_a2_60c32"
+if o2.exists():
+    shutil.rmtree(o2)
+shutil.copytree(s2, o2)
+(o2 / "eval_config.yaml").write_text(sub((s2 / "eval_config.yaml").read_text(), "max_tool_calls: 28", "max_tool_calls: 32"))
+(o2 / "agent.yaml").write_text("# sk_a2_60c32 (2026-11-23): sk_a2_60 + 32 calls, 8 min, prompt unchanged (scripts/make_ska2_60t9.py). " + (s2 / "agent.yaml").read_text().lstrip("# "))
+print("wrote", o2.relative_to(ROOT))
