@@ -6,12 +6,15 @@ Update this file whenever a line opens or closes.
 
 ## 1. Where we stand
 
+- **2026-11-22: control = sk_a2. r138 / r139 (six one-change arms + sk_a2m, 8 solvable dev16): no arm beat sk_a2 by the
+  bar (+2 of 8); all 2-4/8 vs sk_a2 3/8 twice. 29% of runs hit the 480 s cap (few, slow calls on rich_3180 / rich_3521 /
+  fastapi_15589). Prompt / sampling / memory tweaks of sk_a2 are now inside luck; daily LB candidate sk_a2t.**
 - **Current base agent: sb1hl ("sb1h-lite")** = one agent, harness tools only (run_command, read_file, get_status,
   submit_patch), every edit made by one heredoc command whose fixed Python step replaces the old text only when it occurs
   once, short prompt (7.4k chars) with worked examples. r123 + r124: solves equal to sb1h (18/32 vs 17/32), a third fewer
   compactions, ~30 s faster per run. Not yet checked on tasks never used to pick anything, not yet on the leaderboard.
 - **Leaderboard (58 public tasks, score = solved / 58, floored):** our best fits are sk_a2 0.18, mix 0.17, sk_a2_32 0.17;
-  then combo1 0.15, evidc 0.15 / 0.12, le6_t6 0.15, sa2 0.12, nn32rcn2 0.12, sq1c2a6 0.12 / 0.10, evidefs 0.10. The public
+  then sb1hl 0.15, combo1 0.15, evidc 0.15 / 0.12, le6_t6 0.15, sa2 0.12, nn32rcn2 0.12, sq1c2a6 0.12 / 0.10, evidefs 0.10. The public
   pub024 scored 0.18 (local control only; we never submit public configs). Top of the board ~0.29.
 - **LB noise is large:** the same file scored 9/58 and 7/58; one score has SD ~0.045. A local edge smaller than ~+3 solves
   per 58 cannot be seen on the LB.
