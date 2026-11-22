@@ -20,6 +20,10 @@ Update this file whenever a line opens or closes.
   AGAIN + RUN, both worked examples in that shape: 9/16 vs 21/48 (44%) for sk_a2 / sk_a2_60 on the same 8 tasks (P(>= 9 | 44%) = 0.22,
   so not proven); same mean time (358 s); compactions 1.56. Every edit that stayed in the tree solved (9/9); all 7 failures had no patch
   (3 edits refused at the 28-call limit, all in the wrong place). The 'RUN once' part is not obeyed: 12 of 14 edited runs ran code 2+ times first.
+- **A hard read block in a.py is obeyed but arrives too late (r146, sk_a2_60xb):** READING CLOSED 4 looks after STOP READING fired in 5/16
+  runs, at calls 22-29: STOP READING counts a.py looks, and runs that investigate with RUN scripts reach 15 looks only near the 28-call end.
+  When it fired, the next call was an edit 4/7 and bypass reads were rare (0.4). Solves 5/16 vs 8/16 (p 0.47); the lost solves were in
+  unblocked runs.
 - **The model does not stop reading on STOP READING, even with a worked example of that moment (r145, sk_a2_60x2):** 11% of warning
   moments were followed by an edit (control 6%); it still read ~6 more times. Edits came earlier overall (call 20.5 vs 25.9) and fewer
   were refused at the call limit (1 vs 5), with no harm, but solves matched the pooled control (3/8 vs 6/16). Same-task control swings
