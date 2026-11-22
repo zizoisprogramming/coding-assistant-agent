@@ -38,7 +38,7 @@ def seen_lines(name, a, res):
         f = norm(a.get("filepath") or a.get("path"))
         nums = {int(x) for x in NUM.findall(res)}
         if not nums:
-            s = int(a.get("start_line") or a.get("offset") or 1); nums = set(range(s, s + 150))
+            m0 = re.match(r"\d+", str(a.get("start_line") or a.get("offset") or 1)); s = int(m0.group(0)) if m0 else 1; nums = set(range(s, s + 150))
         return f, nums
     m = re.search(r"a\.py show\s+(\S+)", c)
     if m:
