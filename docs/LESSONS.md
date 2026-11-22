@@ -16,6 +16,10 @@ Update this file whenever a line opens or closes.
 - **Leaderboard (58 public tasks, score = solved / 58, floored):** our best fits are sk_a2 0.18, mix 0.17, sk_a2_32 0.17;
   then sb1hl 0.15, combo1 0.15, evidc 0.15 / 0.12, le6_t6 0.15, sa2 0.12, nn32rcn2 0.12, sq1c2a6 0.12 / 0.10, evidefs 0.10. The public
   pub024 scored 0.18 (local control only; we never submit public configs). Top of the board ~0.29.
+- **A prompt written around the solved rhythm is followed and does no harm (r144, sk_a2_60x):** LOOK -> RUN once -> EDIT -> LOOK
+  AGAIN + RUN, both worked examples in that shape: 9/16 vs 21/48 (44%) for sk_a2 / sk_a2_60 on the same 8 tasks (P(>= 9 | 44%) = 0.22,
+  so not proven); same mean time (358 s); compactions 1.56. Every edit that stayed in the tree solved (9/9); all 7 failures had no patch
+  (3 edits refused at the 28-call limit, all in the wrong place). The 'RUN once' part is not obeyed: 12 of 14 edited runs ran code 2+ times first.
 - **Gates before the edit become loops (r141-r142, sk_a2v):** "your repro does not show the bug: fix it or edit now" was read as
   "fix it" 10 times in a row; on hard-to-reproduce bugs the agent rewrote the repro until time ran out. 6/16 vs 9/16.
   Wrong edits are not a finding problem (the real-fix lines were on screen in ~95% of wrong edits).
