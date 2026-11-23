@@ -20,6 +20,9 @@ Update this file whenever a line opens or closes.
   AGAIN + RUN, both worked examples in that shape: 9/16 vs 21/48 (44%) for sk_a2 / sk_a2_60 on the same 8 tasks (P(>= 9 | 44%) = 0.22,
   so not proven); same mean time (358 s); compactions 1.56. Every edit that stayed in the tree solved (9/9); all 7 failures had no patch
   (3 edits refused at the 28-call limit, all in the wrong place). The 'RUN once' part is not obeyed: 12 of 14 edited runs ran code 2+ times first.
+- **Pinning the issue in the system prompt and 40 calls do not help (r147):** pinned 4/16, pinned + 40 calls 6/16, control 5/16; pinning did not
+  cut wrong edits (5 vs 4); 40 calls removed budget-refused edits but turned them into time ends (10/16) and +43 s per run (LB-unsafe).
+  timeout_seconds 240 costs nothing here (no command > 30 s) and protects the grader's hidden-test run (same timeout, verification.py:502).
 - **A hard read block in a.py is obeyed but arrives too late (r146, sk_a2_60xb):** READING CLOSED 4 looks after STOP READING fired in 5/16
   runs, at calls 22-29: STOP READING counts a.py looks, and runs that investigate with RUN scripts reach 15 looks only near the 28-call end.
   When it fired, the next call was an edit 4/7 and bypass reads were rare (0.4). Solves 5/16 vs 8/16 (p 0.47); the lost solves were in
