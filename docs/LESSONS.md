@@ -20,6 +20,11 @@ Update this file whenever a line opens or closes.
   AGAIN + RUN, both worked examples in that shape: 9/16 vs 21/48 (44%) for sk_a2 / sk_a2_60 on the same 8 tasks (P(>= 9 | 44%) = 0.22,
   so not proven); same mean time (358 s); compactions 1.56. Every edit that stayed in the tree solved (9/9); all 7 failures had no patch
   (3 edits refused at the 28-call limit, all in the wrong place). The 'RUN once' part is not obeyed: 12 of 14 edited runs ran code 2+ times first.
+- **Nothing has beaten the ~40% level on the 8 solvable dev16 since r138 (2026-11-23 pooled check):** 19 agents, 256 runs, 103 solved (40%);
+  every agent's 95% range covers 40% (sk_a2 13/32, sk_a2_60 8/16, sk_a2_60x 10/24, sk_a2_60x2 11/24, x2p 4/16 ...). Only 4 of the 8 tasks
+  discriminate (11194 90% and 3882 93% always solved; 3180 0/30 and 3470 2/30 never), so a 16-run round tests ~8 runs; a real +10 points
+  needs ~150 runs per arm. Stop picking winners from 16-run rounds: choose LB candidates on speed / safety, test big ideas on many
+  unpicked tasks.
 - **Pinning the issue in the system prompt and 40 calls do not help (r147):** pinned 4/16, pinned + 40 calls 6/16, control 5/16; pinning did not
   cut wrong edits (5 vs 4); 40 calls removed budget-refused edits but turned them into time ends (10/16) and +43 s per run (LB-unsafe).
   timeout_seconds 240 costs nothing here (no command > 30 s) and protects the grader's hidden-test run (same timeout, verification.py:502).
