@@ -24,6 +24,8 @@ Update this file whenever a line opens or closes.
   hidden test extends does not go with solving (7% vs 12% before the edit; rich extends existing test files 41/42, fastapi
   creates new test files in 40/62); the repo docs mention the changed code for 60% of often-failing
   tasks but state the wanted behaviour in 0 of 13 hand-read; most tasks postdate the model's data. Automatic information: closed for now.
+- **r148 (14 discriminating tasks, 28 runs per arm): sk_a2 15/28 is still the best and fastest (340 s);** sk_a2_60 11, the four-step x prompts
+  10 and 10 (longer runs, more refused edits). The x-prompt line (r144-r148) is closed as no better than sk_a2.
 - **Nothing has beaten the ~40% level on the 8 solvable dev16 since r138 (2026-11-23 pooled check):** 19 agents, 256 runs, 103 solved (40%);
   every agent's 95% range covers 40% (sk_a2 13/32, sk_a2_60 8/16, sk_a2_60x 10/24, sk_a2_60x2 11/24, x2p 4/16 ...). Only 4 of the 8 tasks
   discriminate (11194 90% and 3882 93% always solved; 3180 0/30 and 3470 2/30 never), so a 16-run round tests ~8 runs; a real +10 points
