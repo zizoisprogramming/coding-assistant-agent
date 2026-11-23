@@ -24,6 +24,9 @@ Update this file whenever a line opens or closes.
   hidden test extends does not go with solving (7% vs 12% before the edit; rich extends existing test files 41/42, fastapi
   creates new test files in 40/62); the repo docs mention the changed code for 60% of often-failing
   tasks but state the wanted behaviour in 0 of 13 hand-read; most tasks postdate the model's data. Automatic information: closed for now.
+- **Grader-shaped checks did not take (r149):** a.py's TESTS THAT USE template fired in 13/16 runs, but checks reused it in ~1/3 and the
+  three-case 'test the rule' check was written in 1-2 of 6 edited runs; green-but-wrong edits unchanged; 2/8 and 2/8 vs sk_a2 3/8. A
+  template of one function can narrow the fix (rich_3480: append fixed, the identical append_text line missed).
 - **r148 (14 discriminating tasks, 28 runs per arm): sk_a2 15/28 is still the best and fastest (340 s);** sk_a2_60 11, the four-step x prompts
   10 and 10 (longer runs, more refused edits). The x-prompt line (r144-r148) is closed as no better than sk_a2.
 - **Nothing has beaten the ~40% level on the 8 solvable dev16 since r138 (2026-11-23 pooled check):** 19 agents, 256 runs, 103 solved (40%);
