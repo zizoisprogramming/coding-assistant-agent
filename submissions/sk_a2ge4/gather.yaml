@@ -1,0 +1,17 @@
+name: gather
+model: gemma-4-31b-it-qat-w4a16-ct
+instruction: !include prompts/gather.md
+output_key: brief
+tools:  # all six declared: a call to an undeclared tool ends the whole run ('Tool submit_patch not found', r150 sim); the prompt says gather never edits or submits
+  - run_command
+  - read_file
+  - edit_file
+  - write_file
+  - get_status
+  - submit_patch
+  - agent_tool:  # sk_a2ge4: calling it ends this stage (skip_summarization)
+      config_path: handover.yaml
+      skip_summarization: true
+skills:
+  - skills/agent
+generate_content_config: !include configs/sampling.yaml

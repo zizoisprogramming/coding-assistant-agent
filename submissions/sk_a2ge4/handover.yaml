@@ -1,0 +1,6 @@
+name: handover
+model: gemma-4-31b-it-qat-w4a16-ct
+description: Hands your BRIEF notes to the editor and ends your work. Call it with request = your RULE, EDIT and CHECK lines.
+instruction: !include prompts/handover.md
+output_key: notes
+generate_content_config: !include configs/handover_sampling.yaml
