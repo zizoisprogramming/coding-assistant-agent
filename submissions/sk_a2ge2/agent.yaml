@@ -1,0 +1,8 @@
+# sk_a2ge2 (2026-11-23): sk_a2ge faster: gatherer reads only, closed at 8 looks or 150 s (scripts/make_ska2ge2.py). Was: sk_a2ge gatherer (stopped by a.py READING CLOSED after 10 looks) -> editor (clean context, issue + brief
+# pinned in its prompt) on sk_a2's tools (scripts/make_ska2ge.py)
+name: swe_agent
+agent_class: SequentialAgent
+description: Gathers the facts for the fix, then edits, checks and submits.
+sub_agents:
+  - config_path: gather.yaml
+  - config_path: editor.yaml
