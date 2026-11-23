@@ -27,6 +27,9 @@ Update this file whenever a line opens or closes.
 - **Gatherer -> editor (r150-r152): the editor works, the gatherer's stop does not.** Briefed editors edit first and fast (~20-80 s); the
   a.py-built brief removed garbled hand-overs; but the gatherer hands over only when the model chooses a text reply (4/8, 7/8, 4/8), ignoring
   READING CLOSED up to 6 times. Solves 2/5, 2/7, 1/3 vs sk_a2. Paused.
+  r153: a handover AgentTool (skip_summarization) ends the stage on a tool call (6/8 called, always ended), and the editor with a GREEN /
+  RED check solved both runs it had time for, but the gatherer handed over at 208-455 s or never: 2/8 vs 5/8, all failures time-outs. On
+  8 minutes, two sequential agents lose to one; keep the post-edit verdict, drop the split.
 - **Grader-shaped checks did not take (r149):** a.py's TESTS THAT USE template fired in 13/16 runs, but checks reused it in ~1/3 and the
   three-case 'test the rule' check was written in 1-2 of 6 edited runs; green-but-wrong edits unchanged; 2/8 and 2/8 vs sk_a2 3/8. A
   template of one function can narrow the fix (rich_3480: append fixed, the identical append_text line missed).
