@@ -24,6 +24,9 @@ Update this file whenever a line opens or closes.
   hidden test extends does not go with solving (7% vs 12% before the edit; rich extends existing test files 41/42, fastapi
   creates new test files in 40/62); the repo docs mention the changed code for 60% of often-failing
   tasks but state the wanted behaviour in 0 of 13 hand-read; most tasks postdate the model's data. Automatic information: closed for now.
+- **Gatherer -> editor (r150-r152): the editor works, the gatherer's stop does not.** Briefed editors edit first and fast (~20-80 s); the
+  a.py-built brief removed garbled hand-overs; but the gatherer hands over only when the model chooses a text reply (4/8, 7/8, 4/8), ignoring
+  READING CLOSED up to 6 times. Solves 2/5, 2/7, 1/3 vs sk_a2. Paused.
 - **Grader-shaped checks did not take (r149):** a.py's TESTS THAT USE template fired in 13/16 runs, but checks reused it in ~1/3 and the
   three-case 'test the rule' check was written in 1-2 of 6 edited runs; green-but-wrong edits unchanged; 2/8 and 2/8 vs sk_a2 3/8. A
   template of one function can narrow the fix (rich_3480: append fixed, the identical append_text line missed).
