@@ -21,7 +21,8 @@ Update this file whenever a line opens or closes.
   so not proven); same mean time (358 s); compactions 1.56. Every edit that stayed in the tree solved (9/9); all 7 failures had no patch
   (3 edits refused at the 28-call limit, all in the wrong place). The 'RUN once' part is not obeyed: 12 of 14 edited runs ran code 2+ times first.
 - **The missing behaviour is not in the sandbox (2026-11-23, Steps 0 / 0b):** hints are empty on all public tasks; reading the test file the
-  hidden test extends does not go with solving (7% vs 12% before the edit); the repo docs mention the changed code for 60% of often-failing
+  hidden test extends does not go with solving (7% vs 12% before the edit; rich extends existing test files 41/42, fastapi
+  creates new test files in 40/62); the repo docs mention the changed code for 60% of often-failing
   tasks but state the wanted behaviour in 0 of 13 hand-read; most tasks postdate the model's data. Automatic information: closed for now.
 - **Nothing has beaten the ~40% level on the 8 solvable dev16 since r138 (2026-11-23 pooled check):** 19 agents, 256 runs, 103 solved (40%);
   every agent's 95% range covers 40% (sk_a2 13/32, sk_a2_60 8/16, sk_a2_60x 10/24, sk_a2_60x2 11/24, x2p 4/16 ...). Only 4 of the 8 tasks
