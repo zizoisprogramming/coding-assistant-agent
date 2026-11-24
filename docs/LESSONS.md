@@ -26,6 +26,10 @@ Update this file whenever a line opens or closes.
   tasks but state the wanted behaviour in 0 of 13 hand-read; most tasks postdate the model's data. Automatic information: closed for now.
 - **A post-edit verdict tool in a single agent is skipped (r154, sk_a2c):** a.py check used in 1/8 edited runs; the model ran its own
   check.py with python3, mostly before the edit (4-8 write/run cycles), so first edits came ~110 s later (301 vs 191 s); 5/12 = sk_a2 5/12.
+- **A routed verdict tool is used but not obeyed (r155, sk_a2c2):** with every python run routed through a.py check (heredoc), 50/52 runs
+  went through it, but after BUG SHOWN the next call was the edit only 6/24 times: the model rewrote its check 32 times before editing
+  (median ~92 s of polishing), never repaired after RED (0/4), and 5 of 6 wrong kept edits ended GREEN. 3/12 vs sk_a2 6/12. Own-check
+  verdicts: closed. **EDIT MATERIAL at STOP READING (sk_a2o) was read past (edit next 1/14); 5/12, first edit 344 vs 198 s: closed.**
 - **Gatherer -> editor (r150-r152): the editor works, the gatherer's stop does not.** Briefed editors edit first and fast (~20-80 s); the
   a.py-built brief removed garbled hand-overs; but the gatherer hands over only when the model chooses a text reply (4/8, 7/8, 4/8), ignoring
   READING CLOSED up to 6 times. Solves 2/5, 2/7, 1/3 vs sk_a2. Paused.
@@ -140,6 +144,8 @@ Update this file whenever a line opens or closes.
 | Sampling T 1.0 / top_k 64 (sb1hlg) | r126: no fewer maxed-thinking runs (2 vs 1 of 4; with r89 4/16 vs 6/16) |
 | Expectation agent -> solver as built (sbX1) | r127: first agent 293-424 s of the shared 480 s, 0/4 solved, text-form tool calls |
 | 12B / E4B models | weaker |
+| Own-check verdict tools (sk_a2c r154, sk_a2c2 r155) | skipped when optional; when routed, used but the model rewrites the check instead of editing; GREEN does not predict hidden tests |
+| Edit material / same-lines printouts (sk_a2o r155) | read past (edit after material 1/14), slower first edits |
 
 ## 5. Not closed forever (conditions under which it is worth another try)
 
