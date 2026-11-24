@@ -24,6 +24,8 @@ Update this file whenever a line opens or closes.
   hidden test extends does not go with solving (7% vs 12% before the edit; rich extends existing test files 41/42, fastapi
   creates new test files in 40/62); the repo docs mention the changed code for 60% of often-failing
   tasks but state the wanted behaviour in 0 of 13 hand-read; most tasks postdate the model's data. Automatic information: closed for now.
+- **A post-edit verdict tool in a single agent is skipped (r154, sk_a2c):** a.py check used in 1/8 edited runs; the model ran its own
+  check.py with python3, mostly before the edit (4-8 write/run cycles), so first edits came ~110 s later (301 vs 191 s); 5/12 = sk_a2 5/12.
 - **Gatherer -> editor (r150-r152): the editor works, the gatherer's stop does not.** Briefed editors edit first and fast (~20-80 s); the
   a.py-built brief removed garbled hand-overs; but the gatherer hands over only when the model chooses a text reply (4/8, 7/8, 4/8), ignoring
   READING CLOSED up to 6 times. Solves 2/5, 2/7, 1/3 vs sk_a2. Paused.
