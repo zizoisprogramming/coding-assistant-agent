@@ -26,7 +26,7 @@ Update this file whenever a line opens or closes.
   tasks but state the wanted behaviour in 0 of 13 hand-read; most tasks postdate the model's data. Automatic information: closed for now.
 - **A post-edit verdict tool in a single agent is skipped (r154, sk_a2c):** a.py check used in 1/8 edited runs; the model ran its own
   check.py with python3, mostly before the edit (4-8 write/run cycles), so first edits came ~110 s later (301 vs 191 s); 5/12 = sk_a2 5/12.
-- **A 'no experiments before the edit' rule + failure examples is obeyed (r157, sk_a2p2):** pre-edit scripts 1.75 vs 6.4 per run (p 0.003; with r156 2.6 vs 6.0, p 0.016), solves 5/8 vs 4/8 (luck). First edits not earlier (312 vs 262 s): the saved time went into reading and long thinking. No-patch runs now spend ~60% of model time in 45-75 s thinking requests on code already read.
+- **A 'no experiments before the edit' rule + failure examples: weak at best (r157 + r158, sk_a2p2):** r157 pre-edit scripts 1.75 vs 6.4 per run, but r158 on the 8 solvable 3.1 vs 2.1; pooled r156-r158 2.8 vs 4.0, p 0.11. Solves 5/8 vs 4/8 and 9/16 vs 9/16: a tie. First edits not earlier. No-patch runs spend ~60% of model time in 45-75 s thinking requests on code already read. Watch for leaks: p2's Examples 2 / 3 were rich_3278 / rich_4079's real fixes.
 - **After the edit the model leaves a.py (r156, sk_a2o2n):** YOUR EDIT / SAME LINES ELSEWHERE reached 1/5 edited runs: post-edit help printed
   on a.py outputs never arrives. Without any check wording, pre-edit scripts fell back to sk_a2's level (35 vs 45). 5/8 vs 5/8; all failures no-edit.
 - **A routed verdict tool is used but not obeyed (r155, sk_a2c2):** with every python run routed through a.py check (heredoc), 50/52 runs
