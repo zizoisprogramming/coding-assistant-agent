@@ -26,6 +26,7 @@ Update this file whenever a line opens or closes.
   tasks but state the wanted behaviour in 0 of 13 hand-read; most tasks postdate the model's data. Automatic information: closed for now.
 - **A post-edit verdict tool in a single agent is skipped (r154, sk_a2c):** a.py check used in 1/8 edited runs; the model ran its own
   check.py with python3, mostly before the edit (4-8 write/run cycles), so first edits came ~110 s later (301 vs 191 s); 5/12 = sk_a2 5/12.
+- **A late gate whose answers are code, not refusals, is obeyed (r159, sk_a2p2g2):** after STOP READING with no edit, unread reads answered with the most-read function, candidates on every output, one re-show: edit after a gate answer 3/4, every STOP run edited (sk_a2 2/6 never did), no-patch 0 vs 2. Solves 2/8 = 2/8: the late edits were wrong logic in the right place. Max gain ~+5-9% of runs: needs a large run to see.
 - **A 'no experiments before the edit' rule + failure examples: weak at best (r157 + r158, sk_a2p2):** r157 pre-edit scripts 1.75 vs 6.4 per run, but r158 on the 8 solvable 3.1 vs 2.1; pooled r156-r158 2.8 vs 4.0, p 0.11. Solves 5/8 vs 4/8 and 9/16 vs 9/16: a tie. First edits not earlier. No-patch runs spend ~60% of model time in 45-75 s thinking requests on code already read. Watch for leaks: p2's Examples 2 / 3 were rich_3278 / rich_4079's real fixes.
 - **After the edit the model leaves a.py (r156, sk_a2o2n):** YOUR EDIT / SAME LINES ELSEWHERE reached 1/5 edited runs: post-edit help printed
   on a.py outputs never arrives. Without any check wording, pre-edit scripts fell back to sk_a2's level (35 vs 45). 5/8 vs 5/8; all failures no-edit.
@@ -149,7 +150,7 @@ Update this file whenever a line opens or closes.
 | 12B / E4B models | weaker |
 | Own-check verdict tools (sk_a2c r154, sk_a2c2 r155) | skipped when optional; when routed, used but the model rewrites the check instead of editing; GREEN does not predict hidden tests |
 | Edit material / same-lines printouts (sk_a2o r155) | read past (edit after material 1/14), slower first edits |
-| Late reading gate after STOP READING (sk_a2p2g r157) | fired in 2/8 runs; edit after refusal 1/6; the model retried find, went round it with shell grep, compaction dropped the candidates; re-reading read code (allowed) still timed out |
+| Late reading gate after STOP READING, first form (sk_a2p2g r157) | bare refusals: fired 2/8, edit after refusal 1/6; retried find, shell grep, compaction dropped the candidates. FIXED in sk_a2p2g2 (r159): candidate code instead of refusals + candidates on every output -> edit after a gate answer 3/4, no STOP run without an edit; solves 2/8 = sk_a2 2/8 (the new edits were wrong logic in the right function) |
 
 ## 5. Not closed forever (conditions under which it is worth another try)
 
