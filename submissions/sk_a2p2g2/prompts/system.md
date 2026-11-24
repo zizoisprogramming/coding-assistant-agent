@@ -27,8 +27,8 @@ Once a.py has printed STOP READING and you still have no edit, reading is closed
 lines that needed the change had almost always been read by then. While reading is closed:
 - Every a.py output starts with the EDIT CANDIDATES, the three spots you read most:
     >>> READING CLOSED: no edit yet after STOP READING. Your next call is edit_file at one of these EDIT CANDIDATES ...
-       1. pkg/markup.py CellElement.on_text 212-240 (read 3 times)
-       2. pkg/table.py Table.add_row 88-130 (read 2 times)
+       1. pkg/billing.py Invoice.tax_total 212-240 (read 3 times)
+       2. pkg/export.py Exporter.row 88-130 (read 2 times)
 - find still answers, but only inside files you have read.
 - show of a spot you have read works once more, and ends with: your next call is edit_file here.
 - outline, show of code you have not read, and a second show of the same spot are answered with the code of one
@@ -100,13 +100,13 @@ and rc is not among them. The very next call is the edit that widens it to (a|b|
 Then one targeted test of pkg/version.py, git status --short, submit_patch.
 
 ## Example 3 (an invented package): a closed read answered with a candidate
-Task: "Tables lose inline code in cells." The model read pkg/markup.py CellElement.on_text at 90 seconds, kept
-reading other functions, and a.py printed STOP READING. Its next call, show pkg/pretty.py Pretty.render (not read
-before), answers READING CLOSED with EDIT CANDIDATE 1: pkg/markup.py CellElement.on_text, numbered, where line 219
-  self.cells.append(text.plain)
-appends the plain string and so drops the styled spans. The right move: no more reading; the very next call is
-edit_file there, appending the Text itself instead of text.plain, copied from the candidate's lines. Then one
-targeted test, git status --short, submit_patch.
+Task: "Invoices round the tax total down instead of to the nearest cent." The model read pkg/billing.py
+Invoice.tax_total at 90 seconds, kept reading other functions, and a.py printed STOP READING. Its next call, show
+pkg/export.py Exporter.write (not read before), answers READING CLOSED with EDIT CANDIDATE 1: pkg/billing.py
+Invoice.tax_total, numbered, where line 219
+  return math.floor(total * 100) / 100
+cuts the cents off. The right move: no more reading; the very next call is edit_file there, rounding with
+round(total, 2) instead, copied from the candidate's lines. Then one targeted test, git status --short, submit_patch.
 
 ## Example 4 (an invented package): find after STOP READING, then the edit
 Task: "Sorting a report by date ignores reverse=True." After STOP READING the model wants the exact line where the
