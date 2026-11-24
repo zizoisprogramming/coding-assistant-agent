@@ -26,6 +26,7 @@ Update this file whenever a line opens or closes.
   tasks but state the wanted behaviour in 0 of 13 hand-read; most tasks postdate the model's data. Automatic information: closed for now.
 - **A post-edit verdict tool in a single agent is skipped (r154, sk_a2c):** a.py check used in 1/8 edited runs; the model ran its own
   check.py with python3, mostly before the edit (4-8 write/run cycles), so first edits came ~110 s later (301 vs 191 s); 5/12 = sk_a2 5/12.
+- **A 'no experiments before the edit' rule + failure examples is obeyed (r157, sk_a2p2):** pre-edit scripts 1.75 vs 6.4 per run (p 0.003; with r156 2.6 vs 6.0, p 0.016), solves 5/8 vs 4/8 (luck). First edits not earlier (312 vs 262 s): the saved time went into reading and long thinking. No-patch runs now spend ~60% of model time in 45-75 s thinking requests on code already read.
 - **After the edit the model leaves a.py (r156, sk_a2o2n):** YOUR EDIT / SAME LINES ELSEWHERE reached 1/5 edited runs: post-edit help printed
   on a.py outputs never arrives. Without any check wording, pre-edit scripts fell back to sk_a2's level (35 vs 45). 5/8 vs 5/8; all failures no-edit.
 - **A routed verdict tool is used but not obeyed (r155, sk_a2c2):** with every python run routed through a.py check (heredoc), 50/52 runs
@@ -148,6 +149,7 @@ Update this file whenever a line opens or closes.
 | 12B / E4B models | weaker |
 | Own-check verdict tools (sk_a2c r154, sk_a2c2 r155) | skipped when optional; when routed, used but the model rewrites the check instead of editing; GREEN does not predict hidden tests |
 | Edit material / same-lines printouts (sk_a2o r155) | read past (edit after material 1/14), slower first edits |
+| Late reading gate after STOP READING (sk_a2p2g r157) | fired in 2/8 runs; edit after refusal 1/6; the model retried find, went round it with shell grep, compaction dropped the candidates; re-reading read code (allowed) still timed out |
 
 ## 5. Not closed forever (conditions under which it is worth another try)
 
