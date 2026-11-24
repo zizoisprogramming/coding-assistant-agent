@@ -26,6 +26,8 @@ Update this file whenever a line opens or closes.
   tasks but state the wanted behaviour in 0 of 13 hand-read; most tasks postdate the model's data. Automatic information: closed for now.
 - **A post-edit verdict tool in a single agent is skipped (r154, sk_a2c):** a.py check used in 1/8 edited runs; the model ran its own
   check.py with python3, mostly before the edit (4-8 write/run cycles), so first edits came ~110 s later (301 vs 191 s); 5/12 = sk_a2 5/12.
+- **After the edit the model leaves a.py (r156, sk_a2o2n):** YOUR EDIT / SAME LINES ELSEWHERE reached 1/5 edited runs: post-edit help printed
+  on a.py outputs never arrives. Without any check wording, pre-edit scripts fell back to sk_a2's level (35 vs 45). 5/8 vs 5/8; all failures no-edit.
 - **A routed verdict tool is used but not obeyed (r155, sk_a2c2):** with every python run routed through a.py check (heredoc), 50/52 runs
   went through it, but after BUG SHOWN the next call was the edit only 6/24 times: the model rewrote its check 32 times before editing
   (median ~92 s of polishing), never repaired after RED (0/4), and 5 of 6 wrong kept edits ended GREEN. 3/12 vs sk_a2 6/12. Own-check
