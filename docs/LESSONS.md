@@ -13,7 +13,7 @@ Update this file whenever a line opens or closes.
   submit_patch), every edit made by one heredoc command whose fixed Python step replaces the old text only when it occurs
   once, short prompt (7.4k chars) with worked examples. r123 + r124: solves equal to sb1h (18/32 vs 17/32), a third fewer
   compactions, ~30 s faster per run. Not yet checked on tasks never used to pick anything, not yet on the leaderboard.
-- **Leaderboard (58 public tasks, score = solved / 58, floored):** our best fits are sk_a2 0.18, mix 0.17, sk_a2_32 0.17;
+- **Leaderboard (58 public tasks, score = solved / 58, floored):** our best fits are sk_a2 0.18 and 0.17 (the same file twice: 11 then 10 of 58, 2026-11-25), mix 0.17, sk_a2_32 0.17;
   then sb1hl 0.15, combo1 0.15, evidc 0.15 / 0.12, le6_t6 0.15, sa2 0.12, nn32rcn2 0.12, sq1c2a6 0.12 / 0.10, evidefs 0.10. The public
   pub024 scored 0.18 (local control only; we never submit public configs). Top of the board ~0.29.
 - **A prompt written around the solved rhythm is followed and does no harm (r144, sk_a2_60x):** LOOK -> RUN once -> EDIT -> LOOK
