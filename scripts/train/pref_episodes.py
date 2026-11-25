@@ -34,6 +34,32 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from selfdistill_episodes import analyse  # noqa: E402
 
 AGENT_ENDS = {"ok", "time", "tool_budget", "turns", "no_submit"}
+# option C (user 2026-11-25): a solved run is GOOD only if it kept sk_a2's clear-cut rules in what is trained: code read only
+# through .git/agent/a.py (no cat / sed -n / head / tail / grep / read_file of source) and no edit_file / write_file on a test
+# path. Calls after the first successful submit are cut anyway (never trained). Banner timing is left to the pass / fail contrast.
+READ_CMD = re.compile(r"^\s*(cat|sed\s+-n|head|tail|grep|egrep|rg|less|nl|awk)\b|python3?\s+-c\s+.*open\(")
+TEST_FILE = re.compile(r"(^|/)(tests?/|test_[^/]*\.py$|conftest\.py$)")
+
+
+def broken_rules(kept):
+    """Clear-cut rule breaks in the trained part of a run (records kept after the cut)."""
+    reads = tests = 0
+    for r in kept:
+        for c in ((r.get("reply") or {}).get("message") or {}).get("tool_calls") or []:
+            fn = c.get("function") or {}
+            try:
+                a = json.loads(fn.get("arguments") or "{}") if isinstance(fn.get("arguments"), str) else (fn.get("arguments") or {})
+            except ValueError:
+                a = {}
+            a = a if isinstance(a, dict) else {}
+            cmd, path = str(a.get("command", "")), str(a.get("filepath", a.get("path", "")))
+            if fn.get("name") == "read_file" and not path.startswith(".git/agent"):
+                reads += 1
+            if fn.get("name") == "run_command" and READ_CMD.search(cmd) and "a.py" not in cmd:
+                reads += 1
+            if fn.get("name") in ("edit_file", "write_file") and TEST_FILE.search(path):
+                tests += 1
+    return reads, tests
 
 
 def parse_reply(x):
@@ -139,6 +165,8 @@ def main():
                                                 ("fail streak", m["max_fail_streak"] > a.max_fail_streak),
                                                 ("repeats calls", m["repeats"] > a.max_repeats), ("junk text", m["junk_replies"] > 0),
                                                 ("no submit", not m["submitted"])] if b), None)
+                rd, te = broken_rules(kept)
+                bad_rule = bad_rule or ("reads code outside a.py" if rd else None) or ("edits a test file" if te else None)
                 if bad_rule:
                     why[f"good dropped: {bad_rule}"] += 1
                     continue
