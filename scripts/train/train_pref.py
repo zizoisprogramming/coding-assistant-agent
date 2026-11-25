@@ -137,6 +137,7 @@ def main():
     ap.add_argument("--beta", type=float, default=5.0, help="sharpness on the per-token log-ratio r")
     ap.add_argument("--sft-weight", type=float, default=1.0, help="copy term on passes (0: pure KTO)")
     ap.add_argument("--z0", choices=["kto", "zero"], default="kto")
+    ap.add_argument("--decision-weight", type=float, default=2.0, help="weight of decision-moment segments (build_samples: the first budget warning / first a.py banner of a run); 1 = off")
     ap.add_argument("--z0-ema", type=float, default=0.9)
     ap.add_argument("--max-nll-rise", type=float, default=0.10, help="best checkpoint only if the passes' validation NLL "
                     "is at most this fraction above its start value")
@@ -171,7 +172,10 @@ def main():
         f"{len({s['task'] for s in train})} tasks) {sum(len(s['input_ids']) for s in train) / 1e6:.2f}M tokens "
         f"({sum(int(s['labels_mask'].sum()) for s in train) / 1e6:.2f}M trained) | val {len(val)} segments "
         f"({len({s['task'] for s in val})} tasks) | beta {args.beta} sft {args.sft_weight} z0 {args.z0} "
-        f"w_good {w_good:.2f} w_bad {w_bad:.2f}", 0, rank)
+        f"w_good {w_good:.2f} w_bad {w_bad:.2f} | decision segments train {sum(bool(s.get('decision')) for s in train)} "
+        f"(good {sum(bool(s.get('decision')) and s['label'] == 'good' for s in train)}, bad "
+        f"{sum(bool(s.get('decision')) and s['label'] == 'bad' for s in train)}) x{args.decision_weight}, val "
+        f"{sum(bool(s.get('decision')) for s in val)}", 0, rank)
 
     t0 = time.time()
     model, gpus = load_model(args, rank)
@@ -230,27 +234,30 @@ def main():
     def validate(tag):
         model.eval()
         mine = sorted(range(len(val)), key=lambda j: -len(val[j]["input_ids"]))[rank::world]
-        acc = torch.zeros(6, dtype=torch.float64, device=dev)  # r_good sum, n_good, r_bad sum, n_bad, kto sum, nll_good sum
+        acc = torch.zeros(10, dtype=torch.float64, device=dev)  # r_good, n_good, r_bad, n_bad, kto, nll_good; decision r_good, n, r_bad, n
         with torch.no_grad():
             for j in mine:
                 s = val[j]
                 m, _ = nll(model, s, first_device(model))
                 r = ref[s["idx"]].item() - m.item()
                 k = kto_terms(torch.tensor(r), s["label"], z0, args.beta).item()
+                d = 1.0 if s.get("decision") else 0.0
                 if s["label"] == "good":
-                    acc += torch.tensor([r, 1, 0, 0, k * w_good, m.item()], dtype=torch.float64, device=dev)
+                    acc += torch.tensor([r, 1, 0, 0, k * w_good, m.item(), r * d, d, 0, 0], dtype=torch.float64, device=dev)
                 else:
-                    acc += torch.tensor([0, 0, r, 1, k * w_bad, 0], dtype=torch.float64, device=dev)
+                    acc += torch.tensor([0, 0, r, 1, k * w_bad, 0, 0, 0, r * d, d], dtype=torch.float64, device=dev)
         if dist.is_initialized():
             dist.all_reduce(acc)
         model.train()
-        rg, ngv, rb, nbv, kt, nl = acc.tolist()
+        rg, ngv, rb, nbv, kt, nl, drg, dng, drb, dnb = acc.tolist()
         res = {"type": "val", "tag": tag, "step": step, "r_good": round(rg / max(ngv, 1), 5), "r_bad": round(rb / max(nbv, 1), 5),
                "margin": round(rg / max(ngv, 1) - rb / max(nbv, 1), 5), "kto": round(kt / max(ngv + nbv, 1), 5),
-               "nll_good": round(nl / max(ngv, 1), 5), "segments": len(val)}
+               "nll_good": round(nl / max(ngv, 1), 5), "segments": len(val),
+               "margin_decision": round(drg / max(dng, 1) - drb / max(dnb, 1), 5) if dng and dnb else None}
         history.append(res)
         log(f"VAL [{tag}] step {step}: margin {res['margin']:+.4f} (r good {res['r_good']:+.4f}, bad {res['r_bad']:+.4f}) | "
-            f"KTO {res['kto']:.4f} | passes' NLL {res['nll_good']:.4f} | {int(ngv)} good + {int(nbv)} bad segments", 0, rank)
+            f"KTO {res['kto']:.4f} | passes' NLL {res['nll_good']:.4f} | {int(ngv)} good + {int(nbv)} bad segments | decision-moment "
+            f"margin {res['margin_decision'] if res['margin_decision'] is not None else '-'} ({int(dng)} good + {int(dnb)} bad)", 0, rank)
         return res
 
     if step == 0 and val:
@@ -263,7 +270,8 @@ def main():
             break
         t0 = time.time()
         mine = [train[j] for j in all_batches[step][rank]]
-        n_glob = all_sum(len(mine), dev)
+        wt = lambda s: args.decision_weight if s.get("decision") else 1.0
+        n_glob = all_sum(sum(wt(s) for s in mine), dev)  # weighted mean over the step's segments
         for g in gpus:
             torch.cuda.reset_peak_memory_stats(g)
         stats = torch.zeros(6, dtype=torch.float64, device=dev)  # kto sum, sft sum, r_good sum, n_good, r_bad sum, n_bad
@@ -272,8 +280,8 @@ def main():
             r = ref[s["idx"]].to(m.device, m.dtype) - m
             k = kto_terms(r, s["label"], z0, args.beta) * (w_good if s["label"] == "good" else w_bad)
             sft = args.sft_weight * m if s["label"] == "good" else torch.zeros_like(m)
-            ((k + sft) / n_glob).backward()
-            stats += torch.tensor([k.item(), sft.item(), r.item() if s["label"] == "good" else 0, s["label"] == "good",
+            ((k + sft) * wt(s) / n_glob).backward()
+            stats += torch.tensor([k.item() * wt(s), sft.item() * wt(s), r.item() if s["label"] == "good" else 0, s["label"] == "good",
                                    r.item() if s["label"] == "bad" else 0, s["label"] == "bad"], dtype=torch.float64, device=dev)
         if dist.is_initialized():
             dist.all_reduce(stats)

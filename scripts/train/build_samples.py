@@ -14,6 +14,7 @@ Only attempts whose status.jsonl row says ok are used (crash-safe stage B: unfin
 """
 import argparse
 import json
+import re
 import sys
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -62,14 +63,16 @@ def episode_segments(records, tmpl, bos, problems, split_on_break=False):
         end = len(full) - 1 if full.endswith("<turn|>\n") else len(full)  # the newline is template layout
         if cur is not None and prompt.startswith(cur["text"]):
             cur["text"], cur["spans"] = full, cur["spans"] + [(len(prompt), end)]
+            cur["dec"] = cur["dec"] or bool(rec.get("decision"))
         else:
             if cur is not None and not summary_seen:
                 problems["new segment without a compaction"] += 1
                 if not split_on_break:
                     return None
-            cur = {"text": full, "spans": [(len(prompt), end)]}
+            cur = {"text": full, "spans": [(len(prompt), end)], "dec": bool(rec.get("decision"))}
             segs.append(cur)
         summary_seen = False
+    episode_segments.decisions = [s["dec"] for s in segs]  # pref_episodes.py flags the decision replies on their records
     return [(s["text"], s["spans"]) for s in segs]
 
 
@@ -129,6 +132,7 @@ def main():
             print(f"  skip {key[0]}: {e!r}"[:300], flush=True)
         if segs is None:
             continue
+        dec = episode_segments.decisions
         for k, ((text, spans), (ids, lab)) in enumerate(zip(segs, tokenized)):
             if len(ids) > a.max_len:
                 problems["segment longer than max-len"] += 1
@@ -136,6 +140,7 @@ def main():
             samples.append({"episode_id": key[0], "split": meta["split"], "category": meta.get("category"),
                             "teacher": meta.get("teacher"), "segment": k, "n_segments": len(segs),
                             "label": meta.get("label"), "task": meta.get("task"),  # plan B (pref_episodes.py)
+                            "decision": dec[k],
                             "replies": len(spans), "input_ids": torch.tensor(ids, dtype=torch.int32),
                             "labels_mask": torch.tensor(lab, dtype=torch.bool)})
         if (n + 1) % 50 == 0 or n + 1 == len(recs):

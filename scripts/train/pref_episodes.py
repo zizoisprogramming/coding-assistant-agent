@@ -41,6 +41,53 @@ READ_CMD = re.compile(r"^\s*(cat|sed\s+-n|head|tail|grep|egrep|rg|less|nl|awk)\b
 TEST_FILE = re.compile(r"(^|/)(tests?/|test_[^/]*\.py$|conftest\.py$)")
 
 
+# Decision moments (user 2026-11-25: 'add the 2x weight on decision moments'): the reply to the FIRST harness budget warning
+# and the reply to the FIRST a.py banner that arrive while the run has NO source edit yet (scripts/mine_bank/mechanism_obeyed.py:
+# obeying the budget warning goes with solving on the same task, 24+/6-). Flagged on the record (record['decision'] = True);
+# build_samples.py marks the segment holding it; train_pref.py weighs that segment x --decision-weight.
+DECISION = {"budget": re.compile(r"tool call\(s\) remaining"), "banner": re.compile(r"NO EDIT YET|STOP READING|ALREADY SHOWN")}
+EDIT_RUN = re.compile(r"sed\s+-i|git\s+apply|patch\s+-p|OLD_TEXT|\.replace\(|old_string")
+
+
+def reply_calls(r):
+    out = []
+    for c in ((r.get("reply") or {}).get("message") or {}).get("tool_calls") or []:
+        fn = c.get("function") or {}
+        try:
+            a = json.loads(fn.get("arguments") or "{}") if isinstance(fn.get("arguments"), str) else (fn.get("arguments") or {})
+        except ValueError:
+            a = {}
+        out.append((fn.get("name"), a if isinstance(a, dict) else {}))
+    return out
+
+
+def source_edit(name, a):
+    path, cmd = str(a.get("filepath", a.get("path", ""))), str(a.get("command", ""))
+    if name in ("edit_file", "write_file"):
+        return bool(path) and not path.startswith(".git/") and not path.startswith("/tmp") and not TEST_FILE.search(path)
+    return name == "run_command" and "a.py" not in cmd and bool(EDIT_RUN.search(cmd))
+
+
+def flag_decisions(kept):
+    """Mark the records whose reply answers the first budget warning / first banner seen with no source edit yet."""
+    seen, edited, n = set(), False, 0
+    for r in kept:
+        if not r["request"].get("tools"):
+            continue
+        msgs = r["request"]["messages"]
+        k = max((i for i, m in enumerate(msgs) if m.get("role") == "assistant"), default=-1)
+        new = " ".join(str(m.get("content")) for m in msgs[k + 1:] if m.get("role") == "tool")  # this request's new tool outputs
+        if not edited:
+            for name, rx in DECISION.items():
+                if name not in seen and rx.search(new):
+                    seen.add(name)
+                    r["decision"] = True
+                    n += 1
+        if any(source_edit(nm, a) for nm, a in reply_calls(r)):
+            edited = True
+    return n
+
+
 def broken_rules(kept):
     """Clear-cut rule breaks in the trained part of a run (records kept after the cut)."""
     reads = tests = 0
@@ -170,6 +217,7 @@ def main():
                 if bad_rule:
                     why[f"good dropped: {bad_rule}"] += 1
                     continue
+            m["decisions"] = flag_decisions(kept)
             eps.append(dict(task=iid, attempt=key[1], label="good" if solved else "bad", kept=kept, m=m,
                             agent_s=float(g.get("agent_s") or 0), src=str(d)))
             why["good" if solved else "bad"] += 1

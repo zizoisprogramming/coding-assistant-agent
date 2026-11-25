@@ -34,7 +34,7 @@ for t in range(8):
             reply = pat.roll(off)[:24]
             ids = torch.cat([prompt, reply]).to(torch.int32)
             mask = torch.cat([torch.zeros(40, dtype=torch.bool), torch.ones(24, dtype=torch.bool)])
-            samples.append({"episode_id": f"{task}#a{k}{label}", "split": split, "label": label, "task": task,
+            samples.append({"episode_id": f"{task}#a{k}{label}", "split": split, "label": label, "task": task, "decision": k == 0,
                             "segment": 0, "n_segments": 1, "replies": 1, "input_ids": ids, "labels_mask": mask})
 torch.save(samples, WORK / "samples.pt")
 
@@ -50,6 +50,9 @@ def run(out, *extra):
 
 
 h = run(WORK / "full")
+dec = [x for x in h if x["type"] == "val" and x.get("margin_decision") is not None]
+print(f"0. decision-moment margin reported at {len(dec)} validations, final {dec[-1]['margin_decision']:+.4f}")
+assert dec and dec[-1]["margin_decision"] > 0.05
 vals = [x for x in h if x["type"] == "val"]
 start, final = vals[0], vals[-1]
 print(f"1. start: margin {start['margin']:+.5f} r_good {start['r_good']:+.5f} r_bad {start['r_bad']:+.5f}")
