@@ -62,14 +62,14 @@ def episode_segments(records, tmpl, bos, problems, split_on_break=False):
             return None
         end = len(full) - 1 if full.endswith("<turn|>\n") else len(full)  # the newline is template layout
         if cur is not None and prompt.startswith(cur["text"]):
-            cur["text"], cur["spans"] = full, cur["spans"] + [(len(prompt), end)]
+            cur["text"], cur["spans"] = full, cur["spans"] + ([(len(prompt), end)] if rec.get("train", True) else [])
             cur["dec"] = cur["dec"] or bool(rec.get("decision"))
         else:
             if cur is not None and not summary_seen:
                 problems["new segment without a compaction"] += 1
                 if not split_on_break:
                     return None
-            cur = {"text": full, "spans": [(len(prompt), end)], "dec": bool(rec.get("decision"))}
+            cur = {"text": full, "spans": [(len(prompt), end)] if rec.get("train", True) else [], "dec": bool(rec.get("decision"))}
             segs.append(cur)
         summary_seen = False
     episode_segments.decisions = [s["dec"] for s in segs]  # pref_episodes.py flags the decision replies on their records
@@ -140,7 +140,7 @@ def main():
             samples.append({"episode_id": key[0], "split": meta["split"], "category": meta.get("category"),
                             "teacher": meta.get("teacher"), "segment": k, "n_segments": len(segs),
                             "label": meta.get("label"), "task": meta.get("task"),  # plan B (pref_episodes.py)
-                            "decision": dec[k],
+                            "decision": dec[k], "weight": meta.get("weight", 1.0),
                             "replies": len(spans), "input_ids": torch.tensor(ids, dtype=torch.int32),
                             "labels_mask": torch.tensor(lab, dtype=torch.bool)})
         if (n + 1) % 50 == 0 or n + 1 == len(recs):

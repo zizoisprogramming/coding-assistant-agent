@@ -76,8 +76,8 @@ def args_of(call):
 def failed(name, args, res):
     if not isinstance(res, dict):
         return False
-    if res.get("status") == "error":
-        return True
+    if res.get("status") == "error" or (res.get("error") and not res.get("status")):  # 2026-11-25: ADK's own form
+        return True                              # {"error": "Invoking `edit_file()` failed ..."} was missed
     if name == "run_command" and res.get("exit_code") not in (None, 0):
         cmd = str(args.get("command", ""))
         return not (res.get("exit_code") == 1 and re.match(r"\s*(git\s+grep|grep|rg)\b", cmd))  # no match is not a failure

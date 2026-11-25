@@ -157,7 +157,8 @@ def main():
     samples = [s for f in args.samples for s in torch.load(f) if s.get("label") in ("good", "bad")]
     for i, s in enumerate(samples):
         s["idx"] = i
-    samples = [s for s in samples if int(s["labels_mask"].sum()) > 0 and len(s["input_ids"]) <= args.max_len]
+    samples = [s for s in samples if int(s["labels_mask"].sum()) > 0 and len(s["input_ids"]) <= args.max_len
+               and float(s.get("weight", 1.0)) > 0]  # weight 0 = a task every run solved (or failed): no same-task signal
     for i, s in enumerate(samples):
         s["idx"] = i
     train = select_budget([s for s in samples if s["split"] == "train"], args.train_tokens, args.seed)
@@ -165,10 +166,11 @@ def main():
     samples = train + val  # the reference pass covers only what is used
     for i, s in enumerate(samples):
         s["idx"] = i
-    ng, nb = sum(s["label"] == "good" for s in train), sum(s["label"] == "bad" for s in train)
+    ng = sum(float(s.get("weight", 1.0)) for s in train if s["label"] == "good")
+    nb = sum(float(s.get("weight", 1.0)) for s in train if s["label"] == "bad")  # weighted counts: KTO class balance
     assert ng and nb, f"need both labels in train (good {ng}, bad {nb})"
     w_good, w_bad = 1.0, ng / nb  # KTO balance: w_good * n_good == w_bad * n_bad
-    log(f"ranks {world} x {args.gpus_per_rank} GPU(s) | train {len(train)} segments (good {ng}, bad {nb}; "
+    log(f"ranks {world} x {args.gpus_per_rank} GPU(s) | train {len(train)} segments (weighted good {ng:.1f}, bad {nb:.1f}; "
         f"{len({s['task'] for s in train})} tasks) {sum(len(s['input_ids']) for s in train) / 1e6:.2f}M tokens "
         f"({sum(int(s['labels_mask'].sum()) for s in train) / 1e6:.2f}M trained) | val {len(val)} segments "
         f"({len({s['task'] for s in val})} tasks) | beta {args.beta} sft {args.sft_weight} z0 {args.z0} "
@@ -270,7 +272,7 @@ def main():
             break
         t0 = time.time()
         mine = [train[j] for j in all_batches[step][rank]]
-        wt = lambda s: args.decision_weight if s.get("decision") else 1.0
+        wt = lambda s: float(s.get("weight", 1.0)) * (args.decision_weight if s.get("decision") else 1.0)  # same-task advantage x decision
         n_glob = all_sum(sum(wt(s) for s in mine), dev)  # weighted mean over the step's segments
         for g in gpus:
             torch.cuda.reset_peak_memory_stats(g)

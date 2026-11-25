@@ -31,7 +31,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from selfdistill_episodes import analyse  # noqa: E402
+from selfdistill_episodes import analyse, failed, tool_results  # noqa: E402
 
 AGENT_ENDS = {"ok", "time", "tool_budget", "turns", "no_submit"}
 # option C (user 2026-11-25): a solved run is GOOD only if it kept sk_a2's clear-cut rules in what is trained: code read only
@@ -49,7 +49,8 @@ DECISION = {"budget": re.compile(r"tool call\(s\) remaining"), "banner": re.comp
 EDIT_RUN = re.compile(r"sed\s+-i|git\s+apply|patch\s+-p|OLD_TEXT|\.replace\(|old_string")
 
 
-def reply_calls(r):
+def reply_calls(r, res=None):
+    """[(name, args)] of a reply's calls; with res (tool_results), only calls whose result is not a failure."""
     out = []
     for c in ((r.get("reply") or {}).get("message") or {}).get("tool_calls") or []:
         fn = c.get("function") or {}
@@ -57,7 +58,10 @@ def reply_calls(r):
             a = json.loads(fn.get("arguments") or "{}") if isinstance(fn.get("arguments"), str) else (fn.get("arguments") or {})
         except ValueError:
             a = {}
-        out.append((fn.get("name"), a if isinstance(a, dict) else {}))
+        a = a if isinstance(a, dict) else {}
+        if res is not None and failed(fn.get("name"), a, res.get(c.get("id"))):
+            continue  # a garbled / refused edit is not an edit (2026-11-25: 11 'edits' in one run had no old_string)
+        out.append((fn.get("name"), a))
     return out
 
 
@@ -71,6 +75,7 @@ def source_edit(name, a):
 def flag_decisions(kept):
     """Mark the records whose reply answers the first budget warning / first banner seen with no source edit yet."""
     seen, edited, n = set(), False, 0
+    res = tool_results(kept)
     for r in kept:
         if not r["request"].get("tools"):
             continue
@@ -83,9 +88,79 @@ def flag_decisions(kept):
                     seen.add(name)
                     r["decision"] = True
                     n += 1
-        if any(source_edit(nm, a) for nm, a in reply_calls(r)):
+        if any(source_edit(nm, a) for nm, a in reply_calls(r, res)):
             edited = True
     return n
+
+
+# Per-reply labels (user 2026-11-25: 'implement the per-reply labels ... train it to follow patterns that lead to success not
+# just solutions, because solutions depend maybe on easiness of the tasks'). Evidence: process supervision beats outcome
+# supervision (Lightman et al. 2023, 'Let's Verify Step by Step'); SWE step scoring against the fix's milestones beat
+# outcome-filtered SFT by up to +10.8 Pass@1 (P2T, arXiv 2605.21996); credit for failed steps from successful siblings of the
+# same task (SCPO, arXiv 2606.25852); group-relative (same-task) baselines remove task-ease bias (GRPO / Dr. GRPO).
+#   weight: a run's same-task advantage: solved -> 1 - p, failed -> p, with p = the task's solve rate over this agent's runs
+#           (a solve every run makes says little; a failure where siblings solve says a lot).
+#   solved runs: every reply trained (decision replies x2 in train_pref.py).
+#   failed runs: only the replies that are the failing PATTERN are trained (pushed down); the rest is context only:
+#     reading on: from the first decision moment or from the reply index by which the task's solved siblings had made their
+#                 first source edit (median), whichever is earlier, up to the run's own first source edit (a run that never
+#                 edits: to its end);
+#     retries:    a call that failed right after a failed call (2nd+ of a streak);
+#     repeats:    the same call again with no source edit since its last use (get_status excepted);
+#     wrong edit: the run's last source-edit reply (the edit the hidden tests rejected).
+def reply_index_of_first_edit(kept):
+    res = tool_results(kept)
+    i = 0
+    for r in kept:
+        if not r["request"].get("tools"):
+            continue
+        if any(source_edit(nm, a) for nm, a in reply_calls(r, res)):
+            return i
+        i += 1
+    return None
+
+
+def label_bad_replies(kept, sibling_edit_at):
+    """Set record['train'] on a failed run's replies (True = trained as bad). Returns {reason: replies}."""
+    recs = [r for r in kept if r["request"].get("tools")]
+    res = tool_results(kept)
+    dec = next((i for i, r in enumerate(recs) if r.get("decision")), None)
+    first_edit = next((i for i, r in enumerate(recs) if any(source_edit(nm, a) for nm, a in reply_calls(r, res))), None)
+    last_edit = max((i for i, r in enumerate(recs) if any(source_edit(nm, a) for nm, a in reply_calls(r, res))), default=None)
+    starts = [x for x in (dec, sibling_edit_at) if x is not None]
+    start = min(starts) if starts else None
+    stop = first_edit if first_edit is not None else len(recs)
+    why = collections.Counter()
+    prev_failed, last_use, edits = False, {}, 0
+    for i, r in enumerate(recs):
+        reasons = []
+        if start is not None and start <= i < stop:
+            reasons.append("reading on")
+        for c in ((r.get("reply") or {}).get("message") or {}).get("tool_calls") or []:
+            fn = c.get("function") or {}
+            nm = fn.get("name")
+            try:
+                a = json.loads(fn.get("arguments") or "{}") if isinstance(fn.get("arguments"), str) else (fn.get("arguments") or {})
+            except ValueError:
+                a = {}
+            a = a if isinstance(a, dict) else {}
+            bad = failed(nm, a, res.get(c.get("id")))
+            if bad and prev_failed:
+                reasons.append("retry streak")
+            prev_failed = bad
+            key = nm + json.dumps(a, sort_keys=True)
+            if nm != "get_status" and last_use.get(key) == edits:
+                reasons.append("repeat")
+            last_use[key] = edits
+            edits += source_edit(nm, a) and not bad
+        if i == last_edit:
+            reasons.append("wrong edit")
+        r["train"] = bool(reasons)
+        why["trained"] += bool(reasons)
+        for x in set(reasons):
+            why[x] += 1
+        why["replies"] += 1
+    return why
 
 
 def broken_rules(kept):
@@ -184,6 +259,7 @@ def main():
         txt = Path(f).read_text()
         excl |= set(json.loads(txt)) if txt.lstrip().startswith("[") else {x.strip() for x in txt.splitlines() if x.strip()}
     eps, why = [], collections.Counter()
+    runs_of = collections.defaultdict(lambda: {True: 0, False: 0})
     for d in a.gen:
         rows, recs, patches = load_dir(d, set(a.arms))
         print(f"{d}: {len(rows)} runs of {a.arms}, {len(recs)} with request logs, {sum(g['resolved'] in (True, 'True') for g in rows.values())} solved", flush=True)
@@ -206,6 +282,7 @@ def main():
                 why[f"end {g.get('end')} (infrastructure)"] += 1
                 continue
             solved = g["resolved"] in (True, "True")
+            runs_of[iid][solved] += 1
             m, kept = analyse(rs, dict(g, resolved=solved), tasks[iid], patches.get(key, ""))
             if solved:
                 bad_rule = next((w for w, b in [("edits tests", m["test_files_edited"]), ("leaves scratch files", m["scratch_files"]),
@@ -224,6 +301,17 @@ def main():
     by = collections.defaultdict(lambda: {"good": [], "bad": []})
     for e in eps:
         by[e["task"]][e["label"]].append(e)
+    bad_why = collections.Counter()
+    for t, v in by.items():
+        n = runs_of[t][True] + runs_of[t][False]
+        p = runs_of[t][True] / max(n, 1)
+        idx = sorted(x for x in (reply_index_of_first_edit(e["kept"]) for e in v["good"]) if x is not None)
+        sib = idx[len(idx) // 2] if idx else None  # by this reply the task's solved siblings had (median) edited
+        for e in v["good"]:
+            e["weight"] = round(1 - p, 4)
+        for e in v["bad"]:
+            e["weight"] = round(p, 4)
+            bad_why.update(label_bad_replies(e["kept"], sib))
     chosen = []
     for t, v in sorted(by.items()):
         good = sorted(v["good"], key=lambda e: e["agent_s"])[:a.cap]
@@ -239,11 +327,15 @@ def main():
             for r in e["kept"]:
                 fr.write(json.dumps(dict(r, episode_id=eid, attempt=e["attempt"])) + "\n")
             fs.write(json.dumps({"id": eid, "attempt": e["attempt"], "status": "ok", "split": split, "label": e["label"],
+                                 "weight": e.get("weight", 1.0),
                                  "task": e["task"], "category": "pref", "teacher": ",".join(a.arms)}) + "\n")
     with open(out / "metrics.jsonl", "w") as fh:
         for e in eps:
             fh.write(json.dumps(dict(e["m"], task=e["task"], attempt=e["attempt"], label=e["label"], src=e["src"])) + "\n")
     paired = [t for t, v in by.items() if v["good"] and v["bad"]]
+    print(f"failed runs' replies: {bad_why['replies']} | trained as bad (the failing pattern): reading on {bad_why['reading on']}, "
+          f"retry streak {bad_why['retry streak']}, repeat {bad_why['repeat']}, wrong edit {bad_why['wrong edit']} | masked (context only) "
+          f"{bad_why['replies'] - bad_why['trained']} | trained {bad_why['trained']}")
     C = collections.Counter((("val" if is_val(e["task"], a.val_share) else "train"), e["label"]) for e in chosen)
     print(f"\nruns: {dict(why.most_common())}")
     print(f"tasks: {len(by)} | with both outcomes (paired): {len(paired)} | only solved: "
