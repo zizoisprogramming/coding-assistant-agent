@@ -120,6 +120,83 @@ def reply_index_of_first_edit(kept):
     return None
 
 
+# A + B (user 2026-11-25: 'do both A and B with 0.5 weight'):
+#  A. in SOLVED runs a reply whose call failed is masked (the mistake is not taught); the next reply, the recovery, stays good.
+#  B. in FAILED runs two milestones of the real fix are trained as GOOD at --milestone-weight x the task's good weight (P2T,
+#     arXiv 2605.21996: steps graded against the reference patch's milestones; the patch only GRADES, it never writes text):
+#     'saw the fix' = the first a.py show whose numbered output holds a line the real fix changes (source files);
+#     'right place' = the first applied edit_file on a fixed file whose old text matches a shown line within 3 lines of a
+#     changed line. A milestone reply that is also trained as bad (e.g. the final wrong edit) is masked (right place, wrong logic).
+# Each record gets record['role'] in {'good', 'bad', None}; build_samples.py makes one sample per (segment, role).
+SHOWN_LINE = re.compile(r"^\s*(\d+)\|\s?(.*)$", re.M)
+
+
+def fix_lines(patch):
+    """{file: set(old-file lines the real fix changes or inserts next to)} for non-test files."""
+    out, f, o = collections.defaultdict(set), None, 0
+    for ln in (patch or "").split("\n"):
+        if ln.startswith("+++ "):
+            f = ln[6:].strip() if ln.startswith("+++ b/") else None
+            f = None if f and TEST_FILE.search(f) else f
+            continue
+        if ln.startswith("--- "):
+            continue
+        m = re.match(r"^@@ -(\d+)", ln)
+        if m:
+            o = int(m.group(1))
+            continue
+        if f is None:
+            continue
+        if ln.startswith("-"):
+            out[f].add(o)
+            o += 1
+        elif ln.startswith("+"):
+            out[f].update({max(o - 1, 1), o})
+        else:
+            o += 1
+    return out
+
+
+def label_milestones(kept, patch):
+    """Mark up to two milestone replies of a failed run (record['milestone'] = name). Returns the names found."""
+    gold = fix_lines(patch)
+    if not gold:
+        return []
+    res = tool_results(kept)
+    shown = collections.defaultdict(dict)  # file -> {line: stripped text} from a.py show outputs
+    found = []
+    for r in kept:
+        if not r["request"].get("tools"):
+            continue
+        for c in ((r.get("reply") or {}).get("message") or {}).get("tool_calls") or []:
+            fn = c.get("function") or {}
+            try:
+                a = json.loads(fn.get("arguments") or "{}") if isinstance(fn.get("arguments"), str) else (fn.get("arguments") or {})
+            except ValueError:
+                a = {}
+            a = a if isinstance(a, dict) else {}
+            out = res.get(c.get("id"))
+            text = (out.get("stdout") if isinstance(out, dict) else None) or (json.dumps(out) if out else "")
+            cmd = str(a.get("command", ""))
+            mm = re.search(r"a\.py\s+show\s+(\S+)", cmd)
+            if mm:
+                f = mm.group(1).strip("'\"").lstrip("./")
+                lines = {int(n): s.strip() for n, s in SHOWN_LINE.findall(text)}
+                shown[f].update(lines)
+                if "saw the fix" not in found and f in gold and gold[f] & set(lines):
+                    found.append("saw the fix")
+                    r["milestone"] = "saw the fix"
+            if fn.get("name") == "edit_file" and "right place" not in found and not failed("edit_file", a, out):
+                f = str(a.get("filepath", "")).lstrip("./")
+                first = next((x.strip() for x in str(a.get("old_string", "")).splitlines() if x.strip()), None)
+                if f in gold and first:
+                    at = [n for n, s in shown[f].items() if s == first]
+                    if any(abs(n - g) <= 3 for n in at for g in gold[f]):
+                        found.append("right place")
+                        r["milestone"] = "right place"
+    return found
+
+
 def label_bad_replies(kept, sibling_edit_at):
     """Set record['train'] on a failed run's replies (True = trained as bad). Returns {reason: replies}."""
     recs = [r for r in kept if r["request"].get("tools")]
@@ -155,8 +232,20 @@ def label_bad_replies(kept, sibling_edit_at):
             edits += source_edit(nm, a) and not bad
         if i == last_edit:
             reasons.append("wrong edit")
+        if r.get("milestone") and set(reasons) <= {"reading on"}:
+            reasons = []  # a milestone is specific evidence the step was right: it beats the stretch label 'reading on'
         r["train"] = bool(reasons)
         why["trained"] += bool(reasons)
+        if reasons and r.get("milestone"):
+            r["role"], r["train"] = None, False  # a milestone that is also a retry / repeat / the wrong edit: masked
+            why["milestone and bad: masked"] += 1
+        elif reasons:
+            r["role"] = "bad"
+        elif r.get("milestone"):
+            r["role"] = "good"
+            why[f"milestone: {r['milestone']}"] += 1
+        else:
+            r["role"] = None
         for x in set(reasons):
             why[x] += 1
         why["replies"] += 1
@@ -248,6 +337,7 @@ def main():
     ap.add_argument("--max-fail-streak", type=int, default=3)
     ap.add_argument("--max-repeats", type=int, default=3)
     ap.add_argument("--val-share", type=float, default=0.12)
+    ap.add_argument("--milestone-weight", type=float, default=0.5, help="B: milestone replies of failed runs, x the task's good weight")
     a = ap.parse_args()
     tasks = {}
     for f in a.tasks:
@@ -309,8 +399,19 @@ def main():
         sib = idx[len(idx) // 2] if idx else None  # by this reply the task's solved siblings had (median) edited
         for e in v["good"]:
             e["weight"] = round(1 - p, 4)
+            res = tool_results(e["kept"])  # A: mask the mistakes of a solved run, keep its recoveries
+            for r in e["kept"]:
+                if r["request"].get("tools"):
+                    bad = any(failed((c.get("function") or {}).get("name"), (lambda x: x if isinstance(x, dict) else {})(
+                        json.loads(c["function"].get("arguments") or "{}") if isinstance(c["function"].get("arguments"), str)
+                        else c["function"].get("arguments") or {}), res.get(c.get("id")))
+                        for c in ((r.get("reply") or {}).get("message") or {}).get("tool_calls") or [])
+                    r["role"] = None if bad else "good"
+                    bad_why["solved: mistake masked"] += bad
         for e in v["bad"]:
             e["weight"] = round(p, 4)
+            e["weight_milestone"] = round(a.milestone_weight * (1 - p), 4)
+            label_milestones(e["kept"], tasks[t]["patch"])
             bad_why.update(label_bad_replies(e["kept"], sib))
     chosen = []
     for t, v in sorted(by.items()):
@@ -327,7 +428,7 @@ def main():
             for r in e["kept"]:
                 fr.write(json.dumps(dict(r, episode_id=eid, attempt=e["attempt"])) + "\n")
             fs.write(json.dumps({"id": eid, "attempt": e["attempt"], "status": "ok", "split": split, "label": e["label"],
-                                 "weight": e.get("weight", 1.0),
+                                 "weight": e.get("weight", 1.0), "weight_milestone": e.get("weight_milestone", 0.0),
                                  "task": e["task"], "category": "pref", "teacher": ",".join(a.arms)}) + "\n")
     with open(out / "metrics.jsonl", "w") as fh:
         for e in eps:
@@ -336,6 +437,8 @@ def main():
     print(f"failed runs' replies: {bad_why['replies']} | trained as bad (the failing pattern): reading on {bad_why['reading on']}, "
           f"retry streak {bad_why['retry streak']}, repeat {bad_why['repeat']}, wrong edit {bad_why['wrong edit']} | masked (context only) "
           f"{bad_why['replies'] - bad_why['trained']} | trained {bad_why['trained']}")
+    print(f"B milestones in failed runs: saw the fix {bad_why['milestone: saw the fix']}, right place {bad_why['milestone: right place']}, "
+          f"both milestone and bad (masked) {bad_why['milestone and bad: masked']} | A: mistakes masked in solved runs {bad_why['solved: mistake masked']}")
     C = collections.Counter((("val" if is_val(e["task"], a.val_share) else "train"), e["label"]) for e in chosen)
     print(f"\nruns: {dict(why.most_common())}")
     print(f"tasks: {len(by)} | with both outcomes (paired): {len(paired)} | only solved: "
