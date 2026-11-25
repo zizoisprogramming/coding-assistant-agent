@@ -16,7 +16,9 @@ Labels:
 Pairs: --paired-only (default on) keeps bad runs only for tasks that also have a good run (the same task passed and
 failed: the contrast plan B trains on). Good runs of always-solved tasks are kept (they feed the copy term).
 Caps: at most --cap good and --cap bad episodes per task (fastest good runs first, bad runs spread over attempts).
-Held-out safety: tasks listed in --exclude (one id per line, or a json list) are refused; the run stops if any appear.
+Held-out safety: tasks listed in --exclude (one id per line, or a json list: scripts/train/heldout_eval.json = the final
+test's 24 other-repo tasks + data/rebench_test + the 8 dev16 test tasks) are skipped and counted; the output is checked
+to hold none of them. --only-tasks limits the build to listed tasks (the 4 fastapi / rich pairs outside the test).
 Split: --val-share of TASKS (hash of the task id) go to val, so validation measures the contrast on unseen tasks.
 """
 import argparse
@@ -91,7 +93,8 @@ def main():
     ap.add_argument("--tasks", nargs="+", required=True, help="tasks.jsonl files (reference patches)")
     ap.add_argument("--out", required=True)
     ap.add_argument("--arms", nargs="+", default=["sk_a2"], help="arm names kept (one agent: its prompt = the test prompt)")
-    ap.add_argument("--exclude", nargs="*", default=[], help="held-out task id files (refused)")
+    ap.add_argument("--exclude", nargs="*", default=[], help="held-out task id files (skipped, never in the output)")
+    ap.add_argument("--only-tasks", nargs="*", default=[], help="keep only these task ids")
     ap.add_argument("--cap", type=int, default=6, help="max good and max bad episodes per task")
     ap.add_argument("--paired-only", type=int, default=1, help="bad runs only for tasks that also have a good run")
     ap.add_argument("--max-fail-streak", type=int, default=3)
@@ -114,7 +117,11 @@ def main():
         for key, g in sorted(rows.items()):
             iid = key[0]
             if iid in excl:
-                raise SystemExit(f"HELD-OUT task {iid} found in {d}: refusing to build training data from it")
+                why["held-out task skipped"] += 1
+                continue
+            if a.only_tasks and iid not in a.only_tasks:
+                why["not in --only-tasks"] += 1
+                continue
             rs = recs.get(key)
             if not rs:
                 why["no request log"] += 1
@@ -146,6 +153,7 @@ def main():
         good = sorted(v["good"], key=lambda e: e["agent_s"])[:a.cap]
         bad = [] if (a.paired_only and not good) else sorted(v["bad"], key=lambda e: e["attempt"])[:a.cap]
         chosen += good + bad
+    assert not {e["task"] for e in chosen} & excl, "a held-out task reached the training data"
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     with open(out / "requests_pref.jsonl", "w") as fr, open(out / "status.jsonl", "w") as fs:

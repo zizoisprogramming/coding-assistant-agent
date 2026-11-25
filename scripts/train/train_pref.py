@@ -119,7 +119,7 @@ def kto_terms(r, label, z0, beta):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", required=True)
-    ap.add_argument("--samples", required=True)
+    ap.add_argument("--samples", nargs="+", required=True, help="one or more build_samples.py outputs (merged)")
     ap.add_argument("--out", required=True)
     ap.add_argument("--base-name", default="google/gemma-4-31b-it-qat-w4a16-ct")
     ap.add_argument("--gpus-per-rank", type=int, default=1)
@@ -153,7 +153,7 @@ def main():
     out = Path(args.out)
     if rank == 0:
         out.mkdir(parents=True, exist_ok=True)
-    samples = [s for s in torch.load(args.samples) if s.get("label") in ("good", "bad")]
+    samples = [s for f in args.samples for s in torch.load(f) if s.get("label") in ("good", "bad")]
     for i, s in enumerate(samples):
         s["idx"] = i
     samples = [s for s in samples if int(s["labels_mask"].sum()) > 0 and len(s["input_ids"]) <= args.max_len]
