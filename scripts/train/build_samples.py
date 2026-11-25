@@ -135,6 +135,7 @@ def main():
                 continue
             samples.append({"episode_id": key[0], "split": meta["split"], "category": meta.get("category"),
                             "teacher": meta.get("teacher"), "segment": k, "n_segments": len(segs),
+                            "label": meta.get("label"), "task": meta.get("task"),  # plan B (pref_episodes.py)
                             "replies": len(spans), "input_ids": torch.tensor(ids, dtype=torch.int32),
                             "labels_mask": torch.tensor(lab, dtype=torch.bool)})
         if (n + 1) % 50 == 0 or n + 1 == len(recs):
