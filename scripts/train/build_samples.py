@@ -97,6 +97,7 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--max-len", type=int, default=32768)
     ap.add_argument("--split-on-break", action="store_true", help="self-distillation: new segment instead of a dropped episode")
+    ap.add_argument("--keep-tail", action="store_true", help="keep the text after a sample's last graded token (old behaviour)")
     a = ap.parse_args()
     import torch
     from tokenizers import Tokenizer
@@ -143,6 +144,12 @@ def main():
                 except Exception as e:  # noqa: BLE001
                     problems[f"error {type(e).__name__}"] += 1
                     continue
+                if not any(lab):
+                    problems["no graded token"] += 1
+                    continue
+                if not a.keep_tail:  # cut after the last graded token: the model is causal, so the text after it changes
+                    end = len(lab) - lab[::-1].index(True)  # nothing before it (user 2026-11-26: 'do the cut')
+                    ids, lab = ids[:end], lab[:end]
                 if len(ids) > a.max_len:
                     problems["segment longer than max-len"] += 1
                     continue
