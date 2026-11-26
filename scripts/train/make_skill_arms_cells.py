@@ -158,6 +158,22 @@ PASS2_IF_BEATS = None  # e24x2: ("pub024", "sk_a2_32"); user (e24x2): pass 2 onl
 EARLY_STOP_MAX = -1  # r45: one pass; r44: 12 of 34 (the 12 tasks every clock run solved; user: 3 was set for the hard dev16); r43: -1, off (user asked 2 passes; mix solves 3-4 of dev16, so 3 would drop arms); r42: 3; r33: -1 (off); user: after pass 1, an arm that solved 3 or fewer stops (mix: 3.67 per pass)
 
 
+# r167 (user 2026-11-26 'build'): extra sk_a2 runs on the tasks with exactly ONE pass in r165 + r166, so adapter P can choose
+# among passes (P2T / 'Quality, Not Just Outcome': the best-process pass per task, not the only one). Ordered by solve rate,
+# then speed. Accounts: 4 quota h -> ~2 h running (9 tasks, guard 1.6 h) and 2 quota h -> ~1 h running (the 3 fastest, guard 0.6 h).
+OUT = ROOT / "kaggle/cells_skill_r167"
+RTRAIN167_SHARDS = {"1": ["serge-sans-paille__beniget-70", "wimglenn__advent-of-code-data-154", "reata__sqllineage-90", "google__mobly-328",
+                          "asottile__pyupgrade-568", "CrossGL__crosstl-95", "DCC-Lab__RayTracing-258", "TeamGraphix__graphix-225",
+                          "narwhals-dev__narwhals-1159"],
+                    "2": ["sdispater__pendulum-174", "ali-ramadhan__matplotloom-7", "devsnd__tinytag-171"]}
+TASKS = sorted(RTRAIN167_SHARDS["1"] + RTRAIN167_SHARDS["2"])
+SHARDS = [sorted(RTRAIN167_SHARDS[k]) for k in ("1", "2")]
+SHARD_STOP_H = {1: 1.6, 2: 0.6}  # = quota / 2 - 0.4 (the cell-2 rule)
+PASSES = 3
+ARMS = ["sk_a2"]
+assert not set(TASKS) & set(RTEST24) and len(set(TASKS)) == 12
+
+
 def arm_files(arm):
     base = ROOT / "submissions" / arm
     return {p.relative_to(base).as_posix(): p.read_text() for p in sorted(base.rglob("*")) if p.is_file()}
