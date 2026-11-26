@@ -9,7 +9,7 @@ MODE = 'skill_arms'  # skill arms on a dev16 task set (make_skill_arms_cells.py)
 SAMPLE = []  # MODE 'prompt': the fixed task sample of the prompt experiment
 TRIAL_PHASES = [(4, 8), (6, 12)]  # trial: (concurrency, tasks): measured throughput decides CONCURRENCY below
 CONCURRENCY = 2  # tasks at once (make_skill_arms_cells.py CONCURRENCY; the LB runs 1)
-STOP_NEW_TASKS_AFTER_H = 9.4  # = min(10.5, this account's GPU quota in hours / 2 - 0.4): L4x4 bills 2x,
+STOP_NEW_TASKS_AFTER_H = 7.3  # = min(10.5, this account's GPU quota in hours / 2 - 0.4): L4x4 bills 2x,
 # a run ends within 8 min, Kaggle ends sessions at 12 h; a killed run loses its output
 T_START = time.time()
 WORKING_DIR = Path('/kaggle/working')
