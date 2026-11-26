@@ -231,15 +231,23 @@ def process_milestones(kept):
     recs = [r for r in kept if r["request"].get("tools")]
     edits = [i for i, r in enumerate(recs) if any(source_edit(nm, a) for nm, a in reply_calls(r, res))]
     found = []
+
+    def ran(r):  # 2026-11-26 (real run rich_3676 r148: 'git diff' refused with 'Tool call budget exhausted' was labelled good):
+        # a check / diff step counts only when the harness ran it; a failing test (CommandError) still ran
+        for c in ((r.get("reply") or {}).get("message") or {}).get("tool_calls") or []:
+            o = res.get(c.get("id"))
+            if isinstance(o, dict) and (o.get("error_type") == "BudgetExceeded" or (o.get("error") and not o.get("status"))):
+                return False
+        return True
     if edits:
         last = edits[-1]
-        k = next((i for i in range(last + 1, len(recs)) if any(is_run_check(nm, a) for nm, a in reply_calls(recs[i]))), None)
+        k = next((i for i in range(last + 1, len(recs)) if ran(recs[i]) and any(is_run_check(nm, a) for nm, a in reply_calls(recs[i]))), None)
         if k is not None and not recs[k].get("milestone"):
             recs[k]["milestone"] = "check after edit"
             found.append("check after edit")
     sub_at = next((i for i, r in enumerate(recs) if any(nm == "submit_patch" for nm, a in reply_calls(r))), None)
     if sub_at is not None and edits:
-        k = next((i for i in range(edits[0], sub_at) if any(nm == "run_command" and re.search(r"git\s+(diff|status)", str(a.get("command", "")))
+        k = next((i for i in range(edits[0], sub_at) if ran(recs[i]) and any(nm == "run_command" and re.search(r"git\s+(diff|status)", str(a.get("command", "")))
                                                              for nm, a in reply_calls(recs[i]))), None)
         if k is not None and not recs[k].get("milestone"):
             recs[k]["milestone"] = "diff before submit"
