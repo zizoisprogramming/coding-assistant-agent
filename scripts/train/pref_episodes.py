@@ -248,6 +248,25 @@ def process_milestones(kept):
     if dec is not None and edits and 0 <= edits[0] - dec <= 3 and not recs[edits[0]].get("milestone"):
         recs[edits[0]]["milestone"] = "quick edit"
         found.append("quick edit")
+    # loop break (user 2026-11-26: 'yes add the loop-break step'): after 2+ calls in a row that failed or repeated an earlier
+    # call (no applied edit since), the first reply whose call works AND differs from those calls. Up to 2 per run.
+    stuck, seen, n_breaks, applied = 0, {}, 0, 0
+    for i, r in enumerate(recs):
+        calls = reply_calls(r)
+        if not calls:
+            continue
+        nm, a = calls[0]
+        key = nm + json.dumps(a, sort_keys=True)
+        c0 = (((r.get("reply") or {}).get("message") or {}).get("tool_calls") or [{}])[0]
+        bad = failed(nm, a, res.get(c0.get("id")))
+        rep = nm != "get_status" and seen.get(key) == applied
+        if stuck >= 2 and not bad and not rep and n_breaks < 2 and not r.get("milestone"):
+            r["milestone"] = "loop break"
+            found.append("loop break")
+            n_breaks += 1
+        stuck = stuck + 1 if (bad or rep) else 0
+        seen[key] = applied
+        applied += source_edit(nm, a) and not bad
     return found
 
 
