@@ -18,6 +18,7 @@ import ast, collections, glob, json, re, sys
 from math import comb
 sys.path.insert(0, "scripts/train")
 from selfdistill_episodes import failed
+ARM = sys.argv[1] if len(sys.argv) > 1 else None  # one agent only (e.g. sk_a2)
 EDIT_RUN = re.compile(r"sed\s+-i|git\s+apply|patch\s+-p|OLD_TEXT|\.replace\(|old_string")
 SRC_SKIP = re.compile(r"(^|/)(\.git/|tmp/|tests?/|test_[^/]*\.py$|conftest\.py$)|repro|check|debug|scratch")
 def parse(x):
@@ -82,6 +83,7 @@ for d in sorted(glob.glob("data/results/*")):
         # 'warning' features only count for runs that saw a warning before any edit
         f["_saw_warning"], f["_saw_budget"] = warn is not None, bud is not None
         f["_edited"] = first_edit is not None
+        if ARM and g["arm"] != ARM: continue
         rows.append(dict(cell=(g["arm"], g["instance_id"]), ok=g["resolved"] in (True, "True"), f=f))
 def sign_p(w, l):
     n = w + l

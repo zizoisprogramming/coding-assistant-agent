@@ -119,7 +119,8 @@ def kto_terms(r, label, z0, beta):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", required=True)
-    ap.add_argument("--samples", nargs="+", required=True, help="one or more build_samples.py outputs (merged)")
+    ap.add_argument("--samples", nargs="+", required=True, help="build_samples.py outputs (merged); FILE:N caps that file's train "
+                    "segments to N tokens (e.g. the fastapi / rich file at ~10% of the training budget)")
     ap.add_argument("--out", required=True)
     ap.add_argument("--base-name", default="google/gemma-4-31b-it-qat-w4a16-ct")
     ap.add_argument("--gpus-per-rank", type=int, default=1)
@@ -154,7 +155,16 @@ def main():
     out = Path(args.out)
     if rank == 0:
         out.mkdir(parents=True, exist_ok=True)
-    samples = [s for f in args.samples for s in torch.load(f) if s.get("label") in ("good", "bad")]
+    samples = []
+    for spec in args.samples:
+        f, _, cap = spec.partition(":") if not Path(spec).exists() else (spec, "", "")
+        part = [s for s in torch.load(f) if s.get("label") in ("good", "bad") and int(s["labels_mask"].sum()) > 0
+                and float(s.get("weight", 1.0)) > 0]
+        if cap:
+            part = select_budget([s for s in part if s["split"] == "train"], int(cap), args.seed) + [s for s in part if s["split"] == "val"]
+        log(f"samples {Path(f).name}: {len(part)} segments, {sum(len(s['input_ids']) for s in part) / 1e6:.2f}M tokens"
+            f"{' (train capped at ' + cap + ' tokens)' if cap else ''}", 0, int(os.environ.get('RANK', 0)))
+        samples += part
     for i, s in enumerate(samples):
         s["idx"] = i
     samples = [s for s in samples if int(s["labels_mask"].sum()) > 0 and len(s["input_ids"]) <= args.max_len

@@ -13,8 +13,8 @@ Labels:
          <= --max-fail-streak failed calls in a row, <= --max-repeats repeated calls, no junk text).
   bad  = not solved, ended by the agent or by a cap (end in ok / time / tool_budget / turns; never infrastructure ends),
          cut the same way when it submitted (what follows the first submit is a loop tail, not a decision).
-Pairs: --paired-only (default on) keeps bad runs only for tasks that also have a good run (the same task passed and
-failed: the contrast plan B trains on). Good runs of always-solved tasks are kept (they feed the copy term).
+Unpaired tasks (2026-11-26, change 4): always-solved runs train as good at --unpaired-weight; never-solved runs give only
+their good steps at --unpaired-weight. Good runs of always-solved tasks are kept (they feed the copy term).
 Caps: at most --cap good and --cap bad episodes per task (fastest good runs first, bad runs spread over attempts).
 Held-out safety: tasks listed in --exclude (one id per line, or a json list: scripts/train/heldout_eval.json = the final
 test's 24 other-repo tasks + data/rebench_test + the 8 dev16 test tasks) are skipped and counted; the output is checked
@@ -157,6 +157,32 @@ def fix_lines(patch):
     return out
 
 
+# Four label changes (user 2026-11-26: 'yes implement the four label changes'; evidence: scripts/mine_bank/good_behaviours.py,
+# 391 same-agent same-task cells; label_rules_check.py):
+#  1. more GOOD steps in failed runs at the milestone weight: the first test / script run after the last applied edit ('check
+#     after edit'), git diff / status before the first submit ('diff before submit'), the first applied edit when it comes
+#     within 3 replies of the first decision moment ('quick edit') - unless it is the final wrong edit (then masked);
+#  2. BAD: a maxed-thinking reply (>= MAXED_TOKENS of thinking, sk_a2's cap is 2,048) before the first applied edit of a
+#     failed run; in solved runs maxed replies are masked;
+#  3. retry streaks and repeats are no longer bad (they did not separate success on the same task): masked;
+#  4. unpaired tasks: always-solved runs train as good at --unpaired-weight; never-solved runs give only their good steps
+#     (milestones) at --unpaired-weight, no bad labels (no solved sibling shows what should have happened).
+MAXED_TOKENS = 1950
+_TOK = None
+
+
+def thinking_tokens(r):
+    th = ((r.get("reply") or {}).get("message") or {}).get("reasoning_content") or ""
+    if not th:
+        return 0
+    return len(_TOK.encode(th).ids) if _TOK is not None else len(th) // 3  # fallback without a tokenizer: ~3 chars / token
+
+
+def is_run_check(name, a):
+    cmd = str(a.get("command", ""))
+    return name == "run_command" and "a.py" not in cmd and bool(re.search(r"\bpython3?\b|\bpytest\b", cmd)) and not EDIT_RUN.search(cmd)
+
+
 def label_milestones(kept, patch):
     """Mark up to two milestone replies of a failed run (record['milestone'] = name). Returns the names found."""
     gold = fix_lines(patch)
@@ -194,10 +220,38 @@ def label_milestones(kept, patch):
                     if any(abs(n - g) <= 3 for n in at for g in gold[f]):
                         found.append("right place")
                         r["milestone"] = "right place"
+    found += process_milestones(kept)
     return found
 
 
-def label_bad_replies(kept, sibling_edit_at):
+def process_milestones(kept):
+    """Change 1: good process steps (need no reference patch): check after the last applied edit, git diff / status before
+    the first submit, the first applied edit within 3 replies of the first decision moment."""
+    res = tool_results(kept)
+    recs = [r for r in kept if r["request"].get("tools")]
+    edits = [i for i, r in enumerate(recs) if any(source_edit(nm, a) for nm, a in reply_calls(r, res))]
+    found = []
+    if edits:
+        last = edits[-1]
+        k = next((i for i in range(last + 1, len(recs)) if any(is_run_check(nm, a) for nm, a in reply_calls(recs[i]))), None)
+        if k is not None and not recs[k].get("milestone"):
+            recs[k]["milestone"] = "check after edit"
+            found.append("check after edit")
+    sub_at = next((i for i, r in enumerate(recs) if any(nm == "submit_patch" for nm, a in reply_calls(r))), None)
+    if sub_at is not None and edits:
+        k = next((i for i in range(edits[0], sub_at) if any(nm == "run_command" and re.search(r"git\s+(diff|status)", str(a.get("command", "")))
+                                                             for nm, a in reply_calls(recs[i]))), None)
+        if k is not None and not recs[k].get("milestone"):
+            recs[k]["milestone"] = "diff before submit"
+            found.append("diff before submit")
+    dec = next((i for i, r in enumerate(recs) if r.get("decision")), None)
+    if dec is not None and edits and 0 <= edits[0] - dec <= 3 and not recs[edits[0]].get("milestone"):
+        recs[edits[0]]["milestone"] = "quick edit"
+        found.append("quick edit")
+    return found
+
+
+def label_bad_replies(kept, sibling_edit_at, never_solved=False):
     """Set record['train'] on a failed run's replies (True = trained as bad). Returns {reason: replies}."""
     recs = [r for r in kept if r["request"].get("tools")]
     res = tool_results(kept)
@@ -223,15 +277,19 @@ def label_bad_replies(kept, sibling_edit_at):
             a = a if isinstance(a, dict) else {}
             bad = failed(nm, a, res.get(c.get("id")))
             if bad and prev_failed:
-                reasons.append("retry streak")
+                why["retry streak (masked, not bad)"] += 1  # change 3
             prev_failed = bad
             key = nm + json.dumps(a, sort_keys=True)
             if nm != "get_status" and last_use.get(key) == edits:
-                reasons.append("repeat")
+                why["repeat (masked, not bad)"] += 1  # change 3
             last_use[key] = edits
             edits += source_edit(nm, a) and not bad
+        if (first_edit is None or i < first_edit) and thinking_tokens(r) >= MAXED_TOKENS:
+            reasons.append("maxed thinking")  # change 2
         if i == last_edit:
             reasons.append("wrong edit")
+        if never_solved:
+            reasons = []  # change 4: no bad labels without a solved sibling
         if r.get("milestone") and set(reasons) <= {"reading on"}:
             reasons = []  # a milestone is specific evidence the step was right: it beats the stretch label 'reading on'
         r["train"] = bool(reasons)
@@ -333,12 +391,17 @@ def main():
     ap.add_argument("--exclude", nargs="*", default=[], help="held-out task id files (skipped, never in the output)")
     ap.add_argument("--only-tasks", nargs="*", default=[], help="keep only these task ids")
     ap.add_argument("--cap", type=int, default=6, help="max good and max bad episodes per task")
-    ap.add_argument("--paired-only", type=int, default=1, help="bad runs only for tasks that also have a good run")
+    ap.add_argument("--unpaired-weight", type=float, default=0.25, help="change 4: always-solved runs / never-solved milestones")
+    ap.add_argument("--tokenizer-dir", default=None, help="tokenizer.json folder: thinking length in tokens (maxed thinking)")
     ap.add_argument("--max-fail-streak", type=int, default=3)
     ap.add_argument("--max-repeats", type=int, default=3)
     ap.add_argument("--val-share", type=float, default=0.12)
     ap.add_argument("--milestone-weight", type=float, default=0.5, help="B: milestone replies of failed runs, x the task's good weight")
     a = ap.parse_args()
+    global _TOK
+    if a.tokenizer_dir:
+        from tokenizers import Tokenizer
+        _TOK = Tokenizer.from_file(str(Path(a.tokenizer_dir) / "tokenizer.json"))
     tasks = {}
     for f in a.tasks:
         for line in open(f):
@@ -397,8 +460,9 @@ def main():
         p = runs_of[t][True] / max(n, 1)
         idx = sorted(x for x in (reply_index_of_first_edit(e["kept"]) for e in v["good"]) if x is not None)
         sib = idx[len(idx) // 2] if idx else None  # by this reply the task's solved siblings had (median) edited
+        unpaired = p in (0.0, 1.0)
         for e in v["good"]:
-            e["weight"] = round(1 - p, 4)
+            e["weight"] = round(a.unpaired_weight if unpaired else 1 - p, 4)  # change 4: always-solved at the unpaired weight
             res = tool_results(e["kept"])  # A: mask the mistakes of a solved run, keep its recoveries
             for r in e["kept"]:
                 if r["request"].get("tools"):
@@ -406,17 +470,19 @@ def main():
                         json.loads(c["function"].get("arguments") or "{}") if isinstance(c["function"].get("arguments"), str)
                         else c["function"].get("arguments") or {}), res.get(c.get("id")))
                         for c in ((r.get("reply") or {}).get("message") or {}).get("tool_calls") or [])
-                    r["role"] = None if bad else "good"
+                    mx = thinking_tokens(r) >= MAXED_TOKENS  # change 2: a maxed reply is not taught, even in a solved run
+                    r["role"] = None if (bad or mx) else "good"
                     bad_why["solved: mistake masked"] += bad
+                    bad_why["solved: maxed thinking masked"] += mx and not bad
         for e in v["bad"]:
             e["weight"] = round(p, 4)
-            e["weight_milestone"] = round(a.milestone_weight * (1 - p), 4)
+            e["weight_milestone"] = round(a.unpaired_weight if p == 0 else a.milestone_weight * (1 - p), 4)
             label_milestones(e["kept"], tasks[t]["patch"])
-            bad_why.update(label_bad_replies(e["kept"], sib))
+            bad_why.update(label_bad_replies(e["kept"], sib, never_solved=(p == 0)))
     chosen = []
     for t, v in sorted(by.items()):
         good = sorted(v["good"], key=lambda e: e["agent_s"])[:a.cap]
-        bad = [] if (a.paired_only and not good) else sorted(v["bad"], key=lambda e: e["attempt"])[:a.cap]
+        bad = sorted(v["bad"], key=lambda e: e["attempt"])[:a.cap]  # change 4: never-solved runs kept (their good steps only)
         chosen += good + bad
     assert not {e["task"] for e in chosen} & excl, "a held-out task reached the training data"
     out = Path(a.out)
@@ -437,6 +503,9 @@ def main():
     print(f"failed runs' replies: {bad_why['replies']} | trained as bad (the failing pattern): reading on {bad_why['reading on']}, "
           f"retry streak {bad_why['retry streak']}, repeat {bad_why['repeat']}, wrong edit {bad_why['wrong edit']} | masked (context only) "
           f"{bad_why['replies'] - bad_why['trained']} | trained {bad_why['trained']}")
+    print("good steps in failed runs: " + ", ".join(f"{k[11:]} {v}" for k, v in sorted(bad_why.items()) if k.startswith("milestone: ")) +
+          f" | maxed thinking (bad) {bad_why['maxed thinking']} | retries / repeats now masked {bad_why['retry streak (masked, not bad)']} / "
+          f"{bad_why['repeat (masked, not bad)']} | solved: maxed thinking masked {bad_why['solved: maxed thinking masked']}")
     print(f"B milestones in failed runs: saw the fix {bad_why['milestone: saw the fix']}, right place {bad_why['milestone: right place']}, "
           f"both milestone and bad (masked) {bad_why['milestone and bad: masked']} | A: mistakes masked in solved runs {bad_why['solved: mistake masked']}")
     C = collections.Counter((("val" if is_val(e["task"], a.val_share) else "train"), e["label"]) for e in chosen)
