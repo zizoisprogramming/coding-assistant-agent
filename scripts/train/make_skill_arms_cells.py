@@ -172,6 +172,36 @@ SHARD_STOP_H = {1: 1.6, 2: 0.6}  # = quota / 2 - 0.4 (the cell-2 rule)
 PASSES = 3
 ARMS = ["sk_a2"]
 assert not set(TASKS) & set(RTEST24) and len(set(TASKS)) == 12
+# r168 (user 2026-11-27 'yes build the rebench_final generation run for saturday, distribute it on accounts ... each notebook
+# takes 125 task'): sk_a2 x 2 passes on the rebench_final task set (Kaggle dataset engziadsamer/rebench-final-cp312: 347 tasks
+# that passed the harness's verify_task on Python 3.12; its verify_gate.json + tasks.jsonl copied to data/rebench_final/).
+# None was ever run by sk_a2; held-out tasks and tasks on a held-out task's repo are left out. 3 notebooks of 125 / 125 / the
+# rest, each mixing the difficulty levels in the same shares. Notebooks attach rebench-final-cp312 INSTEAD of rebench-new-cp312.
+OUT = ROOT / "kaggle/cells_skill_r168"
+_G168 = json.load(open(ROOT / "data/rebench_final/verify_gate_cp312.json"))
+_T168 = {json.loads(l)["instance_id"]: json.loads(l) for l in open(ROOT / "data/rebench_final/tasks_cp312.jsonl")}
+_HO168 = set(json.load(open(ROOT / "scripts/train/heldout_eval.json"))) | set(RTEST24)
+_SEL168 = {x["id"]: x for p in ("new", "final", "test") for x in json.load(open(ROOT / f"data/rebench_{p}/selection.json"))}
+_HOREPO168 = {_SEL168[t]["repo"] for t in _HO168 if t in _SEL168}
+RTRAIN168 = sorted(t for t, r in _T168.items() if (_G168.get(t) or {}).get("usable") and t not in _HO168 and r["repo"] not in _HOREPO168)
+_by_level = {}
+for _t in RTRAIN168:
+    _by_level.setdefault(_T168[_t]["level"], []).append(_t)
+_order = []
+for _lv in sorted(_by_level):
+    _l = sorted(_by_level[_lv]); random.Random(168).shuffle(_l); _order += _l
+_CAP168 = [125, 125, len(RTRAIN168) - 250]
+SHARDS = [[] for _ in _CAP168]
+for _t in _order:  # each task to the notebook least full for its size: every notebook gets every level in the same shares
+    SHARDS[min(range(len(SHARDS)), key=lambda k: (len(SHARDS[k]) / _CAP168[k], k))].append(_t)
+SHARDS = [sorted(s) for s in SHARDS]
+TASKS = sorted(RTRAIN168)
+SPLIT_OF.update({t: "rtrain" for t in RTRAIN168})
+SHARD_STOP_H = {1: 10.5, 2: 10.5, 3: 9.0}  # = min(10.5, quota / 2 - 0.4), the cell-2 rule (Kaggle ends a session at 12 h): needs >= 21.8 quota h (s3: 18.8)
+PASSES = 2  # 2 runs per task = the minimum for a pass / fail pair
+ARMS = ["sk_a2"]
+assert [len(s) for s in SHARDS] == _CAP168 and len(set(TASKS)) == sum(_CAP168) and not set(TASKS) & _HO168
+assert not {_T168[t]["repo"] for t in TASKS} & _HOREPO168
 
 
 def arm_files(arm):
