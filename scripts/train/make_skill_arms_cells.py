@@ -183,23 +183,36 @@ _T168 = {json.loads(l)["instance_id"]: json.loads(l) for l in open(ROOT / "data/
 _HO168 = set(json.load(open(ROOT / "scripts/train/heldout_eval.json"))) | set(RTEST24)
 _SEL168 = {x["id"]: x for p in ("new", "final", "test") for x in json.load(open(ROOT / f"data/rebench_{p}/selection.json"))}
 _HOREPO168 = {_SEL168[t]["repo"] for t in _HO168 if t in _SEL168}
-RTRAIN168 = sorted(t for t, r in _T168.items() if (_G168.get(t) or {}).get("usable") and t not in _HO168 and r["repo"] not in _HOREPO168)
-_by_level = {}
-for _t in RTRAIN168:
-    _by_level.setdefault(_T168[_t]["level"], []).append(_t)
+_POOL168 = sorted(t for t, r in _T168.items() if (_G168.get(t) or {}).get("usable") and t not in _HO168 and r["repo"] not in _HOREPO168)
+# r168 re-plan (user 2026-11-28: 'lets work with only 2 accounts for generation please, so we have full quota for the rest'):
+# 2 notebooks x 10.5 h fit ~480 runs, not 347 x 2 = 694 -> 240 tasks (120 per notebook), chosen by the October mix runs on them
+# (gen_trial / gen_full / gen_retry / gen_extra / gen_combined, T1.0): measured on sk_a2's r165 / r166 runs, mix-solved tasks
+# gave a pass / fail pair within 2 runs on 21% of tasks at 273 s per run, mix-never-solved 12% at 363 s. Order: mix failed AND
+# solved (22, mid-rate), mix solved (153), then never solved by level (core d0 first), shuffled inside each group (seed 168).
+_MIX168 = {}
+for _d in ("2026-10-21_gen_trial", "2026-10-22_gen_full", "2026-10-22_gen_retry", "2026-10-22_gen_extra", "2026-10-24_gen_combined"):
+    for _l in open(ROOT / f"data/results/{_d}/gen_per_task.jsonl"):
+        _r = json.loads(_l)
+        if _r.get("instance_id") in _T168:
+            _MIX168.setdefault(_r["instance_id"], set()).add(bool(_r.get("resolved")))
+_LV168 = {"core d0": 0, "core d1": 1, "core d2": 2, "large": 3}
+_GROUP168 = {t: (0 if _MIX168.get(t) == {True, False} else 1 if _MIX168.get(t) == {True} else 2 + _LV168[_T168[t]["level"]])
+             for t in _POOL168}
 _order = []
-for _lv in sorted(_by_level):
-    _l = sorted(_by_level[_lv]); random.Random(168).shuffle(_l); _order += _l
-_CAP168 = [125, 125, len(RTRAIN168) - 250]
+for _gr in sorted(set(_GROUP168.values())):
+    _l = sorted(t for t in _POOL168 if _GROUP168[t] == _gr); random.Random(168).shuffle(_l); _order += _l
+_CAP168 = [120, 120]
+RTRAIN168 = _order[:sum(_CAP168)]
 SHARDS = [[] for _ in _CAP168]
-for _t in _order:  # each task to the notebook least full for its size: every notebook gets every level in the same shares
+for _t in RTRAIN168:  # each task to the notebook least full: both notebooks get every group in the same shares
     SHARDS[min(range(len(SHARDS)), key=lambda k: (len(SHARDS[k]) / _CAP168[k], k))].append(_t)
 SHARDS = [sorted(s) for s in SHARDS]
 TASKS = sorted(RTRAIN168)
 SPLIT_OF.update({t: "rtrain" for t in RTRAIN168})
-SHARD_STOP_H = {1: 10.5, 2: 10.5, 3: 9.0}  # = min(10.5, quota / 2 - 0.4), the cell-2 rule (Kaggle ends a session at 12 h): needs >= 21.8 quota h (s3: 18.8)
+SHARD_STOP_H = {1: 10.5, 2: 10.5}  # = min(10.5, quota / 2 - 0.4), the cell-2 rule (Kaggle ends a session at 12 h): needs >= 21.8 quota h
 PASSES = 2  # 2 runs per task = the minimum for a pass / fail pair
 ARMS = ["sk_a2"]
+assert len(_MIX168) == len(_T168), "every rebench_final task has October mix runs"
 assert [len(s) for s in SHARDS] == _CAP168 and len(set(TASKS)) == sum(_CAP168) and not set(TASKS) & _HO168
 assert not {_T168[t]["repo"] for t in TASKS} & _HOREPO168
 
