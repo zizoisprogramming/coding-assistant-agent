@@ -15,7 +15,7 @@ Update this file whenever a line opens or closes.
   compactions, ~30 s faster per run. Not yet checked on tasks never used to pick anything, not yet on the leaderboard.
 - **Leaderboard (58 public tasks, score = solved / 58, floored):** our best fits are sk_a2 0.18 and 0.17 (the same file twice: 11 then 10 of 58, 2026-11-25), mix 0.17, sk_a2_32 0.17;
   then sb1hl 0.15, combo1 0.15, evidc 0.15 / 0.12, le6_t6 0.15, sa2 0.12, nn32rcn2 0.12, sq1c2a6 0.12 / 0.10, evidefs 0.10. The public
-  pub024 scored 0.18 (local control only; we never submit public configs). Top of the board ~0.29.
+  pub024 scored 0.18 (local control only; we never submit public configs). Top of the board 0.24 (19 teams, 2026-11-27; the 0.29 seen on 11-13 is gone).
 - **A prompt written around the solved rhythm is followed and does no harm (r144, sk_a2_60x):** LOOK -> RUN once -> EDIT -> LOOK
   AGAIN + RUN, both worked examples in that shape: 9/16 vs 21/48 (44%) for sk_a2 / sk_a2_60 on the same 8 tasks (P(>= 9 | 44%) = 0.22,
   so not proven); same mean time (358 s); compactions 1.56. Every edit that stayed in the tree solved (9/9); all 7 failures had no patch
