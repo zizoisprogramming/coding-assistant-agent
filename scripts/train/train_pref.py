@@ -143,7 +143,8 @@ def main():
     ap.add_argument("--max-nll-rise", type=float, default=0.10, help="best checkpoint only if the passes' validation NLL "
                     "is at most this fraction above its start value")
     ap.add_argument("--max-len", type=int, default=16384, help="longest segment trained (31B: 24k ran out of memory)")
-    ap.add_argument("--train-tokens", type=int, default=0, help="token budget of the train set (0: all)")
+    ap.add_argument("--train-tokens", type=int, default=0, help="token budget of the train set (0: all); with P / O flags: of the KTO samples")
+    ap.add_argument("--copy-tokens", type=int, default=0, help="P / O: token budget of the copy-only samples (0: all)")
     ap.add_argument("--val-tokens", type=int, default=0, help="token budget of the validation set (0: all)")
     ap.add_argument("--evals", type=int, default=4)
     ap.add_argument("--save-every", type=int, default=10)
@@ -171,18 +172,31 @@ def main():
                and float(s.get("weight", 1.0)) > 0]  # weight 0 = a task every run solved (or failed): no same-task signal
     for i, s in enumerate(samples):
         s["idx"] = i
-    train = select_budget([s for s in samples if s["split"] == "train"], args.train_tokens, args.seed)
-    val = select_budget([s for s in samples if s["split"] == "val"], args.val_tokens, args.seed)
+    for s in samples:  # P / O flags (build_samples.py); old files: every good sample is copied, every sample is in KTO
+        s["copy"] = bool(s["copy"]) if "copy" in s else s["label"] == "good"
+        s["kto"] = bool(s.get("kto", True))
+    only_copy = lambda xs: [s for s in xs if s["copy"] and not s["kto"]]
+    with_kto = lambda xs: [s for s in xs if s["kto"]]
+    train = (select_budget(with_kto([s for s in samples if s["split"] == "train"]), args.train_tokens, args.seed) +
+             select_budget(only_copy([s for s in samples if s["split"] == "train"]), args.copy_tokens, args.seed))
+    val = (select_budget(with_kto([s for s in samples if s["split"] == "val"]), args.val_tokens, args.seed) +
+           select_budget(only_copy([s for s in samples if s["split"] == "val"]), args.val_tokens, args.seed))
     samples = train + val  # the reference pass covers only what is used
     for i, s in enumerate(samples):
         s["idx"] = i
-    ng = sum(float(s.get("weight", 1.0)) for s in train if s["label"] == "good")
-    nb = sum(float(s.get("weight", 1.0)) for s in train if s["label"] == "bad")  # weighted counts: KTO class balance
-    assert ng and nb, f"need both labels in train (good {ng}, bad {nb})"
-    w_good, w_bad = 1.0, ng / nb  # KTO balance: w_good * n_good == w_bad * n_bad
+    kto_items = [s for s in samples if s["kto"]]
+    for i, s in enumerate(kto_items):
+        s["ridx"] = i
+    ng = sum(float(s.get("weight", 1.0)) for s in train if s["kto"] and s["label"] == "good")
+    nb = sum(float(s.get("weight", 1.0)) for s in train if s["kto"] and s["label"] == "bad")  # weighted counts: KTO class balance
+    has_kto = any(s["kto"] for s in train)
+    assert not has_kto or (ng and nb), f"need both labels in the KTO samples (good {ng}, bad {nb})"
+    assert has_kto or any(s["copy"] for s in train), "nothing to train: no KTO and no copy samples"
+    w_good, w_bad = (1.0, ng / nb) if has_kto else (1.0, 1.0)  # KTO balance: w_good * n_good == w_bad * n_bad
     log(f"ranks {world} x {args.gpus_per_rank} GPU(s) | train {len(train)} segments (weighted good {ng:.1f}, bad {nb:.1f}; "
         f"{len({s['task'] for s in train})} tasks) {sum(len(s['input_ids']) for s in train) / 1e6:.2f}M tokens "
-        f"({sum(int(s['labels_mask'].sum()) for s in train) / 1e6:.2f}M trained) | val {len(val)} segments "
+        f"({sum(int(s['labels_mask'].sum()) for s in train) / 1e6:.2f}M trained; copy {sum(s['copy'] for s in train)}, KTO "
+        f"{sum(s['kto'] for s in train)}) | val {len(val)} segments "
         f"({len({s['task'] for s in val})} tasks) | beta {args.beta} sft {args.sft_weight} z0 {args.z0} "
         f"w_good {w_good:.2f} w_bad {w_bad:.2f} | decision segments train {sum(bool(s.get('decision')) for s in train)} "
         f"(good {sum(bool(s.get('decision')) and s['label'] == 'good' for s in train)}, bad "
@@ -207,10 +221,14 @@ def main():
     if resumed:  # the cache was written before any step; recomputing it with a trained LoRA would be wrong
         assert (out / "ref_nll.pt").exists(), "resume without the reference cache"
     t0 = time.time()
-    ref = reference_nll(model, samples, rank, world, dev, out / "ref_nll.pt")
-    log(f"reference NLL ready for {len(ref)} segments ({time.time() - t0:.0f}s): good mean "
-        f"{ref[[s['idx'] for s in samples if s['label'] == 'good']].mean():.4f}, bad mean "
-        f"{ref[[s['idx'] for s in samples if s['label'] == 'bad']].mean():.4f}", 0, rank)
+    if kto_items:
+        ref = reference_nll(model, kto_items, rank, world, dev, out / "ref_nll.pt")
+        log(f"reference NLL ready for {len(ref)} KTO segments ({time.time() - t0:.0f}s): good mean "
+            f"{ref[[s['ridx'] for s in kto_items if s['label'] == 'good']].mean():.4f}, bad mean "
+            f"{ref[[s['ridx'] for s in kto_items if s['label'] == 'bad']].mean():.4f}", 0, rank)
+    else:
+        ref = torch.zeros(0, dtype=torch.float64)
+        log("no KTO samples (adapter P: copy only): no reference pass", 0, rank)
 
     opt = torch.optim.AdamW(params, lr=args.lr, betas=(0.9, 0.999), weight_decay=0.0)
     per_epoch = math.ceil(len(train) / (world * args.accum))
@@ -246,32 +264,39 @@ def main():
     def validate(tag):
         model.eval()
         mine = sorted(range(len(val)), key=lambda j: -len(val[j]["input_ids"]))[rank::world]
-        acc = torch.zeros(10, dtype=torch.float64, device=dev)  # r_good, n_good, r_bad, n_bad, kto, nll_good; decision r_good, n, r_bad, n
+        # r_good, n_good, r_bad, n_bad, kto (KTO samples); nll, n (copy samples = the passes' NLL); decision r_good, n, r_bad, n
+        acc = torch.zeros(11, dtype=torch.float64, device=dev)
         with torch.no_grad():
             for j in mine:
                 s = val[j]
                 m, _ = nll(model, s, first_device(model))
-                r = ref[s["idx"]].item() - m.item()
+                if s["copy"]:
+                    acc += torch.tensor([0, 0, 0, 0, 0, m.item(), 1, 0, 0, 0, 0], dtype=torch.float64, device=dev)
+                if not s["kto"]:
+                    continue
+                r = ref[s["ridx"]].item() - m.item()
                 k = kto_terms(torch.tensor(r), s["label"], z0, args.beta).item()
                 d = 1.0 if s.get("decision") else 0.0
                 if s["label"] == "good":
-                    acc += torch.tensor([r, 1, 0, 0, k * w_good, m.item(), r * d, d, 0, 0], dtype=torch.float64, device=dev)
+                    acc += torch.tensor([r, 1, 0, 0, k * w_good, 0, 0, r * d, d, 0, 0], dtype=torch.float64, device=dev)
                 else:
-                    acc += torch.tensor([0, 0, r, 1, k * w_bad, 0, 0, 0, r * d, d], dtype=torch.float64, device=dev)
+                    acc += torch.tensor([0, 0, r, 1, k * w_bad, 0, 0, 0, 0, r * d, d], dtype=torch.float64, device=dev)
         if dist.is_initialized():
             dist.all_reduce(acc)
         model.train()
-        rg, ngv, rb, nbv, kt, nl, drg, dng, drb, dnb = acc.tolist()
+        rg, ngv, rb, nbv, kt, nl, ncv, drg, dng, drb, dnb = acc.tolist()
         res = {"type": "val", "tag": tag, "step": step, "r_good": round(rg / max(ngv, 1), 5), "r_bad": round(rb / max(nbv, 1), 5),
                "margin": round(rg / max(ngv, 1) - rb / max(nbv, 1), 5), "kto": round(kt / max(ngv + nbv, 1), 5),
-               "nll_good": round(nl / max(ngv, 1), 5), "segments": len(val),
+               "nll_good": round(nl / max(ncv, 1), 5), "segments": len(val),
                "margin_decision": round(drg / max(dng, 1) - drb / max(dnb, 1), 5) if dng and dnb else None}
         history.append(res)
         log(f"VAL [{tag}] step {step}: margin {res['margin']:+.4f} (r good {res['r_good']:+.4f}, bad {res['r_bad']:+.4f}) | "
-            f"KTO {res['kto']:.4f} | passes' NLL {res['nll_good']:.4f} | {int(ngv)} good + {int(nbv)} bad segments | decision-moment "
+            f"KTO {res['kto']:.4f} | passes' NLL {res['nll_good']:.4f} ({int(ncv)} copy segments) | {int(ngv)} good + {int(nbv)} bad KTO segments | decision-moment "
             f"margin {res['margin_decision'] if res['margin_decision'] is not None else '-'} ({int(dng)} good + {int(dnb)} bad)", 0, rank)
         return res
 
+    val_kto = any(s["kto"] for s in val)
+    best_key = (lambda v: v["kto"]) if val_kto else (lambda v: v["nll_good"])  # P: no KTO -> the held-out passes' NLL
     if step == 0 and val:
         v0 = validate("start")
         plan["nll0"] = v0["nll_good"]
@@ -289,12 +314,16 @@ def main():
         stats = torch.zeros(6, dtype=torch.float64, device=dev)  # kto sum, sft sum, r_good sum, n_good, r_bad sum, n_bad
         for s in mine:
             m, _ = nll(model, s, dev)
-            r = ref[s["idx"]].to(m.device, m.dtype) - m
-            k = kto_terms(r, s["label"], z0, args.beta) * (w_good if s["label"] == "good" else w_bad)
-            sft = args.sft_weight * m if s["label"] == "good" else torch.zeros_like(m)
+            if s["kto"]:
+                r = ref[s["ridx"]].to(m.device, m.dtype) - m
+                k = kto_terms(r, s["label"], z0, args.beta) * (w_good if s["label"] == "good" else w_bad)
+            else:
+                r, k = torch.zeros_like(m), torch.zeros_like(m)
+            sft = args.sft_weight * m if s["copy"] else torch.zeros_like(m)  # P / O: only the copied passes
             ((k + sft) * wt(s) / n_glob).backward()
-            stats += torch.tensor([k.item() * wt(s), sft.item() * wt(s), r.item() if s["label"] == "good" else 0, s["label"] == "good",
-                                   r.item() if s["label"] == "bad" else 0, s["label"] == "bad"], dtype=torch.float64, device=dev)
+            g_, b_ = s["kto"] and s["label"] == "good", s["kto"] and s["label"] == "bad"
+            stats += torch.tensor([k.item() * wt(s), sft.item() * wt(s), r.item() if g_ else 0, g_,
+                                   r.item() if b_ else 0, b_], dtype=torch.float64, device=dev)
         if dist.is_initialized():
             dist.all_reduce(stats)
         flat = torch.cat([(p.grad if p.grad is not None else torch.zeros_like(p)).flatten().to(dev) for p in params])
@@ -318,7 +347,7 @@ def main():
         step += 1
         kt, sf, rg, ngs, rb, nbs = stats.tolist()
         r_mean = (rg + rb) / max(ngs + nbs, 1)
-        if args.z0 == "kto":  # how far the policy has moved overall, never negative, detached
+        if args.z0 == "kto" and ngs + nbs > 0:  # how far the policy has moved overall, never negative, detached
             z0 = from_rank0(max(0.0, args.z0_ema * z0 + (1 - args.z0_ema) * r_mean), dev)
         loss = (kt + sf) / max(n_glob, 1)
         ema_loss = loss if ema_loss is None else 0.9 * ema_loss + 0.1 * loss
@@ -338,10 +367,10 @@ def main():
         if val and step % eval_every == 0 and step < plan["total"]:
             v = validate(f"step{step}")
             ok_nll = plan["nll0"] is None or v["nll_good"] <= plan["nll0"] * (1 + args.max_nll_rise)
-            if ok_nll and (plan["best"] is None or v["kto"] < plan["best"]):
-                plan["best"] = v["kto"]
+            if ok_nll and (plan["best"] is None or best_key(v) < plan["best"]):
+                plan["best"] = best_key(v)
                 save("best")
-                log(f"  new best validation KTO {v['kto']:.4f} -> saved as best", 0, rank)
+                log(f"  new best validation {'KTO' if val_kto else 'passes NLL (copy only)'} {best_key(v):.4f} -> saved as best", 0, rank)
             elif not ok_nll:
                 log(f"  passes' NLL {v['nll_good']:.4f} rose more than {args.max_nll_rise:.0%} above the start "
                     f"{plan['nll0']:.4f}: not a best candidate (the copy term is losing)", 0, rank)
@@ -359,8 +388,8 @@ def main():
     if val:
         v = validate("final")
         ok_nll = plan["nll0"] is None or v["nll_good"] <= plan["nll0"] * (1 + args.max_nll_rise)
-        if ok_nll and (plan["best"] is None or v["kto"] < plan["best"]):
-            plan["best"] = v["kto"]
+        if ok_nll and (plan["best"] is None or best_key(v) < plan["best"]):
+            plan["best"] = best_key(v)
             save("best")
     save("final")
     if rank == 0:

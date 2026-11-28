@@ -155,10 +155,16 @@ def main():
                     continue
                 label = meta.get("label") if role in ("all", meta.get("label")) else role
                 milestone = label == "good" and meta.get("label") == "bad"
+                weight = meta.get("weight_milestone", 0.0) if milestone else meta.get("weight", 1.0)
+                if f"weight_{label}" in meta:  # adapter O (pref_episodes --mode o): the weight belongs to the label, not the run
+                    weight = meta[f"weight_{label}"]
                 samples.append({"episode_id": key[0], "split": meta["split"], "category": meta.get("category"),
                                 "teacher": meta.get("teacher"), "segment": k, "n_segments": len(segs),
                                 "label": label, "task": meta.get("task"), "milestone": milestone,  # plan B (pref_episodes.py)
-                                "decision": dec[k], "weight": meta.get("weight_milestone", 0.0) if milestone else meta.get("weight", 1.0),
+                                # P / O flags: copy = the copy (SFT) term, kto = the good / bad term; old files: every good sample
+                                # is copied, every sample is in the KTO term
+                                "copy": bool(meta["copy"]) if "copy" in meta else label == "good", "kto": bool(meta.get("kto", True)),
+                                "decision": dec[k], "weight": weight,
                                 "replies": len(sp), "input_ids": torch.tensor(ids, dtype=torch.int32),
                                 "labels_mask": torch.tensor(lab, dtype=torch.bool)})
         if (n + 1) % 50 == 0 or n + 1 == len(recs):

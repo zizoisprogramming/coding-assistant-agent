@@ -81,4 +81,39 @@ labs = [s["label"] for s in sel]
 print(f"5. token budget 640 of {sum(len(s['input_ids']) for s in tr)}: {len(sel)} segments, good {labs.count('good')} bad "
       f"{labs.count('bad')}, tasks {len({s['task'] for s in sel})}; no budget keeps all {len(select_budget(tr, 0, 1))}")
 assert len(sel) == 10 and labs.count("good") == 5 and len({s["task"] for s in sel}) >= 5 and len(select_budget(tr, 0, 1)) == len(tr)
+
+# 6-7. adapters P and O (pref_episodes --mode p / o, build_samples' copy / kto flags)
+P_samples = [dict(s, copy=True, kto=False, episode_id=s["episode_id"] + "#copy") for s in samples if s["label"] == "good"]
+torch.save(P_samples, WORK / "samples_p.pt")
+O_samples = P_samples + [dict(s, copy=False, kto=True, weight=0.5) for s in samples]
+torch.save(O_samples, WORK / "samples_o.pt")
+
+
+def run_on(f, out, *extra):
+    cmd = [PY, TRAIN, "--model", CKPT, "--samples", str(WORK / f), "--out", str(out), "--attn", "eager",
+           "--lr", "3e-3", "--warmup", "2", "--epochs", "4", "--accum", "4", "--r", "4", "--alpha", "8", "--beta", "5",
+           "--evals", "3", "--save-every", "2", *extra]
+    p = subprocess.run(cmd, capture_output=True, text=True)
+    assert p.returncode == 0, p.stderr[-3000:]
+    return json.loads((Path(out) / "history.json").read_text()), p.stdout + p.stderr
+
+
+hp, logp = run_on("samples_p.pt", WORK / "p")
+vp = [x for x in hp if x["type"] == "val"]
+tp = [x for x in hp if x["type"] == "train"]
+print(f"6. P: '{'no reference pass' if 'no reference pass' in logp else 'REFERENCE PASS RAN'}' | passes' NLL "
+      f"{vp[0]['nll_good']:.4f} -> {vp[-1]['nll_good']:.4f} | KTO part max {max(abs(x['kto']) for x in tp):.4f} | best saved "
+      f"{(WORK / 'p' / 'best').exists()} ({'by passes NLL' if 'passes NLL (copy only)' in logp else 'NOT by NLL'})")
+assert "no reference pass" in logp and vp[-1]["nll_good"] < vp[0]["nll_good"] and max(abs(x["kto"]) for x in tp) == 0
+assert (WORK / "p" / "best" / "adapter_model.safetensors").exists() and "passes NLL (copy only)" in logp
+
+ho, logo = run_on("samples_o.pt", WORK / "o")
+vo = [x for x in ho if x["type"] == "val"]
+copy_line = next(l for l in logo.splitlines() if "copy " in l and "KTO " in l and "segments" in l)
+print(f"7. O: margin {vo[0]['margin']:+.4f} -> {vo[-1]['margin']:+.4f} | passes' NLL {vo[0]['nll_good']:.4f} -> "
+      f"{vo[-1]['nll_good']:.4f} | {copy_line.split('trained;')[1].split(')')[0].strip()}")
+assert abs(vo[0]["margin"]) < 1e-3 and vo[-1]["margin"] > 0.05 and vo[-1]["nll_good"] < vo[0]["nll_good"]
+n_copy_tr = sum(1 for s in O_samples if s["copy"] and s["split"] == "train")
+n_kto_tr = sum(1 for s in O_samples if s["kto"] and s["split"] == "train")
+assert f"copy {n_copy_tr}, KTO {n_kto_tr}" in copy_line, copy_line
 print("OK")

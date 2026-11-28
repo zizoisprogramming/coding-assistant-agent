@@ -337,6 +337,124 @@ def label_bad_replies(kept, sibling_edit_at, never_solved=False):
     return why
 
 
+# Adapters P and O (user 2026-11-26: 'two adapters P and O'; 'no difference between solved runs and failed runs';
+# docs/TRAINING_REQUIREMENTS.md C1 / C2):
+#  P (copy): per task the best-process passes (clean by the October filter + option C; most milestones, then fewest replies,
+#    then fastest), every reply trained good except a reply with a failed / refused call, a maxed-thinking reply, or a
+#    synthetic final reply (text we wrote, not the model) -> masked. Sample flags copy=True, kto=False.
+#  O (one rule, the SAME table in solved and failed runs): GOOD = the 6 milestones; BAD = reading on, maxed thinking before
+#    the first edit, the final edit of a FAILED run, junk text, a test-file edit; MASKED = a reply with a failed / refused /
+#    repeated call, a synthetic reply, a reply both good and bad (except: a milestone beats 'reading on'), every other reply.
+#    Weights by label, not by run: good 1 - p, bad p (p = the task's solve rate); a task every run solved: good and bad at
+#    --unpaired-weight; a task no run solved: good at --unpaired-weight, no bad (no solved sibling). Flags copy=False, kto=True.
+#    O's samples also hold P's copy episodes (the proven part), so P and O differ only by the labels.
+JUNK_TEXT = re.compile(r"\*{6,}|\n{8,}|<\|channel>|<channel\|>|<\|tool_call>|^\s*(get_status|submit_patch|run_command|read_file)\s*[{(]", re.M)
+
+
+def call_list(r):
+    out = []
+    for c in ((r.get("reply") or {}).get("message") or {}).get("tool_calls") or []:
+        fn = c.get("function") or {}
+        try:
+            a = json.loads(fn.get("arguments") or "{}") if isinstance(fn.get("arguments"), str) else (fn.get("arguments") or {})
+        except ValueError:
+            a = {}
+        out.append((fn.get("name"), a if isinstance(a, dict) else {}, c.get("id")))
+    return out
+
+
+def call_failed(nm, a, o):
+    return failed(nm, a, o) or (isinstance(o, dict) and o.get("error_type") == "BudgetExceeded")
+
+
+def copy_roles(kept):
+    """P: role 'good' on every reply except failed / refused calls, maxed thinking, synthetic replies. Returns counts."""
+    res = tool_results(kept)
+    why = collections.Counter()
+    for r in kept:
+        if not r["request"].get("tools"):
+            continue
+        bad = any(call_failed(nm, a, res.get(cid)) for nm, a, cid in call_list(r))
+        mx = thinking_tokens(r) >= MAXED_TOKENS
+        syn = bool((r.get("reply") or {}).get("synthetic"))
+        r["role"] = None if (bad or mx or syn) else "good"
+        why["copy: failed call masked"] += bad
+        why["copy: maxed thinking masked"] += mx and not bad
+        why["copy: synthetic reply masked"] += syn and not (bad or mx)
+        why["copy: good"] += r["role"] == "good"
+    return why
+
+
+def one_rule_roles(kept, patch, sib, solved, allow_bad=True):
+    """O: role per reply from the one table (see above). Returns {reason: replies}."""
+    label_milestones(kept, patch)  # the 2 fix milestones + the 4 process milestones (solved runs too)
+    recs = [r for r in kept if r["request"].get("tools")]
+    res = tool_results(kept)
+    edits_at = [i for i, r in enumerate(recs) if any(source_edit(nm, a) for nm, a in reply_calls(r, res))]
+    first_edit, last_edit = (edits_at[0], edits_at[-1]) if edits_at else (None, None)
+    dec = next((i for i, r in enumerate(recs) if r.get("decision")), None)
+    starts = [x for x in (dec, sib) if x is not None]
+    start = min(starts) if starts else None
+    stop = first_edit if first_edit is not None else len(recs)
+    why = collections.Counter()
+    last_use, applied = {}, 0
+    for i, r in enumerate(recs):
+        masked, bad = [], []
+        for nm, a, cid in call_list(r):
+            o = res.get(cid)
+            if call_failed(nm, a, o):
+                masked.append("failed / refused call")
+            key = nm + json.dumps(a, sort_keys=True)
+            if nm != "get_status" and last_use.get(key) == applied:
+                masked.append("repeat")
+            last_use[key] = applied
+            if nm in ("edit_file", "write_file") and TEST_FILE.search(str(a.get("filepath", a.get("path", "")))):
+                bad.append("test-file edit")
+            applied += source_edit(nm, a) and not call_failed(nm, a, o)
+        if (r.get("reply") or {}).get("synthetic"):
+            masked.append("synthetic reply")
+        if start is not None and start <= i < stop:
+            bad.append("reading on")
+        if (first_edit is None or i < first_edit) and thinking_tokens(r) >= MAXED_TOKENS:
+            bad.append("maxed thinking")
+        if not solved and i == last_edit:
+            bad.append("wrong edit")
+        msg = (r.get("reply") or {}).get("message") or {}
+        if JUNK_TEXT.search(str(msg.get("reasoning_content") or "")) or JUNK_TEXT.search(str(msg.get("content") or "")):
+            bad.append("junk text")
+        if not allow_bad:
+            bad = []
+        good = r.get("milestone")
+        if masked:
+            r["role"] = None
+            why["masked: " + masked[0]] += 1
+        elif good and bad and set(bad) <= {"reading on"}:
+            r["role"] = "good"  # a milestone is specific evidence the step was right: it beats the stretch label
+            why[f"good: {good}"] += 1
+        elif good and bad:
+            r["role"] = None
+            why["masked: both good and bad"] += 1
+        elif bad:
+            r["role"] = "bad"
+            for x in set(bad):
+                why[f"bad: {x}"] += 1
+        elif good:
+            r["role"] = "good"
+            why[f"good: {good}"] += 1
+        else:
+            r["role"] = None
+            why["masked: other step"] += 1
+        why["replies"] += 1
+    return why
+
+
+def copy_rank(e, patch):
+    """P's order inside a task: most milestones, then fewest replies, then fastest (lower is better)."""
+    tmp = [dict(r) for r in e["kept"]]
+    n_ms = len(label_milestones(tmp, patch))
+    return (-n_ms, sum(1 for r in e["kept"] if r["request"].get("tools")), e["agent_s"])
+
+
 def broken_rules(kept):
     """Clear-cut rule breaks in the trained part of a run (records kept after the cut)."""
     reads = tests = 0
@@ -424,6 +542,9 @@ def main():
     ap.add_argument("--max-repeats", type=int, default=3)
     ap.add_argument("--val-share", type=float, default=0.12)
     ap.add_argument("--milestone-weight", type=float, default=0.5, help="B: milestone replies of failed runs, x the task's good weight")
+    ap.add_argument("--mode", choices=["old", "p", "o"], default="old",
+                    help="old = the 11-26 labels; p = adapter P (copy the best passes); o = adapter O (P's copy + the one rule)")
+    ap.add_argument("--copy-per-task", type=int, default=1, help="P / O: best-process passes copied per task")
     a = ap.parse_args()
     global _TOK
     if a.tokenizer_dir:
@@ -471,16 +592,22 @@ def main():
                                                 ("no submit", not m["submitted"])] if b), None)
                 rd, te = broken_rules(kept)
                 bad_rule = bad_rule or ("reads code outside a.py" if rd else None) or ("edits a test file" if te else None)
-                if bad_rule:
+                if bad_rule and a.mode == "old":
                     why[f"good dropped: {bad_rule}"] += 1
                     continue
+                if bad_rule:  # P / O: never copied; O still labels its steps (user: label the step, do not leave the run out)
+                    why[f"pass not copyable: {bad_rule}"] += 1
+            else:
+                bad_rule = None
             m["decisions"] = flag_decisions(kept)
-            eps.append(dict(task=iid, attempt=key[1], label="good" if solved else "bad", kept=kept, m=m,
+            eps.append(dict(task=iid, attempt=key[1], label="good" if solved else "bad", kept=kept, m=m, clean=solved and not bad_rule,
                             agent_s=float(g.get("agent_s") or 0), src=str(d)))
             why["good" if solved else "bad"] += 1
     by = collections.defaultdict(lambda: {"good": [], "bad": []})
     for e in eps:
         by[e["task"]][e["label"]].append(e)
+    if a.mode != "old":
+        return write_p_o(a, by, runs_of, tasks, excl, why)
     bad_why = collections.Counter()
     for t, v in by.items():
         n = runs_of[t][True] + runs_of[t][False]
@@ -541,6 +668,55 @@ def main():
           f"{sum(1 for v in by.values() if v['good'] and not v['bad'])} | only failed: {sum(1 for v in by.values() if v['bad'] and not v['good'])}")
     print(f"KEPT {len(chosen)} episodes (cap {a.cap}/label/task): train good {C['train', 'good']} bad {C['train', 'bad']} | "
           f"val good {C['val', 'good']} bad {C['val', 'bad']} | repos {len({re.sub(r'[-_][0-9]+$', '', e['task']) for e in chosen})}")
+
+
+def write_p_o(a, by, runs_of, tasks, excl, why):
+    """Adapters P and O: the episodes, their roles and flags (see copy_roles / one_rule_roles)."""
+    out_eps, stats = [], collections.Counter()
+    for t, v in sorted(by.items()):
+        n = runs_of[t][True] + runs_of[t][False]
+        p = runs_of[t][True] / max(n, 1)
+        patch = tasks[t]["patch"]
+        clean = sorted((e for e in v["good"] if e["clean"]), key=lambda e: copy_rank(e, patch))[:a.copy_per_task]
+        for e in clean:  # the copy part (P, and O's copy term)
+            kept = [dict(r) for r in e["kept"]]
+            stats.update(copy_roles(kept))
+            out_eps.append((f"{t}#{Path(e['src']).name}#a{e['attempt']}#copy", e, kept,
+                            {"label": "good", "copy": True, "kto": False, "weight": 1.0}))
+        stats["copy episodes"] += len(clean)
+        stats["tasks with a copied pass"] += bool(clean)
+        if a.mode != "o":
+            continue
+        idx = sorted(x for x in (reply_index_of_first_edit(e["kept"]) for e in v["good"]) if x is not None)
+        sib = idx[len(idx) // 2] if idx else None  # by this reply the task's solved siblings had (median) edited
+        paired = 0 < p < 1
+        w_good = round(1 - p, 4) if paired else a.unpaired_weight
+        w_bad = round(p, 4) if paired else (a.unpaired_weight if p == 1 else 0.0)
+        for e in sorted(v["good"], key=lambda e: e["agent_s"])[:a.cap] + sorted(v["bad"], key=lambda e: e["attempt"])[:a.cap]:
+            kept = [dict(r) for r in e["kept"]]
+            stats.update(one_rule_roles(kept, patch, sib, solved=e["label"] == "good", allow_bad=w_bad > 0))
+            if not any(r.get("role") for r in kept):
+                stats["labelled episodes with no labelled reply (dropped)"] += 1
+                continue
+            out_eps.append((f"{t}#{Path(e['src']).name}#a{e['attempt']}#o", e, kept,
+                            {"label": "o", "copy": False, "kto": True, "weight": 1.0, "weight_good": w_good, "weight_bad": w_bad,
+                             "run_solved": e["label"] == "good"}))
+            stats["labelled episodes"] += 1
+    assert not {e["task"] for _, e, _, _ in out_eps} & excl, "a held-out task reached the training data"
+    assert len({eid for eid, _, _, _ in out_eps}) == len(out_eps), "episode ids must be unique"
+    out = Path(a.out)
+    out.mkdir(parents=True, exist_ok=True)
+    with open(out / "requests_pref.jsonl", "w") as fr, open(out / "status.jsonl", "w") as fs:
+        for eid, e, kept, meta in out_eps:
+            split = "val" if is_val(e["task"], a.val_share) else "train"
+            for r in kept:
+                fr.write(json.dumps(dict(r, episode_id=eid, attempt=e["attempt"])) + "\n")
+            fs.write(json.dumps(dict(meta, id=eid, attempt=e["attempt"], status="ok", split=split, task=e["task"],
+                                     category="pref", teacher=",".join(a.arms))) + "\n")
+    print(f"\nmode {a.mode}: runs {dict(why.most_common())}")
+    print(f"tasks {len(by)} | paired {sum(1 for v in by.values() if v['good'] and v['bad'])} | " +
+          " | ".join(f"{k} {v}" for k, v in sorted(stats.items())))
+    return stats
 
 
 if __name__ == "__main__":
