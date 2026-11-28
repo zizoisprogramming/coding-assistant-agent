@@ -32,6 +32,8 @@ def main():
     ap.add_argument("dirs", nargs="+")
     ap.add_argument("--arms", nargs="*", default=None)
     ap.add_argument("--tokenizer-dir", default=None)
+    ap.add_argument("--tasks", nargs="*", default=None, help="only these task ids")
+    ap.add_argument("--json", default=None, help="also write the per-arm numbers here (the final test's bars)")
     a = ap.parse_args()
     tok = None
     if a.tokenizer_dir:
@@ -43,7 +45,7 @@ def main():
         G = {}
         for l in open(Path(d) / "results/gen_per_task.jsonl"):
             g = json.loads(l)
-            if g.get("resolved") is not None and (not a.arms or g["arm"] in a.arms):
+            if g.get("resolved") is not None and (not a.arms or g["arm"] in a.arms) and (not a.tasks or g["instance_id"] in a.tasks):
                 G[g["instance_id"] + "#a" + str(g["attempt"])] = g
         by = collections.defaultdict(list)
         with open(Path(d) / "requests/requests.jsonl", errors="replace") as fh:
@@ -93,7 +95,7 @@ def main():
                     cmd = str(args.get("command", ""))
                     applied += (not bad) and (fn.get("name") == "edit_file" or (fn.get("name") == "run_command" and "a.py" not in cmd and bool(EDIT_RUN.search(cmd))))
                     submits += fn.get("name") == "submit_patch"
-            rows.append(dict(arm=g["arm"], ok=g["resolved"] in (True, "True"), patch=int(g.get("patch_chars") or 0), end=g.get("end"),
+            rows.append(dict(arm=g["arm"], task=g["instance_id"], ok=g["resolved"] in (True, "True"), patch=int(g.get("patch_chars") or 0), end=g.get("end"),
                              agent=float(g.get("agent_s") or 0), worst=worst, repeats=repeats, max_same=max(counts.values(), default=0),
                              submits=submits, maxed=maxed, stuck=stuck_runs, breaks=breaks))
     print(f"{'arm':14} {'runs':>4} {'solved':>7} {'no patch':>8} {'time':>5} {'agent s':>7} | {'streak2+':>8} {'streak4+':>8} {'longest':>7} | "
@@ -106,6 +108,17 @@ def main():
               f"{S.mean(r['agent'] for r in R):7.0f} | {pc(lambda r: r['worst'] >= 2):>8} {pc(lambda r: r['worst'] >= 4):>8} "
               f"{max(r['worst'] for r in R):7} | {S.mean(r['repeats'] for r in R):11.2f} {pc(lambda r: r['max_same'] >= 3):>12} | "
               f"{pc(lambda r: r['submits'] >= 3):>9} | {S.mean(r['maxed'] for r in R):9.2f} | {sum(r['stuck'] for r in R):10} {sum(r['breaks'] for r in R):6}")
+    if a.json:
+        out = {}
+        for arm in sorted({r["arm"] for r in rows}):
+            R = [r for r in rows if r["arm"] == arm]
+            n = len(R)
+            out[arm] = {"runs": n, "solved": sum(r["ok"] for r in R), "no_patch": sum(r["patch"] == 0 for r in R),
+                        "time": sum(r["end"] == "time" for r in R), "agent_s": S.mean(r["agent"] for r in R),
+                        "streak2_share": sum(r["worst"] >= 2 for r in R) / n, "same3_share": sum(r["max_same"] >= 3 for r in R) / n,
+                        "submit3": sum(r["submits"] >= 3 for r in R), "repeats_per_run": S.mean(r["repeats"] for r in R),
+                        "maxed_per_run": S.mean(r["maxed"] for r in R)}
+        Path(a.json).write_text(json.dumps(out, indent=1))
 
 
 if __name__ == "__main__":

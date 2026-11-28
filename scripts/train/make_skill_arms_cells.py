@@ -215,11 +215,35 @@ ARMS = ["sk_a2"]
 assert len(_MIX168) == len(_T168), "every rebench_final task has October mix runs"
 assert [len(s) for s in SHARDS] == _CAP168 and len(set(TASKS)) == sum(_CAP168) and not set(TASKS) & _HO168
 assert not {_T168[t]["repo"] for t in TASKS} & _HOREPO168
+# r169 FINAL TEST (user 2026-11-26: 'base vs P vs O in the same notebook'; bar agreed 2026-11-28: 'the rule is okay'): sk_a2 vs
+# sk_a2 + adapter P vs sk_a2 + adapter O on RTEST24 (decides) + the 8 held-out dev16 tasks (reported apart: same repos as the
+# fastapi / rich slice), 2 passes, ONE notebook; vLLM serves both adapters with the scorer's settings (max_lora_rank 128).
+# Inputs: as the arm runs (task set rebench-new-cp312: it holds RTEST24) + the two training outputs (adapter_p/best, adapter_o/best).
+OUT = ROOT / "kaggle/cells_skill_r169"
+_DEV8 = sorted(t for t in json.load(open(ROOT / "scripts/train/heldout_eval.json")) if t.startswith(("fastapi_", "rich_")))
+TASKS = sorted(RTEST24 + _DEV8)
+SHARDS = None
+SHARD_STOP_H = None
+STOP_H = 10.5
+PASSES = 2
+ADAPTER_ARMS = {"sk_a2_P": "p", "sk_a2_O": "o"}
+ARMS = ["sk_a2", "sk_a2_P", "sk_a2_O"]
+assert len(TASKS) == 32 and len(_DEV8) == 8 and set(TASKS) <= set(SPLIT_OF), sorted(set(TASKS) - set(SPLIT_OF))
+
+
+ADAPTER_ARMS = globals().get("ADAPTER_ARMS", {})  # r169 (final test, set in its block above): arm -> adapter name
 
 
 def arm_files(arm):
+    if arm in ADAPTER_ARMS:
+        f = arm_files("sk_a2")
+        f["agent.yaml"] = must_replace(f["agent.yaml"], "model: gemma-4-31b-it-qat-w4a16-ct\n",
+                                       f"model: gemma-4-31b-it-qat-w4a16-ct\nadapter: {ADAPTER_ARMS[arm]}\n")
+        return f
     base = ROOT / "submissions" / arm
-    return {p.relative_to(base).as_posix(): p.read_text() for p in sorted(base.rglob("*")) if p.is_file()}
+    files = {p.relative_to(base).as_posix(): p.read_text() for p in sorted(base.rglob("*")) if p.is_file()}
+    assert files and "agent.yaml" in files, f"arm {arm}: no submission files in {base}"
+    return files
 
 
 def gen_reference():
@@ -537,6 +561,89 @@ print('DIGEST on: one line per run after its result line (results/digest.jsonl)'
 '''
 
 
+ADAPTER_CELL2 = '''
+# r169 FINAL TEST: the trained adapters (training outputs adapter_<name>/best) into each adapter arm + one server folder.
+ADAPTER_ARMS = {adapter_arms!r}
+ALL_ADAPTERS = WORKING_DIR / 'all_adapters'
+shutil.rmtree(ALL_ADAPTERS, ignore_errors=True)
+for _arm, _name in ADAPTER_ARMS.items():
+    _ad = sorted(glob.glob(f'/kaggle/input/**/adapter_{{_name}}/best/adapter_config.json', recursive=True))
+    assert len(_ad) == 1, f'attach the {{_name.upper()}} training output (adapter_{{_name}}/best) exactly once; found {{_ad}}'
+    _src = Path(_ad[0]).parent
+    _cfg = json.loads((_src / 'adapter_config.json').read_text())
+    assert _cfg['r'] <= 128 and (_src / 'adapter_model.safetensors').exists(), f'{{_src}}: not a servable adapter'
+    for _dst in (SUB_ROOT / _arm / 'adapters' / _name, ALL_ADAPTERS / 'adapters' / _name):
+        shutil.copytree(_src, _dst, dirs_exist_ok=True)
+    print(f"{{_arm}}: adapter {{_name}} from {{_src}} | r {{_cfg['r']}} alpha {{_cfg['lora_alpha']}} | "
+          f"{{(_src / 'adapter_model.safetensors').stat().st_size / 1e6:.0f}} MB |",
+          [l for l in (SUB_ROOT / _arm / 'agent.yaml').read_text().splitlines() if l.startswith(('model:', 'adapter:'))], flush=True)
+_tot = sum(p.stat().st_size for a in ARMS for p in (SUB_ROOT / a).rglob('*') if p.is_file()) / len(ARMS)
+print(f'submission size per arm (mean): {{_tot / 1e6:.0f}} MB (the scorer allows < 3 GiB)')
+'''
+
+ADAPTER_CELL3 = '''
+# r169: both adapters served (the scorer's discover_adapters -> --lora-modules), and they change the model a little
+for _n in {names!r}:
+    assert _n in _served, f'vLLM does not serve adapter {{_n}}: stop and send me this output'
+def _ask(model):
+    body = {{'model': model, 'max_tokens': 60, 'temperature': 0, 'messages': [{{'role': 'user', 'content':
+            'You are fixing a bug in /workspace. What is your first tool call? Answer in one line.'}}]}}
+    req = _url.Request(_base + '/chat/completions', data=_json.dumps(body).encode(), headers={{'Content-Type': 'application/json'}})
+    return _json.load(_url.urlopen(req))['choices'][0]['message'].get('content')
+for _m in [str(MODEL_PATH)] + {names!r}:  # greedy: all answer sensibly, the adapters usually a little differently
+    print(f'{{_m[-30:]:>30}}:', repr(_ask(_m)), flush=True)
+'''
+
+BARS_CELL5 = '''
+# FINAL TEST BARS (agreed 2026-11-28: 'the rule is okay'; loop bars written 2026-11-26 before any result). Decided on
+# RTEST24 (unseen repos): solves >= base; no-patch and time-end shares <= base + 5 points; loop report (all 32 tasks) not
+# worse: streak 2+ and 'same call 3+' shares <= base + 5 points, submit 3+ <= base + 1 run, repeats / run and maxed / run
+# <= base x 1.2 (+ 0.05). Both pass -> the one with more RTEST24 solves; none -> sk_a2 stays.
+_code_dir = WORKING_DIR / 'bars_code'
+_code_dir.mkdir(exist_ok=True)
+for _n, _t in {code!r}.items():
+    (_code_dir / _n).write_text(_t)
+(_code_dir / 'mine_bank').mkdir(exist_ok=True)
+shutil.copy(_code_dir / 'loop_report.py', _code_dir / 'mine_bank' / 'loop_report.py')
+(_code_dir / 'train').mkdir(exist_ok=True)
+shutil.copy(_code_dir / 'selfdistill_episodes.py', _code_dir / 'train' / 'selfdistill_episodes.py')
+_rt = sorted(t for t in ROWS if SPLIT_OF.get(t) == 'rtest')
+BASE, ADAPTED = {base!r}, {adapter_arms!r}
+_lr = {{}}
+for _name, _tasks in (('rtest', _rt), ('all', sorted(ROWS))):
+    _tokdir = globals().get('MODEL_PATH')  # cell 3's model folder (tokenizer.json: thinking length in tokens)
+    _tok_args = ['--tokenizer-dir', str(_tokdir)] if _tokdir and (Path(_tokdir) / 'tokenizer.json').exists() else []
+    _p = subprocess.run([sys.executable, str(_code_dir / 'mine_bank' / 'loop_report.py'), str(WORKING_DIR), *_tok_args,
+                         '--json', str(WORKING_DIR / f'loop_{{_name}}.json'), '--tasks', *_tasks],
+                        capture_output=True, text=True)
+    print(f'LOOP REPORT ({{_name}}):\\n' + _p.stdout + _p.stderr[-1500:], flush=True)
+    _lr[_name] = json.loads((WORKING_DIR / f'loop_{{_name}}.json').read_text()) if _p.returncode == 0 else {{}}
+VERDICT = {{}}
+for _a in ADAPTED:
+    b, x, bl, xl = _lr['rtest'].get(BASE), _lr['rtest'].get(_a), _lr['all'].get(BASE), _lr['all'].get(_a)
+    if not (b and x and bl and xl):
+        print(f'{{_a}}: no numbers (runs missing): FAIL', flush=True)
+        VERDICT[_a] = False
+        continue
+    sh = lambda d, k: d[k] / max(d['runs'], 1)
+    bars = [('RTEST24 solves >= base', x['solved'] >= b['solved'], f"{{x['solved']}}/{{x['runs']}} vs {{b['solved']}}/{{b['runs']}}"),
+            ('no patch <= base + 5 pts', sh(x, 'no_patch') <= sh(b, 'no_patch') + 0.05, f"{{sh(x, 'no_patch'):.0%}} vs {{sh(b, 'no_patch'):.0%}}"),
+            ('time ends <= base + 5 pts', sh(x, 'time') <= sh(b, 'time') + 0.05, f"{{sh(x, 'time'):.0%}} vs {{sh(b, 'time'):.0%}}"),
+            ('streak 2+ <= base + 5 pts', xl['streak2_share'] <= bl['streak2_share'] + 0.05, f"{{xl['streak2_share']:.0%}} vs {{bl['streak2_share']:.0%}}"),
+            ('same call 3+ <= base + 5 pts', xl['same3_share'] <= bl['same3_share'] + 0.05, f"{{xl['same3_share']:.0%}} vs {{bl['same3_share']:.0%}}"),
+            ('submit 3+ <= base + 1 run', xl['submit3'] <= bl['submit3'] + 1, f"{{xl['submit3']}} vs {{bl['submit3']}}"),
+            ('repeats/run <= base x 1.2', xl['repeats_per_run'] <= bl['repeats_per_run'] * 1.2 + 0.05, f"{{xl['repeats_per_run']:.2f}} vs {{bl['repeats_per_run']:.2f}}"),
+            ('maxed/run <= base x 1.2', xl['maxed_per_run'] <= bl['maxed_per_run'] * 1.2 + 0.05, f"{{xl['maxed_per_run']:.2f}} vs {{bl['maxed_per_run']:.2f}}")]
+    for name, ok, info in bars:
+        print(f"  {{_a:8}} {{'PASS' if ok else 'FAIL'}}  {{name:30}} {{info}}", flush=True)
+    VERDICT[_a] = all(ok for _, ok, _ in bars)
+    print(f"{{_a}}: {{'PASSES ALL BARS' if VERDICT[_a] else 'FAILS'}} (RTEST24 solves {{x['solved']}} vs base {{b['solved']}})", flush=True)
+_pass = [a for a in ADAPTED if VERDICT.get(a)]
+_best = max(_pass, key=lambda a: _lr['rtest'][a]['solved'], default=None)
+print(f"\\nFINAL TEST DECISION: {{'submit ' + _best + ' (adapter in its submission folder)' if _best else 'keep sk_a2: no adapter passes'}}", flush=True)
+'''
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     src, comb = ROOT / "kaggle/cells_gen", ROOT / "kaggle/cells_gen_combined"
@@ -572,9 +679,16 @@ def main():
     c2 = must_replace(c2, host, host + BLOCK.format(passes=PASSES, arms=ARMS, early_stop_max=EARLY_STOP_MAX, pass2_if_beats=PASS2_IF_BEATS, info_arm=INFO_ARM, info_reports=INFO_REPORTS, info_tests=INFO_TESTS, arm_files={a: arm_files(a) for a in ARMS}, dev16=dev16,
                                                     mix_ref=mix_reference(), gen_ref=gen_reference(),
                                                     split_of={t: SPLIT_OF[t] for t in dev16}))
+    if ADAPTER_ARMS:  # r169: the trained adapters into each adapter arm's submission + one folder for the vLLM server
+        c2 += ADAPTER_CELL2.format(adapter_arms=ADAPTER_ARMS)
     (OUT / "cell2.py").write_text(c2 + "\n" + G.sandbox_env())
     (OUT / "cell2c_public_setup.py").write_text((comb / "cell2c_public_setup.py").read_text())
-    (OUT / "cell3.py").write_text(must_replace((src / "cell3.py").read_text(), "TARGET_MODEL_NAME = 'gemma-4-31b-it-qat-w4a16-ct'", f"TARGET_MODEL_NAME = {MODEL_NAME!r}"))  # vLLM as the scorer (LoRA on, no adapter)
+    c3 = must_replace((src / "cell3.py").read_text(), "TARGET_MODEL_NAME = 'gemma-4-31b-it-qat-w4a16-ct'", f"TARGET_MODEL_NAME = {MODEL_NAME!r}")
+    if ADAPTER_ARMS:  # r169: the scorer's way: discover_adapters on the adapters/ folder -> --lora-modules
+        c3 = must_replace(c3, "ADAPTERS = None  # no adapter in this notebook",
+                          "ADAPTERS = discover_adapters(str(ALL_ADAPTERS), adapter_extensions=ALLOWED_ADAPTER_EXTENSIONS)  # r169")
+        c3 = c3.rstrip("\n") + "\n" + ADAPTER_CELL3.format(names=sorted(ADAPTER_ARMS.values()))
+    (OUT / "cell3.py").write_text(c3)  # vLLM as the scorer (LoRA on, no adapter)
     (OUT / "cell3b_request_logger.py").write_text((src / "cell3b_request_logger.py").read_text().replace(
         "(training data: tagged task#attempt)", "(skill arms: tagged task#a<arm>.<pass>)") + DIGEST)
 
@@ -665,7 +779,12 @@ def main():
                           "            with open(RESULTS / 'digest.jsonl', 'a', encoding='utf-8') as fh:\n"
                           "                fh.write(json.dumps(dg) + '\\n')\n")
     (OUT / "cell4_run.py").write_text(c4)
-    (OUT / "cell5_summary.py").write_text(CELL5)
+    c5 = CELL5
+    if ADAPTER_ARMS:  # r169: the agreed bars, PASS / FAIL per adapter arm
+        c5 += BARS_CELL5.format(code={"loop_report.py": (ROOT / "scripts/mine_bank/loop_report.py").read_text(),
+                                      "selfdistill_episodes.py": (ROOT / "scripts/train/selfdistill_episodes.py").read_text()},
+                                base=ARMS[0], adapter_arms=[a for a in ARMS if a in ADAPTER_ARMS])
+    (OUT / "cell5_summary.py").write_text(c5)
     print("wrote", OUT.relative_to(ROOT), sorted(p.name for p in OUT.iterdir()))
 
 
