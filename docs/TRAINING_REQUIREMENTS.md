@@ -23,7 +23,7 @@ final test **base vs P vs O** in one notebook; then the LB.
 | id | requirement | why | checked by |
 |---|---|---|---|
 | B1 | Only sk_a2 runs (the submitted prompt), from r165, r166 (4 shards), r167 (2 shards). Nothing from Claude / GPT / Gemini (D14). | Train on the exact prompt we submit; user rule. | arm column = sk_a2 on every episode |
-| B2 | Every source notebook version is attached and complete: ziad23samer v119 (r165-A), v121 (r166 s1), v122 (r166 s4) and its r167 version; engziadsamer/arms-again r165-B, r166 s2, r167; ziadsamer r166 s3. | The requests.jsonl (the model's real inputs and outputs) live only there. | notebook prints runs per source and asserts each equals the count in our downloaded gen_per_task.jsonl |
+| B2 | (Add Input cannot pick old versions, user 2026-11-28: the COLLECTOR notebook kaggle/cells_collect fetches them, md5-checked against our local copies; its output is the one input.) Every source notebook version is present and complete: ziad23samer v119 (r165-A), v121 (r166 s1), v122 (r166 s4) and its r167 version; engziadsamer/arms-again r165-B, r166 s2, r167; ziadsamer r166 s3. | The requests.jsonl (the model's real inputs and outputs) live only there. | notebook prints runs per source and asserts each equals the count in our downloaded gen_per_task.jsonl |
 | B3 | No held-out task reaches training: RTEST24, data/rebench_test, the 8 dev16 test tasks (scripts/train/heldout_eval.json). | Otherwise the final test measures memory, not skill. | pref_episodes asserts; the notebook re-checks the final sample file's task ids against the list |
 | B4 | Only runs whose status is ok; infrastructure ends (sandbox crash, harness error) are dropped, not labelled. | An infra failure is not the model's fault. | counts printed per end type |
 | B5 | Training context = exactly what the model saw (prompt + its own replies + tool outputs, rendered with the model's chat template). | Training on a different text teaches a different situation. | build_samples' character check (each prompt extends the previous one) + count of breaks printed |
@@ -88,7 +88,7 @@ final test **base vs P vs O** in one notebook; then the LB.
 |---|---|---|---|
 | G1 | base vs P vs O in ONE notebook, same tasks, arms interleaved per task; RTEST24 decides; dev16 reported apart (repo overlap with training). | Same-run control (user rule). | report |
 | G2 | Expected ranges written BEFORE the run: base solve rate on RTEST24 from earlier data, and how big a gap 2 runs per task can detect (roughly 4-5 runs out of 48 per arm). | Judge luck vs effect (user rule). | PLAN entry before the run |
-| G3 | Bar agreed before the run (proposal): an adapter goes to the LB if it solves >= base on RTEST24, no-patch and time-end rates not up by > 5 points, and the loop report not worse. | Decide by rule, not by mood. | report prints PASS / FAIL per bar |
+| G3 | Bar AGREED (user 2026-11-28 'the rule is okay'): an adapter goes to the LB if it solves >= base on RTEST24, no-patch and time-end rates not up by > 5 points, and the loop report not worse; both pass -> the one with more solves; none -> sk_a2 stays. | Decide by rule, not by mood. | report prints PASS / FAIL per bar |
 | G4 | The test notebook ends by itself and prints per-run lines. | User rules. | the log |
 
 ## H. Full test sweep and debugging before the GPU handoff
@@ -108,6 +108,6 @@ Everything here runs on the laptop (CPU) before the user spends quota.
 ## Open questions for the user
 
 1. Weekly quota per account after the Saturday reset (we need: 2 training sessions + 1 test).
-2. Can "Add Input" pick an older version of a notebook? If not, the training notebook downloads the 9 versions with the Kaggle API (needs your token as a Kaggle secret).
+2. ANSWERED 11-28: Add Input cannot pick old versions -> collector notebook (kaggle/cells_collect).
 3. P's cap: K = 2 best passes per task, or more?
-4. The final-test bar G3: OK as written?
+4. ANSWERED 11-28: G3 agreed.
