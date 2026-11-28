@@ -116,4 +116,9 @@ assert abs(vo[0]["margin"]) < 1e-3 and vo[-1]["margin"] > 0.05 and vo[-1]["nll_g
 n_copy_tr = sum(1 for s in O_samples if s["copy"] and s["split"] == "train")
 n_kto_tr = sum(1 for s in O_samples if s["kto"] and s["split"] == "train")
 assert f"copy {n_copy_tr}, KTO {n_kto_tr}" in copy_line, copy_line
+fp = lambda log: next(l for l in log.splitlines() if "copy segments selected" in l).split("fingerprint ")[1].split()[0]
+hp2, logp2 = run_on("samples_p.pt", WORK / "p_budget", "--copy-tokens", "500", "--max-steps", "1")
+ho2, logo2 = run_on("samples_o.pt", WORK / "o_budget", "--copy-tokens", "500", "--train-tokens", "700", "--max-steps", "1")
+print(f"8. copy budget 500 tokens: P fingerprint {fp(logp2)} | O fingerprint {fp(logo2)}")
+assert fp(logp2) == fp(logo2), "P and O must copy the same segments"
 print("OK")

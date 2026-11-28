@@ -41,6 +41,13 @@ READ_CMD = re.compile(r"^\s*(cat|sed\s+-n|head|tail|grep|egrep|rg|less|nl|awk)\b
 TEST_FILE = re.compile(r"(^|/)(tests?/|test_[^/]*\.py$|conftest\.py$)")
 
 
+def is_test_path(path):
+    """A repository test file. Scratch files under .git/ (sk_a2's .git/agent/ work area) or /tmp never reach the patch:
+    2026-11-28, found in the label gallery: .git/agent/test_regex.py (a scratch script) was labelled a test-file edit."""
+    path = str(path)
+    return bool(TEST_FILE.search(path)) and "/.git/" not in "/" + path and not path.startswith("/tmp")
+
+
 # Decision moments (user 2026-11-25: 'add the 2x weight on decision moments'): the reply to the FIRST harness budget warning
 # and the reply to the FIRST a.py banner that arrive while the run has NO source edit yet (scripts/mine_bank/mechanism_obeyed.py:
 # obeying the budget warning goes with solving on the same task, 24+/6-). Flagged on the record (record['decision'] = True);
@@ -378,6 +385,8 @@ def copy_roles(kept):
         mx = thinking_tokens(r) >= MAXED_TOKENS
         syn = bool((r.get("reply") or {}).get("synthetic"))
         r["role"] = None if (bad or mx or syn) else "good"
+        r["why"] = ("copy masked: failed call" if bad else "copy masked: maxed thinking" if mx else
+                    "copy masked: synthetic reply" if syn else "copy: good")
         why["copy: failed call masked"] += bad
         why["copy: maxed thinking masked"] += mx and not bad
         why["copy: synthetic reply masked"] += syn and not (bad or mx)
@@ -408,7 +417,7 @@ def one_rule_roles(kept, patch, sib, solved, allow_bad=True):
             if nm != "get_status" and last_use.get(key) == applied:
                 masked.append("repeat")
             last_use[key] = applied
-            if nm in ("edit_file", "write_file") and TEST_FILE.search(str(a.get("filepath", a.get("path", "")))):
+            if nm in ("edit_file", "write_file") and is_test_path(a.get("filepath", a.get("path", ""))):
                 bad.append("test-file edit")
             applied += source_edit(nm, a) and not call_failed(nm, a, o)
         if (r.get("reply") or {}).get("synthetic"):
@@ -426,24 +435,22 @@ def one_rule_roles(kept, patch, sib, solved, allow_bad=True):
             bad = []
         good = r.get("milestone")
         if masked:
-            r["role"] = None
-            why["masked: " + masked[0]] += 1
+            r["role"], r["why"] = None, "masked: " + masked[0]
         elif good and bad and set(bad) <= {"reading on"}:
-            r["role"] = "good"  # a milestone is specific evidence the step was right: it beats the stretch label
-            why[f"good: {good}"] += 1
+            r["role"], r["why"] = "good", f"good: {good}"  # a milestone is specific evidence the step was right: it beats the stretch label
         elif good and bad:
-            r["role"] = None
-            why["masked: both good and bad"] += 1
+            r["role"], r["why"] = None, "masked: both good and bad"
         elif bad:
-            r["role"] = "bad"
+            r["role"], r["why"] = "bad", "bad: " + " + ".join(sorted(set(bad)))
+        elif good:
+            r["role"], r["why"] = "good", f"good: {good}"
+        else:
+            r["role"], r["why"] = None, "masked: other step"
+        if r["role"] == "bad":
             for x in set(bad):
                 why[f"bad: {x}"] += 1
-        elif good:
-            r["role"] = "good"
-            why[f"good: {good}"] += 1
         else:
-            r["role"] = None
-            why["masked: other step"] += 1
+            why[r["why"]] += 1
         why["replies"] += 1
     return why
 
@@ -471,7 +478,7 @@ def broken_rules(kept):
                 reads += 1
             if fn.get("name") == "run_command" and READ_CMD.search(cmd) and "a.py" not in cmd:
                 reads += 1
-            if fn.get("name") in ("edit_file", "write_file") and TEST_FILE.search(path):
+            if fn.get("name") in ("edit_file", "write_file") and is_test_path(path):
                 tests += 1
     return reads, tests
 
@@ -584,7 +591,14 @@ def main():
                 continue
             solved = g["resolved"] in (True, "True")
             runs_of[iid][solved] += 1
-            m, kept = analyse(rs, dict(g, resolved=solved), tasks[iid], patches.get(key, ""))
+            try:
+                m, kept = analyse(rs, dict(g, resolved=solved), tasks[iid], patches.get(key, ""))
+                m["decisions"] = flag_decisions(kept)
+            except Exception as ex:  # noqa: BLE001  one odd run is counted and skipped, never stops the build
+                why[f"error {type(ex).__name__} (run skipped)"] += 1
+                if why[f"error {type(ex).__name__} (run skipped)"] <= 3:
+                    print(f"  skipped {iid} {key[1]}: {ex!r}"[:300], flush=True)
+                continue
             if solved:
                 bad_rule = next((w for w, b in [("edits tests", m["test_files_edited"]), ("leaves scratch files", m["scratch_files"]),
                                                 ("fail streak", m["max_fail_streak"] > a.max_fail_streak),
@@ -599,7 +613,6 @@ def main():
                     why[f"pass not copyable: {bad_rule}"] += 1
             else:
                 bad_rule = None
-            m["decisions"] = flag_decisions(kept)
             eps.append(dict(task=iid, attempt=key[1], label="good" if solved else "bad", kept=kept, m=m, clean=solved and not bad_rule,
                             agent_s=float(g.get("agent_s") or 0), src=str(d)))
             why["good" if solved else "bad"] += 1
@@ -677,7 +690,11 @@ def write_p_o(a, by, runs_of, tasks, excl, why):
         n = runs_of[t][True] + runs_of[t][False]
         p = runs_of[t][True] / max(n, 1)
         patch = tasks[t]["patch"]
-        clean = sorted((e for e in v["good"] if e["clean"]), key=lambda e: copy_rank(e, patch))[:a.copy_per_task]
+        try:
+            clean = sorted((e for e in v["good"] if e["clean"]), key=lambda e: copy_rank(e, patch))[:a.copy_per_task]
+        except Exception as ex:  # noqa: BLE001
+            stats[f"error ranking passes {type(ex).__name__} (task's copy skipped)"] += 1
+            clean = []
         for e in clean:  # the copy part (P, and O's copy term)
             kept = [dict(r) for r in e["kept"]]
             stats.update(copy_roles(kept))
@@ -694,7 +711,11 @@ def write_p_o(a, by, runs_of, tasks, excl, why):
         w_bad = round(p, 4) if paired else (a.unpaired_weight if p == 1 else 0.0)
         for e in sorted(v["good"], key=lambda e: e["agent_s"])[:a.cap] + sorted(v["bad"], key=lambda e: e["attempt"])[:a.cap]:
             kept = [dict(r) for r in e["kept"]]
-            stats.update(one_rule_roles(kept, patch, sib, solved=e["label"] == "good", allow_bad=w_bad > 0))
+            try:
+                stats.update(one_rule_roles(kept, patch, sib, solved=e["label"] == "good", allow_bad=w_bad > 0))
+            except Exception as ex:  # noqa: BLE001
+                stats[f"error labelling {type(ex).__name__} (run skipped)"] += 1
+                continue
             if not any(r.get("role") for r in kept):
                 stats["labelled episodes with no labelled reply (dropped)"] += 1
                 continue

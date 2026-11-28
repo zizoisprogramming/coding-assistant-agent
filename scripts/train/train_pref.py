@@ -161,8 +161,13 @@ def main():
         f, _, cap = spec.partition(":") if not Path(spec).exists() else (spec, "", "")
         part = [s for s in torch.load(f) if s.get("label") in ("good", "bad") and int(s["labels_mask"].sum()) > 0
                 and float(s.get("weight", 1.0)) > 0]
-        if cap:
-            part = select_budget([s for s in part if s["split"] == "train"], int(cap), args.seed) + [s for s in part if s["split"] == "val"]
+        for s in part:  # P / O flags (build_samples.py); old files: every good sample is copied, every sample is in KTO
+            s["copy"] = bool(s["copy"]) if "copy" in s else s["label"] == "good"
+            s["kto"] = bool(s.get("kto", True))
+        if cap:  # the cap applies to the copy-only part and to the KTO part separately (P and O then copy the same passes)
+            tr_ = [s for s in part if s["split"] == "train"]
+            part = (select_budget([s for s in tr_ if s["copy"] and not s["kto"]], int(cap), args.seed) +
+                    select_budget([s for s in tr_ if s["kto"]], int(cap), args.seed) + [s for s in part if s["split"] == "val"])
         log(f"samples {Path(f).name}: {len(part)} segments, {sum(len(s['input_ids']) for s in part) / 1e6:.2f}M tokens"
             f"{' (train capped at ' + cap + ' tokens)' if cap else ''}", 0, int(os.environ.get('RANK', 0)))
         samples += part
@@ -172,9 +177,6 @@ def main():
                and float(s.get("weight", 1.0)) > 0]  # weight 0 = a task every run solved (or failed): no same-task signal
     for i, s in enumerate(samples):
         s["idx"] = i
-    for s in samples:  # P / O flags (build_samples.py); old files: every good sample is copied, every sample is in KTO
-        s["copy"] = bool(s["copy"]) if "copy" in s else s["label"] == "good"
-        s["kto"] = bool(s.get("kto", True))
     only_copy = lambda xs: [s for s in xs if s["copy"] and not s["kto"]]
     with_kto = lambda xs: [s for s in xs if s["kto"]]
     train = (select_budget(with_kto([s for s in samples if s["split"] == "train"]), args.train_tokens, args.seed) +
@@ -184,6 +186,11 @@ def main():
     samples = train + val  # the reference pass covers only what is used
     for i, s in enumerate(samples):
         s["idx"] = i
+    import hashlib
+    _cp = sorted(f"{s['episode_id']}|{s.get('segment', 0)}|{len(s['input_ids'])}" for s in samples if s["copy"])
+    _fp = hashlib.md5("\n".join(_cp).encode()).hexdigest()[:12]
+    log(f"copy segments selected: {len(_cp)} (train + val), fingerprint {_fp} "
+        f"(P and O must print the same)", 0, int(os.environ.get('RANK', 0)))
     kto_items = [s for s in samples if s["kto"]]
     for i, s in enumerate(kto_items):
         s["ridx"] = i
